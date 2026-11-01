@@ -2,13 +2,13 @@
 
 Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada fase.
 
-**Fase atual:** 00 · Fundação técnica — em andamento.
+**Fase atual:** 00 · Fundação técnica — em andamento (pendências de conta/infra). 01 · banco de acesso em desenvolvimento.
 **Próximo passo:** Adriano revisar ADRs e modelo de ameaças; criar contas (Supabase Pro, Vercel, Railway, Sentry, Healthchecks.io); proteger `main`. Em paralelo: spec da Fase 01 (`/spec 01`).
 
 | Onda | Fase | Nome | Horas est. | Spec | Status |
 | --- | --- | --- | --- | --- | --- |
 | 1 | 00 | Fundação técnica | ~30 h | [fase-00](specs/fase-00.md) · Em revisão | 🟡 em andamento |
-| 1 | 01 | Arquitetura, segurança e acessos | ~60 h | — | ⚪ não iniciada |
+| 1 | 01 | Arquitetura, segurança e acessos | ~60 h | [fase-01](specs/fase-01.md) · Rascunho | 🟡 PR 1 (banco) em revisão |
 | 2 | 02 | Empresas, representantes e produtos | ~50 h | — | ⚪ |
 | 2 | 03 | Gestão documental e certidões | ~60 h | — | ⚪ |
 | 2 | 05 | Agenda e prazos jurídicos ★ MVP | ~70 h | — | ⚪ bloqueada: planilha atual |

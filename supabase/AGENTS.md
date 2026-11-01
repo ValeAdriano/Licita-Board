@@ -16,8 +16,8 @@ Complementa o `AGENTS.md` da raiz. **Esta é a parte que não perdoa erro**: tod
 
 1. Criar com `npx supabase migration new <nome_em_snake_case>`. Um assunto por migration.
 2. Migration no `main` é **imutável**. Corrigiu? Nova migration.
-3. Toda tabela: `alter table ... enable row level security;` na mesma migration. O teste `000_rls_ligado` falha se esquecer.
-4. Tabela privada: `empresa_id uuid not null references core.empresas(id)`, índice em `empresa_id`, colunas padrão (`id uuid default extensions.uuid_generate_v7()` ou equivalente definido na Fase 01, `created_at`, `updated_at`, `created_by`, `deleted_at`), triggers de `updated_at` e auditoria.
+3. Toda tabela: `alter table ... enable row level security;` na mesma migration. O teste `001_rls_ligado` falha se esquecer.
+4. Tabela privada: `empresa_id uuid not null references core.empresas(id)`, índice em `empresa_id`, colunas padrão (`id uuid default core.uuid_v7()`, `created_at`, `updated_at`, `created_by`, `deleted_at`), triggers de `updated_at` e auditoria.
 5. Policies separadas por operação (`select`, `insert`, `update`, `delete`), todas via `core.has_permission`. `insert`/`update` com `with check` igual ao `using`. Nunca `using (true)` em `priv`.
 6. Grants explícitos: o projeto usa `auto_expose_new_tables = false`.
 7. Funções `security definer` com `set search_path = ''` e nomes qualificados.
@@ -27,9 +27,10 @@ Complementa o `AGENTS.md` da raiz. **Esta é a parte que não perdoa erro**: tod
 
 ## Testes (pgTAP)
 
-- `tests/000_rls_ligado.test.sql`: guarda global (toda tabela com RLS, nenhuma policy de `anon` em `priv`/`audit`).
+- `tests/001_rls_ligado.test.sql`: guarda global (toda tabela com RLS, nenhuma policy de `anon` em `priv`/`audit`).
 - `tests/isolamento/<schema>_<tabela>.test.sql`: obrigatório para cada tabela de `priv` (o CI confere com `scripts/check_isolation_coverage.py`). Base: `tests/isolamento/_modelo.sql.example`.
-- Rodar: `npx supabase test db` (Docker necessário).
+- Rodar: `npx supabase test db` (Docker necessário). Sem Docker: `scripts/db-local/test.sh` com um Postgres 16+ local e pgTAP (stub mínimo do Supabase; o CI continua sendo a referência).
+- `tests/000_helpers.test.sql` instala o schema `tests` (empresas A/B, `tests.autenticar_como(usuario, aal)`, `tests.sair()`); use esses helpers em todo teste novo.
 
 ## Remoto
 

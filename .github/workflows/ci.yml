@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   guardas:
-    name: Guardas (isolamento, hooks, segredos, SAST)
+    name: "Guardas (isolamento, hooks, segredos, SAST)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -49,7 +49,7 @@ jobs:
             --config p/python --config p/typescript --config p/react --config p/secrets
 
   web:
-    name: Web (lint, typecheck, testes, build, audit)
+    name: "Web (lint, typecheck, testes, build, audit)"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -69,7 +69,7 @@ jobs:
       - run: npm audit --audit-level=high --omit=dev
 
   worker:
-    name: Worker (ruff, mypy, pytest, pip-audit)
+    name: "Worker (ruff, mypy, pytest, pip-audit)"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -87,7 +87,7 @@ jobs:
       - run: uv run pip-audit --skip-editable
 
   banco:
-    name: Banco (pgTAP: RLS e isolamento)
+    name: "Banco (pgTAP: RLS e isolamento)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

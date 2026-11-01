@@ -93,6 +93,7 @@ npx supabase start                     # sobe stack local
 npx supabase migration new <nome>      # cria migration vazia com timestamp
 npx supabase db reset                  # SÓ local: recria o banco a partir das migrations + seed
 npx supabase test db                   # roda pgTAP (supabase/tests)
+scripts/db-local/test.sh               # sem Docker: Postgres 16+ local com pgTAP (PGPORT, PSQL)
 npx supabase gen types typescript --local > packages/shared/src/database.types.ts
 
 # Guardas (rodam no CI)

@@ -64,6 +64,7 @@ class GuardTest(unittest.TestCase):
             "git push -f",
             "npx supabase db reset --linked",
             "npx supabase db push",
+            "npx supabase test db --linked",
             "psql -c 'drop schema priv cascade'",
             "rm -rf /",
             "rm -rf .",
@@ -75,7 +76,7 @@ class GuardTest(unittest.TestCase):
                 self.assertAsks(run("Bash", {"command": cmd}))
 
     def test_bash_comum_liberado(self) -> None:
-        for cmd in ["npx supabase db reset", "rm -rf ./node_modules", "git push origin feat/x", "railway logs", "uv run pytest"]:
+        for cmd in ["npx supabase db reset", "npx supabase test db", "rm -rf ./node_modules", "git push origin feat/x", "railway logs", "uv run pytest"]:
             with self.subTest(cmd=cmd):
                 self.assertAllowed(run("Bash", {"command": cmd}))
 

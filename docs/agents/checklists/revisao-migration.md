@@ -45,4 +45,4 @@ Para o agente (auto-revisão) e para o Adriano (revisão linha a linha).
 - [ ] Isolamento A x B por tabela de `priv` (SELECT/INSERT/UPDATE/DELETE + mover empresa).
 - [ ] Positivo e negativo por ação de permissão.
 - [ ] Constraints testadas (ex.: CNPJ inválido rejeitado).
-- [ ] `000_rls_ligado` continua verde.
+- [ ] `001_rls_ligado` continua verde.

@@ -30,6 +30,7 @@ DESTRUCTIVE_BASH = [
     (re.compile(r"git\s+clean\s+-[a-z]*f"), "git clean -f"),
     (re.compile(r"supabase\s+db\s+reset\b.*--linked"), "reset do banco REMOTO"),
     (re.compile(r"supabase\s+db\s+push\b"), "push de migrations para projeto remoto"),
+    (re.compile(r"supabase\s+test\s+db\b.*--linked"), "testes (com helpers de teste) no banco REMOTO"),
     (re.compile(r"supabase\s+(projects|branches)\s+delete\b"), "exclusão de projeto/branch Supabase"),
     (re.compile(r"\bdrop\s+(database|schema)\b", re.IGNORECASE), "DROP DATABASE/SCHEMA"),
     (re.compile(r"\btruncate\b", re.IGNORECASE), "TRUNCATE"),

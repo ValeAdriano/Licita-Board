@@ -7,7 +7,7 @@ Checklist usado antes de cada liberação (Prompt Mestre 1.4). Não substitui o 
 | V2 Autenticação | Senha ≥ 12, leaked password protection, MFA TOTP obrigatório por perfil, rate limit do Auth | `supabase/config.toml` + config do projeto Pro + teste e2e de login sem MFA bloqueado |
 | V2 Recuperação | Token de uso único, 30 min, mensagem neutra | Teste e2e com e-mail inexistente → mesma mensagem |
 | V3 Sessão | JWT 15 min, refresh rotativo, time-box 12 h, inatividade 30 min, "sair de todos" | Config Auth + teste de logout global |
-| V4 Controle de acesso | RLS + `has_permission`, negar por padrão, worker valida `empresa_id` | pgTAP A x B + `000_rls_ligado` + testes do worker |
+| V4 Controle de acesso | RLS + `has_permission`, negar por padrão, worker valida `empresa_id` | pgTAP A x B + `001_rls_ligado` + testes do worker |
 | V4 Operação crítica | Step-up MFA (token 5 min) | Teste: operação sem token recente falha |
 | V5 Validação | Zod no front, constraints no banco, Pydantic no worker | Testes de constraint |
 | V5 Saída | Sem `dangerouslySetInnerHTML`, CSP estrita | Semgrep + headers da Vercel |

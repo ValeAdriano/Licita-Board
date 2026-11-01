@@ -1,0 +1,131 @@
+# Spec · Fase 01 · Arquitetura, segurança e controle de acessos
+
+- **Status:** Rascunho — a base de banco (PR 1) segue o modelo do plano aprovado; telas e regras abertas aguardam aprovação
+- **Onda:** 1 — Fundação
+- **Autor:** Claude Code · **Aprovação:** pendente (Adriano Vale)
+- **Validação jurídica:** LGPD (contrato operador/controlador) — pendente
+- **Fontes:** Prompt Mestre Fase 01 (1.1–1.5); Plano, Fase 01 e "Modelo de dados núcleo e RLS"; ADR-002, ADR-003, ADR-009, ADR-010
+
+## 1. Escopo
+
+**Entra:** schemas e helpers do banco, auditoria imutável, empresas (campos mínimos), usuários, vínculos, permissões, `has_permission()`, MFA no RLS, step-up, login/recuperação/MFA/sessões no front, shell do app, matriz de permissões, exclusão definitiva com dupla aprovação, PWA base, inventário LGPD, backup externo com restauração testada.
+
+**Não entra:** campos completos de empresa, dados bancários/PIX, representantes (Fase 02); documentos e storage (Fase 03); qualquer tabela de `priv` (a partir da Fase 02).
+
+## 2. Requisitos
+
+| ID | Requisito | Origem |
+| --- | --- | --- |
+| RF-01.1 | Schemas `core`, `pub`, `priv`, `ops`, `audit`; UUID v7; `updated_at` automático | Plano; Prompt 1.4 (UUID) |
+| RF-01.2 | `audit.audit_log` insert-only: quem, o quê, quando, IP, empresa, antes/depois; ninguém altera ou apaga | Prompt 1.4 Auditoria |
+| RF-01.3 | `core.empresas` com CNPJ validado por dígito verificador (numérico e alfanumérico) | Prompt 2.1, 1.4 |
+| RF-01.4 | Perfis SUPERADMIN, ADMIN_EMPRESA, OPERADOR, JURÍDICO, CLIENTE | Prompt 1.2 |
+| RF-01.5 | Matriz por empresa × módulo × 12 ações, negar por padrão | Prompt 1.3 |
+| RF-01.6 | Isolamento em duas camadas; teste A x B | Prompt 1.4 |
+| RF-01.7 | MFA obrigatório para perfis internos (exigido no RLS) | Prompt 1.4; ADR-002 |
+| RF-01.8 | Step-up MFA (token de 5 min) para operações críticas | Prompt 1.4 Operações críticas |
+| RF-01.9 | Exclusão definitiva só SUPERADMIN, com dupla aprovação | Prompt 1.3 |
+| RF-01.10 | Login, recuperação neutra, MFA, sessões ativas, sair de todos | Prompt 1.1, 1.4 |
+| RF-01.11 | Shell: menu lateral (desktop) / bottom nav (mobile), notificações, configurações, seletor de empresa | Prompt 1.1; Plano |
+| RF-01.12 | PWA base: manifest, ícones, service worker, tela offline | ADR-010 |
+| RF-01.13 | Backup semanal externo + restauração testada | Prompt 1.4 Backup |
+| RF-01.14 | Inventário LGPD e minuta operador/controlador | Prompt 1.5 |
+
+## 3. Modelo de dados (PR 1 · implementado)
+
+### Convenções
+
+- `core.uuid_v7()` gera os IDs (Postgres 17 não tem `uuidv7()` nativo).
+- `core.set_updated_at()` em toda tabela com `updated_at`.
+- `audit.registrar()` em toda tabela de `core` e `priv`. O argumento opcional diz qual coluna é a empresa (padrão `empresa_id`; `id` em `core.empresas`).
+
+### `core.empresas` (mínimo; Fase 02 completa)
+
+| Coluna | Tipo | Regra |
+| --- | --- | --- |
+| id | uuid | PK, v7 |
+| razao_social | text | não nulo, 2–200 caracteres |
+| nome_fantasia | text | opcional |
+| cnpj | text | 14 caracteres, maiúsculo, sem máscara, único, `core.cnpj_valido()`; **não editável pela API** |
+| ativo | boolean | padrão true |
+| created_at, updated_at, created_by, deleted_at | | padrão |
+
+### `core.usuarios` (perfil 1:1 de `auth.users`, criado por trigger)
+
+| Coluna | Tipo | Regra |
+| --- | --- | --- |
+| id | uuid | PK = `auth.users.id` |
+| nome, email, telefone | text | |
+| oab | text | opcional (perfil JURÍDICO) |
+| superadmin | boolean | padrão false; **não editável** pelo próprio usuário (grant por coluna) |
+| ativo | boolean | padrão true |
+
+### `core.vinculos` (usuário × empresa × papel)
+
+`usuario_id`, `empresa_id`, `papel` ∈ {ADMIN_EMPRESA, OPERADOR, JURIDICO, CLIENTE}, `ativo`, colunas padrão. Único por (usuário, empresa) enquanto não excluído. `usuario_id` e `empresa_id` são imutáveis pela API. `usuario_id` é RESTRICT: usuário nunca é apagado, só desativado/anonimizado (RPC futura, LGPD).
+
+### `core.modulos` e `core.permissoes`
+
+- `core.modulos(slug, nome, ordem)`: catálogo de módulos (empresas, usuarios, permissoes, auditoria, representantes, produtos, documentos, agenda, editais, analises, precos, propostas, juridico, contratos, financeiro, relatorios, configuracoes).
+- `core.permissoes(vinculo_id, empresa_id, modulo, acao)`: uma linha por permissão concedida. FK composta `(vinculo_id, empresa_id)` garante que a empresa é a do vínculo. `acao` ∈ {visualizar, cadastrar, editar, arquivar, substituir_arquivos, gerar_documentos, ver_custos_margens, elaborar_peca, aprovar_peca, aprovar, exportar, administrar_permissoes}. Sem linha = negado.
+
+### Funções de autorização
+
+| Função | Regra |
+| --- | --- |
+| `core.mfa_ok()` | `auth.jwt()->>'aal' = 'aal2'` |
+| `core.is_superadmin()` | usuário ativo com `superadmin = true` **e** MFA |
+| `core.has_permission(empresa, modulo, acao)` | vínculo ativo + usuário ativo + empresa ativa + permissão na tabela + MFA (CLIENTE dispensa MFA **só para visualizar**), ou SUPERADMIN |
+| `core.cnpj_valido(text)` | 12 caracteres `[0-9A-Z]` + 2 dígitos; DV módulo 11 com valor do caractere = ASCII − 48 (regra da Receita para o CNPJ alfanumérico, que também vale para o numérico); rejeita sequência repetida |
+
+### RLS
+
+| Tabela | select | insert | update | delete |
+| --- | --- | --- | --- | --- |
+| core.empresas | `has_permission(id,'empresas','visualizar')` | SUPERADMIN | `has_permission(id,'empresas','editar')`, só `razao_social`/`nome_fantasia` | ninguém (soft delete via RPC) |
+| core.usuarios | o próprio, SUPERADMIN, ou quem tem `usuarios/visualizar` numa empresa em comum | ninguém (trigger) | o próprio (só nome, telefone, oab) ou SUPERADMIN | ninguém |
+| core.vinculos | o próprio ou `usuarios/visualizar` na empresa | SUPERADMIN (convite com aceite em PR futuro) | `permissoes/administrar_permissoes`, só `papel`/`ativo` | ninguém |
+| core.permissoes | do próprio vínculo ou `permissoes/visualizar` na empresa | `permissoes/administrar_permissoes` | ninguém (revogar = delete) | `permissoes/administrar_permissoes` |
+| core.modulos | autenticado | ninguém | ninguém | ninguém |
+| audit.audit_log | SUPERADMIN ou `auditoria/visualizar` na empresa | ninguém (só trigger) | bloqueado por trigger, inclusive para o dono | bloqueado por trigger |
+
+## 4. Regras de negócio
+
+1. Negar por padrão: sem linha em `core.permissoes`, não há acesso. Não existe permissão implícita por papel no banco.
+2. Revogação vale na próxima consulta (permissões não ficam no JWT).
+3. Usuário ou vínculo inativo, ou empresa arquivada (`deleted_at`), não acessa nada.
+4. Perfis internos sem `aal2` não acessam dado da empresa; CLIENTE pode usar `aal1` (ADR-002).
+5. Auditoria ignora UPDATE que só muda `updated_at`.
+6. CLIENTE só recebe a ação `visualizar` (trigger); mudar um vínculo para CLIENTE exige remover antes as permissões de escrita.
+7. Dado pessoal de `core.usuarios` (nome, e-mail, telefone, OAB) é gravado como `[redigido]` na auditoria, que é imutável.
+8. IP da auditoria é indício: `cf-connecting-ip` → `x-real-ip` → 1º `x-forwarded-for`.
+9. Colunas sensíveis (CNPJ, `ativo`, `deleted_at`, `created_by`, `superadmin`, `usuario_id`, `empresa_id`) não são graváveis pela API: grants por coluna. Mudanças vão por RPC com step-up (PR 2).
+
+## 5. Plano de PRs
+
+1. **Este PR** · `feat/fase-01-fundacao-banco`: RF-01.1 a RF-01.7 no banco + helpers de teste + pgTAP.
+2. `feat/fase-01-step-up`: `core.step_up_tokens`, `core.exigir_step_up()`, dupla aprovação (`core.aprovacoes_pendentes`).
+3. `feat/fase-01-auth-front`: supabase-js, login, recuperação, MFA, sessões, inatividade.
+4. `feat/fase-01-shell`: layout, navegação, seletor de empresa, notificações, PWA base.
+5. `feat/fase-01-matriz-permissoes`: tela da matriz + funções de concessão em lote.
+6. `chore/fase-01-backup`: `pg_dump` criptografado semanal + relatório de restauração.
+7. `docs/relatorio-fase-01`.
+
+## 6. Critérios de aceite
+
+| # | Critério | Como será comprovado |
+| --- | --- | --- |
+| CA-1 | SUPERADMIN e ADMIN_EMPRESA acessam só o que administram | pgTAP `core_isolamento` |
+| CA-2 | OPERADOR e JURÍDICO acessam só empresas autorizadas | pgTAP `core_isolamento` |
+| CA-3 | CLIENTE não acessa outra empresa nem alterando requisição | pgTAP + e2e (PR 3) |
+| CA-4 | Acessos e alterações relevantes auditáveis | pgTAP `audit_log` |
+| CA-5 | Dados persistem após sair e entrar | e2e (PR 3) |
+| CA-6 | Restauração de backup testada | relatório (PR 6) |
+
+## 7. Perguntas abertas
+
+0. **Convite de usuário** — hoje só SUPERADMIN cria vínculo (impede ADMIN de cooptar usuário de outra empresa). Recomendação: PR de convite por e-mail com aceite do convidado, via RPC.
+
+1. **Permissões padrão por papel** — ao criar um vínculo, pré-preencher a matriz? Recomendação: sim, só como sugestão na tela (ADMIN_EMPRESA = tudo da empresa; OPERADOR = tudo menos permissões/auditoria/custos; JURÍDICO = visualizar + peças; CLIENTE = visualizar em documentos, agenda, editais, produtos), sempre editável e nunca implícita no banco.
+2. **ADMIN_EMPRESA vê auditoria da própria empresa?** Recomendação: sim, via `auditoria/visualizar`.
+3. **CAPTCHA no login** — Turnstile ou hCaptcha (os dois são suportados pelo Supabase Auth)? Recomendação: Turnstile.
