@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guardas:
+    name: Guardas (isolamento, hooks, segredos, SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Toda tabela de priv tem teste A x B
+        run: python3 scripts/check_isolation_coverage.py
+      - name: Testes dos guardas (script de cobertura + hook do Claude Code)
+        run: |
+          python3 -m unittest discover -s scripts/tests
+          python3 -m unittest discover -s .claude/hooks/tests
+      - name: Migrations já no main não foram alteradas
+        if: github.event_name == 'pull_request'
+        run: |
+          changed=$(git diff --name-only --diff-filter=MDR origin/${{ github.base_ref }}...HEAD -- supabase/migrations/ || true)
+          if [ -n "$changed" ]; then
+            echo "::error::Migration aplicada é imutável. Crie uma nova migration. Alterados: $changed"
+            exit 1
+          fi
+      - name: Gitleaks (segredos)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Semgrep (regras VV + registro)
+        run: |
+          pip install --quiet semgrep
+          semgrep scan --metrics=off --error \
+            --config .semgrep/ \
+            --config p/python --config p/typescript --config p/react --config p/secrets
+
+  web:
+    name: Web (lint, typecheck, testes, build, audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --audit-level=high --omit=dev
+
+  worker:
+    name: Worker (ruff, mypy, pytest, pip-audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/worker
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run pytest --cov
+      - run: uv run pip-audit --skip-editable
+
+  banco:
+    name: Banco (pgTAP: RLS e isolamento)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase db start
+      - run: supabase test db
+
+  ci-ok:
+    name: ci-ok
+    if: always()
+    needs: [guardas, web, worker, banco]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Todos os jobs passaram
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "true" ]; then
+            echo "::error::Algum job falhou ou não rodou."
+            exit 1
+          fi

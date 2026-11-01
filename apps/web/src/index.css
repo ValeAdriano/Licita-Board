@@ -1,0 +1,69 @@
+:root {
+  --bg: #f7f8fa;
+  --fg: #14202b;
+  --muted: #5b6b7a;
+  --brand: #0f3d5e;
+  --banner-dev: #b45309;
+  --banner-homolog: #6d28d9;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e141a;
+    --fg: #e6edf3;
+    --muted: #9aa7b4;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+}
+
+/* Mobile-first: a base é 360 px; telas maiores só acrescentam. */
+.shell {
+  padding: 16px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.shell p {
+  color: var(--muted);
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.env-banner {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  padding: 4px 16px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.env-banner--dev {
+  background: var(--banner-dev);
+}
+
+.env-banner--homolog {
+  background: var(--banner-homolog);
+}

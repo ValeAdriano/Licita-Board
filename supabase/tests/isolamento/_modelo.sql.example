@@ -1,0 +1,34 @@
+-- MODELO de teste de isolamento A x B. Copie para <tabela>.test.sql (ex.: priv_documentos.test.sql).
+-- O script scripts/check_isolation_coverage.py falha o CI se uma tabela de priv não tiver arquivo próprio.
+-- Requer as fixtures criadas na Fase 01 (tests.criar_empresas_ab(), tests.autenticar_como()).
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(4);
+
+select tests.criar_empresas_ab();          -- empresa A + usuário A, empresa B + usuário B
+-- insira aqui uma linha de priv.<tabela> para cada empresa, como postgres (bypass RLS)
+
+select tests.autenticar_como('usuario_a'); -- set local role authenticated + request.jwt.claims (aal2)
+
+select is_empty(
+  $$ select 1 from priv.<tabela> where empresa_id = tests.empresa_id('B') $$,
+  'A não lê linhas de B'
+);
+select results_eq(
+  $$ with u as (update priv.<tabela> set updated_at = now() where empresa_id = tests.empresa_id('B') returning 1) select count(*)::int from u $$,
+  $$ values (0) $$,
+  'A não edita linhas de B'
+);
+select results_eq(
+  $$ with d as (delete from priv.<tabela> where empresa_id = tests.empresa_id('B') returning 1) select count(*)::int from d $$,
+  $$ values (0) $$,
+  'A não apaga linhas de B'
+);
+select throws_ok(
+  $$ insert into priv.<tabela> (empresa_id /* , ... */) values (tests.empresa_id('B') /* , ... */) $$,
+  '42501', null,
+  'A não insere linhas em nome de B'
+);
+
+select * from finish();
+rollback;

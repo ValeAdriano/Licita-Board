@@ -1,0 +1,83 @@
+# Regras SAST próprias do VV Licitações. Rodam no CI para qualquer agente ou pessoa.
+# Cada regra referencia a regra inviolável do AGENTS.md §3.
+rules:
+  - id: vv-service-role-no-front
+    message: >-
+      Service role / chave secreta do Supabase no front (AGENTS.md §3.11). Tudo em apps/web vai para o
+      bundle público. Use só a chave pública; operação privilegiada vai para o worker ou Edge Function.
+    severity: ERROR
+    languages: [generic]
+    pattern-regex: (?i)(service[_-]?role|sb_secret_|supabase_jwt_secret)
+    paths:
+      include: [apps/web/, packages/shared/]
+      exclude: ["*.md"]
+
+  - id: vv-no-dangerously-set-inner-html
+    message: >-
+      dangerouslySetInnerHTML proibido (ADR-002, T3/T5). Texto de edital é exibido como texto.
+    severity: ERROR
+    languages: [generic]
+    pattern-regex: dangerouslySetInnerHTML
+    paths:
+      include: [apps/web/]
+      exclude: ["*.md"]
+
+  - id: vv-no-float-em-rules
+    message: >-
+      float em rules/ (AGENTS.md §3.14). Dinheiro e quantidades usam decimal.Decimal.
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: float(...)
+      - pattern: "def $F(..., $P: float, ...): ..."
+      - pattern: "def $F(...) -> float: ..."
+      - pattern: "$X: float = $V"
+    paths:
+      include: [apps/worker/src/worker/rules/]
+
+  - id: vv-parsefloat-dinheiro
+    message: >-
+      parseFloat/Number em valor monetário perde precisão (AGENTS.md §3.14). Valores chegam como string.
+    severity: WARNING
+    languages: [generic]
+    pattern-regex: (?i)(parseFloat|Number)\(\s*[\w.]*(valor|preco|custo|margem|total|unitario)
+    paths:
+      include: [apps/web/]
+      exclude: ["*.md"]
+
+  - id: vv-rls-desligado
+    message: >-
+      RLS desligado ou policy using(true) (AGENTS.md §3.12). Toda tabela tem RLS e policy via
+      core.has_permission.
+    severity: ERROR
+    languages: [generic]
+    pattern-regex: (?i)(disable\s+row\s+level\s+security|using\s*\(\s*true\s*\))
+    paths:
+      include: [supabase/migrations/]
+
+  - id: vv-sdk-llm-fora-de-llm
+    message: >-
+      SDK de LLM importado fora de worker/llm/ (ADR-005). Toda chamada de IA passa pela camada llm/
+      para registrar modelo, prompt, custo e validar a saída.
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: import openai
+      - pattern: import anthropic
+      - pattern: import litellm
+      - pattern: from openai import $X
+      - pattern: from anthropic import $X
+      - pattern: from litellm import $X
+      - pattern: from google import genai
+    paths:
+      include: [apps/worker/]
+      exclude: [apps/worker/src/worker/llm/]
+
+  - id: vv-sem-print-no-worker
+    message: >-
+      print() no worker vaza dados para o log sem redação. Use logging com extra={"ctx": ...}.
+    severity: WARNING
+    languages: [python]
+    pattern: print(...)
+    paths:
+      include: [apps/worker/src/]

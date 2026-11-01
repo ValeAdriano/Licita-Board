@@ -1,0 +1,5 @@
+title = "VV Licitações"
+
+# Regras padrão do Gitleaks. Não adicionar allowlist para .env.example: chave real colada ali também precisa ser pega.
+[extend]
+useDefault = true

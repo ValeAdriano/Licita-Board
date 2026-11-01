@@ -1,0 +1,3 @@
+-- SOMENTE DADOS FICTÍCIOS (Prompt Mestre: "Nunca usar dados reais de clientes em desenvolvimento").
+-- CNPJs aqui devem ser válidos no dígito verificador, mas inventados.
+-- Populado a partir da Fase 01 (empresas A e B usadas pelos testes de isolamento).
