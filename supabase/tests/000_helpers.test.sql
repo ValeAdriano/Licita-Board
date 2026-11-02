@@ -143,13 +143,14 @@ begin
     v_amr := v_amr || jsonb_build_array(jsonb_build_object(
       'method', 'totp', 'timestamp', extract(epoch from now())::bigint - p_mfa_ha_seg));
     insert into auth.mfa_factors (id, user_id, factor_type, status, created_at, updated_at)
-    values (v_fator, v_user, 'totp', 'verified', now() - p_fator_idade, now() - p_fator_idade)
+    values (v_fator, v_user, 'totp'::auth.factor_type, 'verified'::auth.factor_status,
+            now() - p_fator_idade, now() - p_fator_idade)
     on conflict (id) do nothing;
   else
     v_fator := null;
   end if;
   insert into auth.sessions (id, user_id, created_at, updated_at, factor_id, aal)
-  values (v_sessao, v_user, now(), now(), v_fator, p_aal)
+  values (v_sessao, v_user, now(), now(), v_fator, p_aal::auth.aal_level)
   on conflict (id) do update set factor_id = excluded.factor_id, aal = excluded.aal;
 
   perform set_config('request.jwt.claims', jsonb_build_object(

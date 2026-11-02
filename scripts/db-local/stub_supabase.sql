@@ -14,13 +14,16 @@ create table auth.users (
   raw_user_meta_data jsonb default '{}'::jsonb,
   created_at timestamptz default now()
 );
--- Subconjunto das colunas reais do GoTrue usadas pelo step-up (enums do GoTrue viram text aqui).
+-- Subconjunto das colunas reais do GoTrue usadas pelo step-up, com os mesmos enums.
+create type auth.aal_level as enum ('aal1', 'aal2', 'aal3');
+create type auth.factor_type as enum ('totp', 'webauthn', 'phone');
+create type auth.factor_status as enum ('unverified', 'verified');
 create table auth.mfa_factors (
   id uuid primary key,
   user_id uuid not null references auth.users (id) on delete cascade,
   friendly_name text,
-  factor_type text not null,
-  status text not null,
+  factor_type auth.factor_type not null,
+  status auth.factor_status not null,
   created_at timestamptz not null,
   updated_at timestamptz not null
 );
@@ -30,7 +33,7 @@ create table auth.sessions (
   created_at timestamptz,
   updated_at timestamptz,
   factor_id uuid,
-  aal text,
+  aal auth.aal_level,
   not_after timestamptz
 );
 create function auth.jwt() returns jsonb language sql stable as $$
