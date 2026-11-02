@@ -46,30 +46,30 @@ select results_eq(
   $$ values (0) $$,
   'A não edita a empresa B'
 );
-select results_eq(
-  $$ with u as (update core.vinculos set ativo = false where empresa_id = tests.empresa_id('B') returning 1)
-     select count(*)::int from u $$,
-  $$ values (0) $$,
-  'A não desativa vínculos de B'
+select throws_ok(
+  $$ update core.vinculos set ativo = false where empresa_id = tests.empresa_id('B') $$,
+  '42501', null,
+  'vínculo não é alterado direto pela API (só por RPC com step-up)'
 );
 select throws_ok(
   $$ insert into core.permissoes (vinculo_id, empresa_id, modulo, acao)
      values (tests.vinculo_id('usuario_b', 'B'), tests.empresa_id('B'), 'empresas', 'editar') $$,
   '42501', null,
-  'A não concede permissão em vínculo de B'
+  'permissão não é concedida direto pela API (só por RPC com step-up)'
 );
+select throws_ok(
+  $$ delete from core.permissoes where empresa_id = tests.empresa_id('B') $$,
+  '42501', null,
+  'permissão não é revogada direto pela API'
+);
+select tests.sair();
 select throws_ok(
   $$ insert into core.permissoes (vinculo_id, empresa_id, modulo, acao)
      values (tests.vinculo_id('operador_b', 'B'), tests.empresa_id('A'), 'empresas', 'editar') $$,
   '23503', null,
-  'vínculo de B com empresa_id de A é barrado pela FK composta'
+  'vínculo de B com empresa_id de A é barrado pela FK composta (mesmo para o dono)'
 );
-select results_eq(
-  $$ with d as (delete from core.permissoes where empresa_id = tests.empresa_id('B') returning 1)
-     select count(*)::int from d $$,
-  $$ values (0) $$,
-  'A não revoga permissões de B'
-);
+select tests.autenticar_como('usuario_a');
 
 -- =============================================================== vínculos: sem cooptar usuários
 select throws_ok(
@@ -136,6 +136,7 @@ select lives_ok(
   $$ update core.usuarios set nome = 'Novo nome' where id = tests.usuario_id('usuario_a') $$,
   'usuário edita o próprio nome'
 );
+select tests.sair();
 select throws_ok(
   $$ update core.vinculos set papel = 'CLIENTE' where id = tests.vinculo_id('usuario_a', 'A') $$,
   '23514', null,

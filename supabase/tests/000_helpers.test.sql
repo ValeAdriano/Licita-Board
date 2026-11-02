@@ -114,17 +114,57 @@ $$;
 
 -- Simula a requisição de um usuário logado (equivalente ao JWT do PostgREST). Security invoker:
 -- SET ROLE não é permitido dentro de função security definer.
-create or replace function tests.autenticar_como(p_ident text, p_aal text default 'aal2')
+-- Simula o JWT do PostgREST e cria a sessão/fator correspondentes em auth.sessions/auth.mfa_factors.
+--   p_mfa_ha_seg:  há quantos segundos foi a última verificação TOTP (claim amr). Padrão 1 h:
+--                  sessão aal2 antiga, que lê e escreve mas não inicia step-up.
+--   p_sessao:      nome da sessão (vira um uuid estável por usuário).
+--   p_fator_idade: idade do fator TOTP verificado nesta sessão.
+-- Security invoker (SET ROLE não é permitido em security definer): chamar como postgres.
+drop function if exists tests.autenticar_como(text, text);
+create or replace function tests.autenticar_como(
+  p_ident text,
+  p_aal text default 'aal2',
+  p_mfa_ha_seg int default 3600,
+  p_sessao text default 'sessao-teste',
+  p_fator_idade interval default interval '30 days'
+)
 returns void
 language plpgsql
 set search_path = ''
 as $$
+declare
+  v_user uuid := tests.usuario_id(p_ident);
+  v_sessao uuid := md5(p_ident || '|sessao|' || p_sessao)::uuid;
+  v_fator uuid := md5(p_ident || '|fator|' || p_fator_idade::text)::uuid;
+  v_amr jsonb := jsonb_build_array(jsonb_build_object(
+    'method', 'password', 'timestamp', extract(epoch from now())::bigint - 7200));
 begin
-  perform set_config('request.jwt.claims', json_build_object(
-    'sub', tests.usuario_id(p_ident), 'role', 'authenticated', 'aal', p_aal
+  if p_aal = 'aal2' then
+    v_amr := v_amr || jsonb_build_array(jsonb_build_object(
+      'method', 'totp', 'timestamp', extract(epoch from now())::bigint - p_mfa_ha_seg));
+    insert into auth.mfa_factors (id, user_id, factor_type, status, created_at, updated_at)
+    values (v_fator, v_user, 'totp', 'verified', now() - p_fator_idade, now() - p_fator_idade)
+    on conflict (id) do nothing;
+  else
+    v_fator := null;
+  end if;
+  insert into auth.sessions (id, user_id, created_at, updated_at, factor_id, aal)
+  values (v_sessao, v_user, now(), now(), v_fator, p_aal)
+  on conflict (id) do update set factor_id = excluded.factor_id, aal = excluded.aal;
+
+  perform set_config('request.jwt.claims', jsonb_build_object(
+    'sub', v_user, 'role', 'authenticated', 'aal', p_aal, 'amr', v_amr, 'session_id', v_sessao
   )::text, true);
   perform set_config('role', 'authenticated', true);
 end;
+$$;
+
+create or replace function tests.sessao_id(p_ident text, p_sessao text default 'sessao-teste')
+returns uuid
+language sql
+immutable
+as $$
+  select md5(p_ident || '|sessao|' || p_sessao)::uuid;
 $$;
 
 create or replace function tests.sair()
@@ -142,7 +182,7 @@ $$;
 -- (e podem criar SUPERADMIN) só rodam como postgres.
 revoke all on all functions in schema tests from public, anon, authenticated;
 grant execute on function tests.usuario_id(text), tests.empresa_id(text), tests.vinculo_id(text, text),
-  tests.autenticar_como(text, text), tests.sair() to authenticated;
+  tests.autenticar_como(text, text, int, text, interval), tests.sessao_id(text, text), tests.sair() to authenticated;
 
 select plan(1);
 select has_function('tests', 'criar_empresas_ab', 'helpers de teste instalados');

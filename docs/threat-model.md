@@ -28,7 +28,7 @@ Preços, custos e margens; propostas e peças jurídicas; documentos de habilita
 | Vínculo usuário × empresa × papel, permissões por módulo × ação, negar por padrão | `020_core_isolamento`: operador de A não lê B; vínculo inativo não lê nada | 01 | implementado |
 | Permissões consultadas na hora (não no JWT): revogação imediata | `020_core_isolamento`: revogação vale na consulta seguinte | 01 | implementado |
 | Worker valida `empresa_id` do job no banco | pytest: job com recurso de outra empresa é rejeitado | 03+ | planejado |
-| Alteração de permissão exige step-up e é auditada | pgTAP/e2e: sem token recente → falha; `audit_log` registra | 01 | planejado |
+| Alteração de permissão exige step-up e é auditada | `040_step_up`: sem token, token usado, expirado, de outro escopo ou de outra sessão → falha; uso auditado | 01 | implementado |
 
 ## T3 · Edital ou anexo malicioso, ou com instruções para manipular a IA
 
@@ -63,7 +63,7 @@ Preços, custos e margens; propostas e peças jurídicas; documentos de habilita
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
-| Soft delete; exclusão definitiva só SUPERADMIN com dupla aprovação | pgTAP: ADMIN não exclui definitivo | 01 | planejado |
+| Soft delete; exclusão definitiva só SUPERADMIN com dupla aprovação | `050_exclusao_dupla_aprovacao`: ADMIN não solicita, solicitante não aprova, step-up dos dois lados | 01 | implementado |
 | Auditoria imutável (insert-only) com antes/depois | `030_audit_log`: UPDATE/DELETE/TRUNCATE falham até para o dono | 01 | implementado |
 | Prazos em código puro com casos do jurídico; data interna D-2; override auditado | pytest com 30+ casos do jurídico VV | 05 | planejado |
 | Alertas D-5/D-3/D-1/dia com escalonamento | pytest com relógio simulado | 05 | planejado |
@@ -98,4 +98,13 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | --- | --- | --- | --- |
 | `core.usuarios.superadmin`/`ativo` sem grant de UPDATE para `authenticated` (grant por coluna) | `020_core_isolamento`: usuário não se promove a SUPERADMIN | 01 | implementado |
 | Vínculo/permissão só por quem tem `administrar_permissoes` na mesma empresa (`with check`) | `020_core_isolamento`: A não se vincula a B nem move vínculo | 01 | implementado |
-| Alteração de permissão exige step-up | pgTAP (PR 2 da Fase 01) | 01 | planejado |
+| Alteração de permissão exige step-up | `040_step_up` | 01 | implementado |
+
+## T5.1 · Sessão aal2 roubada usada para operação crítica (nova, Fase 01)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Step-up exige TOTP verificado há ≤ 2 min com fator cadastrado há ≥ 24 h | `040_step_up`: fator de 1 h não serve | 01 | implementado |
+| Uma verificação MFA = um token; token preso à sessão viva, uso único, 5 min | `040_step_up`: segundo token, logout, outra sessão, expirado | 01 | implementado |
+| Exclusão definitiva exige dois SUPERADMIN ativos, cada um com step-up | `050_exclusao_dupla_aprovacao` | 01 | implementado |
+| Notificação de cadastro/remoção de fator MFA | configuração do Supabase Auth | 01 | planejado |

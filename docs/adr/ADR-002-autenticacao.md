@@ -31,7 +31,13 @@ O Prompt pede Argon2id ou bcrypt custo ≥ 12, senha ≥ 12, bloqueio de senha v
 | Revogação | "Sair de todos os dispositivos" via `signOut({ scope: 'global' })` |
 | Recuperação | Fluxo do Auth com mensagem neutra no front; validade de 30 min configurada no projeto |
 | Cadastro | `enable_signup = false`: usuários são convidados |
-| Step-up | Novo desafio MFA → `core.step_up_tokens` (5 min) checado pela função que executa a operação crítica |
+| Step-up | Novo desafio TOTP (≤ 2 min, claim `amr`) com fator cadastrado há ≥ 24 h → `core.step_up_tokens`: um token por verificação, 5 min, uso único, preso à sessão viva; consumido pela função da operação crítica |
+
+## Notas de implementação (Fase 01)
+
+- O step-up lê `amr`, `aal` e `session_id` do JWT e `auth.sessions`/`auth.mfa_factors`. Um Custom Access Token Hook, se criado, precisa preservar esses claims.
+- Só TOTP é aceito no step-up; WebAuthn/telefone falham fechado até nova migration.
+- Fator MFA cadastrado há menos de 24 h não autoriza operação crítica (mitiga sessão roubada que cadastra fator próprio).
 
 ## Consequências
 

@@ -89,6 +89,43 @@
 | core.modulos | autenticado | ninguém | ninguém | ninguém |
 | audit.audit_log | SUPERADMIN ou `auditoria/visualizar` na empresa | ninguém (só trigger) | bloqueado por trigger, inclusive para o dono | bloqueado por trigger |
 
+## 3.1 Step-up e dupla aprovação (PR 2 · implementado)
+
+### `core.step_up_tokens`
+
+`usuario_id`, `escopo` ∈ {alterar_permissoes, exclusao_definitiva, preco_abaixo_minimo, proposta_final, aprovar_peca}, `sessao_id`, `mfa_em` (instante da verificação TOTP), `expira_em` (5 min), `usado_em`, `usado_para_empresa_id`, `usado_para_alvo`. Sem acesso pela API: só as funções leem e escrevem. Uso auditado na empresa onde foi usado.
+
+| Função | Regra |
+| --- | --- |
+| `core.iniciar_step_up(escopo)` | Exige `aal2`, verificação TOTP há ≤ 2 min (claim `amr`), sessão viva em `auth.sessions` e **fator TOTP verificado há ≥ 24 h** (sessão roubada que cadastra fator novo não consegue step-up). **Uma verificação MFA = um token** (`unique (sessao_id, mfa_em)`). |
+| `core.consumir_step_up(token, escopo, empresa, alvo)` | Interna. Token do próprio usuário, mesmo escopo, mesma sessão e sessão ainda viva (logout invalida), não usado, não expirado. Registra empresa e alvo. |
+| `core.criar_vinculo(usuario, empresa, papel, token)` | Só SUPERADMIN + step-up `alterar_permissoes`. |
+| `core.atualizar_vinculo(vinculo, papel, ativo, token)` | `permissoes/administrar_permissoes` na empresa + step-up. |
+| `core.definir_permissoes(vinculo, ['modulo:acao'], token)` | Idem; substitui o conjunto inteiro; lista nula é rejeitada. |
+
+Toda alteração de vínculo/permissão trava os vínculos da empresa e exige que **reste ao menos um administrador de permissões ativo** (sem lockout). Insert/update/delete direto em `core.vinculos` e `core.permissoes` foram revogados do papel `authenticated`.
+
+Só TOTP é aceito no step-up; habilitar WebAuthn/telefone exige nova migration (falha fechado). Um Custom Access Token Hook, se criado, precisa preservar `aal`, `amr` e `session_id`.
+
+### `core.aprovacoes_exclusao`
+
+Pedido de exclusão definitiva: `alvo_tabela` (lista fechada; hoje só `core.empresas`), `alvo_id`, `motivo` (10–2000 caracteres), `status` (pendente → executada/rejeitada/expirada), `solicitado_por`, `decidido_por` (≠ solicitante, também por constraint), `expira_em` (72 h), `resumo_alvo`. Registro imutável (trigger ALWAYS: sem DELETE/TRUNCATE; só sai de `pendente` uma vez, mudando apenas status e decisão). Nem o `service_role` apaga empresa fora do fluxo.
+
+| Função | Regra |
+| --- | --- |
+| `core.solicitar_exclusao(tabela, id, motivo, token)` | SUPERADMIN + step-up `exclusao_definitiva`. Um pedido pendente por alvo. |
+| `core.decidir_exclusao(pedido, aprovar, token)` | Outro SUPERADMIN + step-up. Recusa pedido expirado ou de solicitante que não é mais SUPERADMIN ativo. Aprovar executa a exclusão física (empresa + vínculos + permissões) na mesma transação. |
+
+Teste-guarda: toda FK que apontar para `core.empresas` precisa ser tratada em `core.executar_exclusao`.
+
+### Pendências registradas (revisão de 2026-11-01)
+
+- Job no worker para limpar `step_up_tokens` expirados.
+- `core.cancelar_exclusao` para o solicitante desistir do pedido.
+- Desativação feita por SUPERADMIN hoje pode ser revertida pelo ADMIN_EMPRESA; avaliar `bloqueado_por_superadmin`.
+- Guarda no deploy: falhar se o schema `tests` existir em produção.
+- Ligar no Supabase as notificações de segurança de "fator MFA cadastrado/removido".
+
 ## 4. Regras de negócio
 
 1. Negar por padrão: sem linha em `core.permissoes`, não há acesso. Não existe permissão implícita por papel no banco.
@@ -103,8 +140,8 @@
 
 ## 5. Plano de PRs
 
-1. **Este PR** · `feat/fase-01-fundacao-banco`: RF-01.1 a RF-01.7 no banco + helpers de teste + pgTAP.
-2. `feat/fase-01-step-up`: `core.step_up_tokens`, `core.exigir_step_up()`, dupla aprovação (`core.aprovacoes_pendentes`).
+1. ✅ `feat/fase-01-fundacao-banco`: RF-01.1 a RF-01.7 no banco + helpers de teste + pgTAP.
+2. ✅ Step-up: `core.step_up_tokens`, RPCs de vínculo/permissão, dupla aprovação (`core.aprovacoes_exclusao`).
 3. `feat/fase-01-auth-front`: supabase-js, login, recuperação, MFA, sessões, inatividade.
 4. `feat/fase-01-shell`: layout, navegação, seletor de empresa, notificações, PWA base.
 5. `feat/fase-01-matriz-permissoes`: tela da matriz + funções de concessão em lote.
