@@ -34,7 +34,10 @@ create table auth.sessions (
   updated_at timestamptz,
   factor_id uuid,
   aal auth.aal_level,
-  not_after timestamptz
+  not_after timestamptz,
+  refreshed_at timestamp,
+  user_agent text,
+  ip inet
 );
 create function auth.jwt() returns jsonb language sql stable as $$
   select coalesce(nullif(current_setting('request.jwt.claim', true), ''), nullif(current_setting('request.jwt.claims', true), ''))::jsonb

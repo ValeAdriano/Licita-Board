@@ -108,3 +108,34 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | Uma verificação MFA = um token; token preso à sessão viva, uso único, 5 min | `040_step_up`: segundo token, logout, outra sessão, expirado | 01 | implementado |
 | Exclusão definitiva exige dois SUPERADMIN ativos, cada um com step-up | `050_exclusao_dupla_aprovacao` | 01 | implementado |
 | Notificação de cadastro/remoção de fator MFA | configuração do Supabase Auth | 01 | planejado |
+
+## T5.2 · Logout que falha aberto (nova, Fase 01 · revisão de segurança do front)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Inatividade checada ao reabrir o app, antes de zerar o contador; sem registro = expira | `inatividade.test.ts` | 01 | implementado |
+| `signOut` com erro apaga a sessão local à força e recarrega no login | `sair.test.ts` | 01 | implementado |
+| "Sair das outras/de todos" só confirma se o servidor confirmou | `router.test.tsx` | 01 | implementado |
+| `inactivity_timeout = 30m` e `timebox = 12h` no Auth (Pro) | configuração do projeto de produção | 01 | planejado |
+
+## T5.3 · Sessão sequestrada vira posse da conta (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| `/redefinir-senha` só aceita a aba que chegou pelo link do e-mail (`PASSWORD_RECOVERY`) | `router.test.tsx` | 01 | implementado |
+| Quem tem autenticador confirma o código antes de trocar a senha | `router.test.tsx` | 01 | implementado |
+| Risco residual: com o JWT roubado, `updateUser({ password })` pode ser chamado direto na API; o servidor só exige reautenticação após 24 h (`secure_password_change`). Avaliar exigir a senha atual no Auth e e2e contra o Supabase local | e2e (pendente, precisa de Docker) | 01 | planejado |
+
+## T5.4 · Abuso da recuperação de senha (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Mensagem neutra sempre, inclusive quando o envio falha | `router.test.tsx` | 01 | implementado |
+| CAPTCHA (Turnstile) no login e na recuperação; cota de e-mails com alerta (a cota padrão é por projeto) | configuração + CSP com `challenges.cloudflare.com` | 01 | planejado |
+
+## T5.5 · Exfiltração do token para outro projeto Supabase (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| `connect-src` restrito ao projeto do ambiente (hoje `*.supabase.co`); fixar quando o projeto de produção existir | teste de headers da Vercel | 01 | planejado |
+| `style-src 'self'` (sem `unsafe-inline`), `Cross-Origin-Opener-Policy: same-origin` | `vercel.json` | 01 | implementado |

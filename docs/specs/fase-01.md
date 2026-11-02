@@ -142,7 +142,7 @@ Teste-guarda: toda FK que apontar para `core.empresas` precisa ser tratada em `c
 
 1. ✅ `feat/fase-01-fundacao-banco`: RF-01.1 a RF-01.7 no banco + helpers de teste + pgTAP.
 2. ✅ Step-up: `core.step_up_tokens`, RPCs de vínculo/permissão, dupla aprovação (`core.aprovacoes_exclusao`).
-3. `feat/fase-01-auth-front`: supabase-js, login, recuperação, MFA, sessões, inatividade.
+3. ✅ Auth no front: supabase-js, login, recuperação neutra, cadastro/verificação de MFA, sessões (`core.minhas_sessoes`), sair de todos, logout por inatividade (30 min), seed fictício para login local.
 4. `feat/fase-01-shell`: layout, navegação, seletor de empresa, notificações, PWA base.
 5. `feat/fase-01-matriz-permissoes`: tela da matriz + funções de concessão em lote.
 6. `chore/fase-01-backup`: `pg_dump` criptografado semanal + relatório de restauração.
@@ -158,6 +158,15 @@ Teste-guarda: toda FK que apontar para `core.empresas` precisa ser tratada em `c
 | CA-4 | Acessos e alterações relevantes auditáveis | pgTAP `audit_log` |
 | CA-5 | Dados persistem após sair e entrar | e2e (PR 3) |
 | CA-6 | Restauração de backup testada | relatório (PR 6) |
+
+## 6.1 Lacunas conhecidas do front de autenticação
+
+- **Códigos de recuperação de uso único (Prompt 1.4):** o Supabase Auth não oferece. Alternativas: cadastrar um segundo autenticador como reserva, ou redefinição do MFA pelo SUPERADMIN via worker (Admin API) com verificação de identidade. Decisão pendente.
+- Encerrar **uma** sessão específica não é possível pelo cliente; só "outras" ou "todas".
+- Trocar a senha estando logado (com a senha atual) ainda não existe; `/redefinir-senha` só atende o link do e-mail.
+- CAPTCHA (Turnstile) no login/recuperação e `connect-src` fixo no projeto ficam para quando o projeto de produção existir.
+- `core.minhas_sessoes` esconde IP/dispositivo de perfil interno sem MFA (`core.perfil_interno()`).
+- Testes e2e (Playwright) contra o Supabase local ficam para quando houver Docker na máquina de desenvolvimento.
 
 ## 7. Perguntas abertas
 

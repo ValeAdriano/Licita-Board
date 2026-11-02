@@ -34,10 +34,20 @@ npm run dev --prefix apps/web
 # Worker
 cd apps/worker && uv sync && cp .env.example .env && uv run uvicorn worker.main:app --app-dir src --reload
 
-# Banco
+# Banco (Docker): sobe Postgres + Auth + Studio e aplica migrations e seed fictício
 npx supabase start
+npx supabase status        # mostra a URL e a chave pública (anon) para o apps/web/.env.local
 npx supabase test db
 ```
+
+### Entrando no sistema (local)
+
+1. `npx supabase start` e copie `API URL` e `anon key` para `apps/web/.env.local`.
+2. `npm run dev --prefix apps/web` e abra http://127.0.0.1:5173.
+3. Entre com um usuário fictício do [`supabase/seed.sql`](supabase/seed.sql) (os e-mails e a senha de desenvolvimento estão no cabeçalho do arquivo).
+4. Perfis internos cadastram o autenticador (MFA) no primeiro acesso. E-mails de recuperação de senha chegam no Mailpit local: http://127.0.0.1:54324.
+
+Sem Docker, `scripts/db-local/test.sh` roda migrations e testes num Postgres local, mas não sobe o Auth: não dá para fazer login.
 
 ## Qualidade e segurança
 
