@@ -139,3 +139,11 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | --- | --- | --- | --- |
 | `connect-src` restrito ao projeto do ambiente (hoje `*.supabase.co`); fixar quando o projeto de produção existir | teste de headers da Vercel | 01 | planejado |
 | `style-src 'self'` (sem `unsafe-inline`), `Cross-Origin-Opener-Policy: same-origin` | `vercel.json` | 01 | implementado |
+
+## T3.1 · Notificação usada para phishing (nova, Fase 01)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Notificação só é criada pelo sistema; usuário não insere pela API | `070_notificacoes` | 01 | implementado |
+| `link` aceita só caminho interno do app (sem domínio) | `070_notificacoes` | 01 | implementado |
+| Cada usuário só vê e marca as próprias | `070_notificacoes` | 01 | implementado |

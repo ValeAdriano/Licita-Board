@@ -8,6 +8,8 @@ export const estado = {
   usuario: { nome: 'Teste', superadmin: false } as { nome: string; superadmin: boolean } | null,
   papeis: [] as string[],
   recuperacao: false,
+  empresas: [] as { id: string; razao_social: string; nome_fantasia: string | null }[],
+  naoLidas: 0,
   falharPerfil: false,
   falharSignOut: false,
 }
@@ -49,6 +51,10 @@ export const supabaseFake = {
           ? { data: null, error: { message: 'rede' } }
           : tabela === 'usuarios'
           ? { data: estado.usuario, error: null }
+          : tabela === 'empresas'
+          ? { data: estado.empresas, error: null }
+          : tabela === 'notificacoes'
+          ? { data: [], count: estado.naoLidas, error: null }
           : { data: estado.papeis.map((papel) => ({ papel, id: papel, empresas: null })), error: null },
       ),
     rpc: () => consulta(() => ({ data: [], error: null })),
@@ -62,6 +68,8 @@ export function resetarEstado() {
   estado.usuario = { nome: 'Teste', superadmin: false }
   estado.papeis = []
   estado.recuperacao = false
+  estado.empresas = []
+  estado.naoLidas = 0
   estado.falharPerfil = false
   estado.falharSignOut = false
   localStorage.clear()

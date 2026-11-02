@@ -1,7 +1,7 @@
 -- Exclusão definitiva só por SUPERADMIN, com dupla aprovação e step-up (Prompt 1.3/1.4; RF-01.9).
 -- Cada tests.autenticar_como com p_mfa_ha_seg diferente simula uma nova verificação MFA.
 begin;
-select plan(28);
+select plan(30);
 
 select tests.criar_empresas_ab();
 insert into core.empresas (razao_social, cnpj) values ('Empresa Teste C', '11444777000161');
@@ -9,6 +9,9 @@ select tests.criar_usuario('super1', true);
 select tests.criar_usuario('super2', true);
 create temp table tk (nome text primary key, id uuid);
 grant all on tk to authenticated;
+
+insert into core.notificacoes (usuario_id, empresa_id, modulo, tipo, titulo)
+values (tests.usuario_id('usuario_a'), tests.empresa_id('A'), 'documentos', 'certidao_vencendo', 'Notificação da empresa A');
 
 -- =============================================================== quem pode pedir
 select tests.autenticar_como('usuario_a', 'aal2', 10);
@@ -114,6 +117,8 @@ select is_empty(
      union all select 1 from core.vinculos v where not exists (select 1 from core.empresas e where e.id = v.empresa_id)
      union all select 1 from core.permissoes p where not exists (select 1 from core.empresas e where e.id = p.empresa_id) $$,
   'empresa aprovada foi excluída com vínculos e permissões');
+select is_empty($$ select 1 from core.notificacoes where titulo = 'Notificação da empresa A' $$,
+  'notificações da empresa excluída vão junto (cascade)');
 select isnt_empty($$ select 1 from core.empresas where razao_social = 'Empresa Teste B' $$,
   'empresa com pedido rejeitado continua existindo');
 select results_eq(
@@ -157,11 +162,17 @@ select throws_ok(
   '42501', null, 'motivo do pedido não é reescrito');
 
 -- =============================================================== guarda para FKs futuras
+-- FKs com ON DELETE CASCADE se resolvem sozinhas; as demais precisam de tratamento explícito.
 select results_eq(
   $$ select conrelid::regclass::text from pg_constraint
-      where contype = 'f' and confrelid = 'core.empresas'::regclass order by 1 $$,
+      where contype = 'f' and confrelid = 'core.empresas'::regclass and confdeltype <> 'c' order by 1 $$,
   $$ values ('core.vinculos'::text) $$,
-  'toda FK para core.empresas é tratada em core.executar_exclusao (atualize a função e este teste juntos)');
+  'toda FK sem cascade para core.empresas é tratada em core.executar_exclusao (atualize a função e este teste juntos)');
+select results_eq(
+  $$ select conrelid::regclass::text from pg_constraint
+      where contype = 'f' and confrelid = 'core.empresas'::regclass and confdeltype = 'c' order by 1 $$,
+  $$ values ('core.notificacoes'::text) $$,
+  'lista fechada de FKs com cascade para core.empresas (nova cascade exige decisão explícita aqui)');
 
 select * from finish();
 rollback;

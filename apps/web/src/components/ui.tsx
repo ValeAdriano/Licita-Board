@@ -69,7 +69,7 @@ export function Aviso({ tipo = 'info', children }: { tipo?: 'info' | 'erro' | 's
 }
 
 export function TelaCentral({ children }: { children: ReactNode }) {
-  return <main className="flex min-h-[calc(100dvh-1.5rem)] items-center justify-center p-4">{children}</main>
+  return <main className="flex min-h-[calc(100dvh-var(--altura-faixa))] items-center justify-center p-4">{children}</main>
 }
 
 export function Carregando({ texto = 'Carregando…' }: { texto?: string }) {

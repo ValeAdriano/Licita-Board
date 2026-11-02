@@ -5,10 +5,15 @@ import { MfaCadastroPage } from '../features/auth/MfaCadastroPage'
 import { MfaVerificarPage } from '../features/auth/MfaVerificarPage'
 import { RecuperarSenhaPage } from '../features/auth/RecuperarSenhaPage'
 import { RedefinirSenhaPage } from '../features/auth/RedefinirSenhaPage'
+import { ContaPage } from '../features/conta/ContaPage'
 import { SessoesPage } from '../features/conta/SessoesPage'
 import { InicioPage } from '../features/inicio/InicioPage'
+import { EmDesenvolvimentoPage } from '../features/modulos/EmDesenvolvimentoPage'
+import { MenuPage } from '../features/modulos/MenuPage'
+import { NotificacoesPage } from '../features/notificacoes/NotificacoesPage'
 import { AuthProvider } from '../lib/auth/AuthProvider'
 import { AppLayout } from './AppLayout'
+import { MODULOS_EM_DESENVOLVIMENTO } from './navegacao'
 import { Guarda } from './rotas'
 
 function Raiz() {
@@ -36,7 +41,14 @@ export const rotas = [
             element: <AppLayout />,
             children: [
               { path: '/', element: <InicioPage /> },
+              { path: '/conta', element: <ContaPage /> },
               { path: '/conta/sessoes', element: <SessoesPage /> },
+              { path: '/notificacoes', element: <NotificacoesPage /> },
+              { path: '/menu', element: <MenuPage /> },
+              ...MODULOS_EM_DESENVOLVIMENTO.map((m) => ({
+                path: m.rota,
+                element: <EmDesenvolvimentoPage modulo={m.rotulo} fase={m.fase} />,
+              })),
             ],
           },
         ],

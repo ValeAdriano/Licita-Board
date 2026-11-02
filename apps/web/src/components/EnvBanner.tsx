@@ -12,7 +12,7 @@ export function EnvBanner({ env = appEnv }: { env?: AppEnv }) {
   return (
     <div
       role="status"
-      className={`sticky top-0 z-50 px-4 py-1 text-center text-xs font-bold tracking-wide text-white ${cor}`}
+      className={`faixa-ambiente sticky top-0 z-50 flex h-6 items-center justify-center px-4 text-center text-xs font-bold tracking-wide text-white ${cor}`}
     >
       {LABELS[env]}
     </div>

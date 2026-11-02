@@ -53,7 +53,7 @@ describe('guarda de rotas', () => {
     estado.fatores = [{ id: 'f1', status: 'verified', factor_type: 'totp' }]
     abrir('/')
     expect(await screen.findByRole('heading', { name: /Olá, Teste/ })).toBeInTheDocument()
-    expect(screen.getByText(/EM DESENVOLVIMENTO/)).toBeInTheDocument()
+    expect(screen.getAllByText(/em desenvolvimento/i).length).toBeGreaterThan(0)
   })
 
   it('CLIENTE sem autenticador entra só com senha', async () => {
@@ -144,5 +144,51 @@ describe('falhas', () => {
     await user.click(await screen.findByRole('button', { name: 'Sair de todos os dispositivos' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível encerrar as sessões no servidor')
     expect(router.state.location.pathname).toBe('/conta/sessoes')
+  })
+})
+
+describe('shell', () => {
+  function liberado() {
+    logado()
+    estado.papeis = ['ADMIN_EMPRESA']
+    estado.aal = 'aal2'
+    estado.fatores = [{ id: 'f1', status: 'verified', factor_type: 'totp' }]
+    estado.empresas = [
+      { id: 'a', razao_social: 'Alfa Comércio Ltda', nome_fantasia: 'Alfa' },
+      { id: 'b', razao_social: 'Beta Equipamentos Ltda', nome_fantasia: null },
+    ]
+  }
+
+  it('mostra menu principal, navegação inferior e seletor de empresa', async () => {
+    liberado()
+    abrir('/')
+    expect(await screen.findByRole('navigation', { name: 'Menu principal' })).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Navegação inferior' })).toBeInTheDocument()
+    expect(await screen.findByText(/Empresa ativa: Alfa/)).toBeInTheDocument()
+  })
+
+  it('trocar de empresa atualiza a empresa ativa e fica lembrado', async () => {
+    liberado()
+    abrir('/')
+    const user = userEvent.setup()
+    const seletores = await screen.findAllByRole('combobox')
+    await user.selectOptions(seletores[0], 'b')
+    expect(await screen.findByText(/Empresa ativa: Beta Equipamentos Ltda/)).toBeInTheDocument()
+    expect(localStorage.getItem('vv:empresa-ativa:u1')).toBe('b')
+  })
+
+  it('sino mostra quantas notificações não lidas existem', async () => {
+    liberado()
+    estado.naoLidas = 3
+    abrir('/')
+    expect(await screen.findByRole('link', { name: 'Notificações: 3 não lidas' })).toBeInTheDocument()
+  })
+
+  it('módulo ainda não construído abre a tela EM DESENVOLVIMENTO, sem dados falsos', async () => {
+    liberado()
+    abrir('/agenda')
+    expect(await screen.findByRole('heading', { name: 'Agenda' })).toBeInTheDocument()
+    expect(screen.getByText('EM DESENVOLVIMENTO')).toBeInTheDocument()
+    expect(screen.getByText(/Fase 05/)).toBeInTheDocument()
   })
 })
