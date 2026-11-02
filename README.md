@@ -25,6 +25,8 @@ Decisões e alternativas: [`docs/adr/`](docs/adr/).
 
 Pré-requisitos: Node 26 (`.nvmrc`), [uv](https://docs.astral.sh/uv/), Docker (para o Supabase local).
 
+> **Não mantenha o repositório em pasta sincronizada pelo iCloud** (Mesa e Documentos). O iCloud tira arquivos do disco e duplica arquivos do `.git`, travando testes e builds. Use, por exemplo, `~/Developer/Licita-Board`.
+
 ```bash
 # Front
 npm ci --prefix apps/web

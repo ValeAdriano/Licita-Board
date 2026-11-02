@@ -144,7 +144,7 @@ Teste-guarda: toda FK que apontar para `core.empresas` precisa ser tratada em `c
 2. ✅ Step-up: `core.step_up_tokens`, RPCs de vínculo/permissão, dupla aprovação (`core.aprovacoes_exclusao`).
 3. ✅ Auth no front: supabase-js, login, recuperação neutra, cadastro/verificação de MFA, sessões (`core.minhas_sessoes`), sair de todos, logout por inatividade (30 min), seed fictício para login local.
 4. ✅ Shell: menu lateral (desktop) e barra inferior (celular), seletor de empresa ativa (lembrado por usuário), sino e tela de notificações (`core.notificacoes`), conta (nome/telefone, autenticadores, sessões), módulos futuros com tela EM DESENVOLVIMENTO, PWA (manifest, ícones provisórios, service worker só com o shell), aviso de sem conexão.
-5. `feat/fase-01-matriz-permissoes`: tela da matriz + funções de concessão em lote.
+5. ✅ Matriz de permissões: tela por empresa ativa (usuários, papel, situação, matriz módulo × ação, sugestão por papel), `core.salvar_vinculo` atômica com um step-up, convites com aceite (`core.convites`, convidar/revogar/aceitar).
 6. `chore/fase-01-backup`: `pg_dump` criptografado semanal + relatório de restauração.
 7. `docs/relatorio-fase-01`.
 
@@ -169,6 +169,17 @@ Teste-guarda: toda FK que apontar para `core.empresas` precisa ser tratada em `c
 - `lida_em` é carimbado pelo servidor e não é desfeito. Ninguém reescreve o conteúdo enviado (nem o worker).
 - Exceção consciente: sem colunas padrão e sem trigger de auditoria (justificativa no cabeçalho da migration).
 
+## 3.3 Convites e matriz (PR 5 · implementado)
+
+| Função | Regra |
+| --- | --- |
+| `core.convidar_usuario(empresa, email, papel, permissoes, token)` | `permissoes/administrar_permissoes` + step-up. Valida módulos/ações e a regra do CLIENTE **antes** de consumir o token. Um convite pendente por e-mail e empresa; recusa quem já tem vínculo. Responde igual exista ou não a conta; quem tem conta recebe aviso in-app. Vale 7 dias. |
+| `core.revogar_convite(convite)` | Quem administra permissões da empresa. Sem step-up (reduz acesso). |
+| `core.meus_convites()` / `core.aceitar_convite(convite)` | Só o dono do e-mail (conta ativa) vê e aceita; aceitar cria vínculo e permissões com o autor do convite como `created_by`. |
+| `core.salvar_vinculo(vinculo, papel, ativo, permissoes, token)` | Matriz: grava permissões, depois papel/situação, numa transação com um step-up; mantém ao menos um admin. |
+
+Pendente: envio do convite por e-mail para quem ainda não tem conta (Admin API no worker/Edge Function).
+
 ## 6.1 Lacunas conhecidas do front de autenticação
 
 - **Códigos de recuperação de uso único (Prompt 1.4):** o Supabase Auth não oferece. Alternativas: cadastrar um segundo autenticador como reserva, ou redefinição do MFA pelo SUPERADMIN via worker (Admin API) com verificação de identidade. Decisão pendente.
@@ -183,8 +194,8 @@ Teste-guarda: toda FK que apontar para `core.empresas` precisa ser tratada em `c
 
 ## 7. Perguntas abertas
 
-0. **Convite de usuário** — hoje só SUPERADMIN cria vínculo (impede ADMIN de cooptar usuário de outra empresa). Recomendação: PR de convite por e-mail com aceite do convidado, via RPC.
+0. ~~Convite de usuário~~ — resolvido: convite com aceite (seção 3.3).
 
-1. **Permissões padrão por papel** — ao criar um vínculo, pré-preencher a matriz? Recomendação: sim, só como sugestão na tela (ADMIN_EMPRESA = tudo da empresa; OPERADOR = tudo menos permissões/auditoria/custos; JURÍDICO = visualizar + peças; CLIENTE = visualizar em documentos, agenda, editais, produtos), sempre editável e nunca implícita no banco.
+1. **Permissões padrão por papel** — implementado como sugestão na tela (não implícito no banco), conforme a recomendação; confirmar os conjuntos: sim, só como sugestão na tela (ADMIN_EMPRESA = tudo da empresa; OPERADOR = tudo menos permissões/auditoria/custos; JURÍDICO = visualizar + peças; CLIENTE = visualizar em documentos, agenda, editais, produtos), sempre editável e nunca implícita no banco.
 2. **ADMIN_EMPRESA vê auditoria da própria empresa?** Recomendação: sim, via `auditoria/visualizar`.
 3. **CAPTCHA no login** — Turnstile ou hCaptcha (os dois são suportados pelo Supabase Auth)? Recomendação: Turnstile.

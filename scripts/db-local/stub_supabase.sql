@@ -12,6 +12,7 @@ create table auth.users (
   id uuid primary key default gen_random_uuid(),
   email text unique,
   raw_user_meta_data jsonb default '{}'::jsonb,
+  email_confirmed_at timestamptz,
   created_at timestamptz default now()
 );
 -- Subconjunto das colunas reais do GoTrue usadas pelo step-up, com os mesmos enums.

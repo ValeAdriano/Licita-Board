@@ -7,7 +7,7 @@ import { useAuth } from '../../lib/auth/AuthProvider'
 import { mensagemDeErro } from '../../lib/auth/erros'
 import { type NovaSenha, novaSenhaSchema } from '../../lib/auth/senha'
 import { supabase } from '../../lib/supabase'
-import { CodigoMfa } from './CodigoMfa'
+import { CodigoMfa } from '../../components/CodigoMfa'
 
 // Só funciona para a aba que chegou pelo link do e-mail (evento PASSWORD_RECOVERY): uma sessão
 // comum aberta não troca a senha por aqui (T5.3). Quem tem autenticador confirma o código antes.

@@ -1,12 +1,22 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { MODULOS_EM_DESENVOLVIMENTO } from '../../app/navegacao'
 import { Aviso } from '../../components/ui'
 import { useAuth } from '../../lib/auth/AuthProvider'
 import { nomeDaEmpresa, useEmpresaAtiva } from '../../lib/empresa/EmpresaAtiva'
+import { supabase } from '../../lib/supabase'
 
 export function InicioPage() {
   const { perfil } = useAuth()
   const { ativa, empresas, carregando } = useEmpresaAtiva()
+  const convites = useQuery({
+    queryKey: ['meus-convites'],
+    queryFn: async () => {
+      const { data, error } = await supabase.schema('core').rpc('meus_convites')
+      if (error) throw error
+      return (data ?? []) as unknown[]
+    },
+  })
 
   return (
     <div className="mx-auto max-w-5xl p-4">
@@ -14,6 +24,15 @@ export function InicioPage() {
       <p className="mb-6 text-sm text-slate-600 dark:text-slate-400">
         {carregando ? 'Carregando empresas…' : ativa ? `Empresa ativa: ${nomeDaEmpresa(ativa)}` : ''}
       </p>
+
+      {(convites.data?.length ?? 0) > 0 && (
+        <Aviso>
+          Você tem convite para acessar uma empresa.{' '}
+          <Link to="/convites" className="font-semibold underline">
+            Ver convites
+          </Link>
+        </Aviso>
+      )}
 
       {!carregando && empresas.length === 0 && (
         <Aviso>Você ainda não tem acesso a nenhuma empresa. Fale com o administrador.</Aviso>

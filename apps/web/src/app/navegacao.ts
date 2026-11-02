@@ -10,6 +10,7 @@ import {
   Package,
   ScrollText,
   Search,
+  ShieldCheck,
   UserRound,
 } from 'lucide-react'
 
@@ -35,6 +36,7 @@ export const MENU: ItemMenu[] = [
   { rota: '/juridico', rotulo: 'Jurídico', icone: Gavel, pronto: false, fase: 'Fase 10' },
   { rota: '/contratos', rotulo: 'Contratos', icone: ScrollText, pronto: false, fase: 'Fase 11' },
   { rota: '/relatorios', rotulo: 'Relatórios', icone: ChartColumn, pronto: false, fase: 'Fase 12' },
+  { rota: '/permissoes', rotulo: 'Usuários e permissões', icone: ShieldCheck, pronto: true },
   { rota: '/notificacoes', rotulo: 'Notificações', icone: Bell, pronto: true },
   { rota: '/conta', rotulo: 'Minha conta', icone: UserRound, pronto: true },
 ]

@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react'
-import { Aviso, Botao, Campo } from '../../components/ui'
+import { Aviso, Botao, Campo } from './ui'
 
 type Props = { aoEnviar: (codigo: string) => Promise<string | null>; rotuloBotao?: string }
 

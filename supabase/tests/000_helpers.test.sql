@@ -17,8 +17,8 @@ declare
 begin
   select id into v_id from auth.users where email = p_ident || '@teste.local';
   if v_id is null then
-    insert into auth.users (id, email, raw_user_meta_data)  -- id explícito: no GoTrue não há default
-    values (gen_random_uuid(), p_ident || '@teste.local', jsonb_build_object('nome', 'Teste ' || p_ident))
+    insert into auth.users (id, email, raw_user_meta_data, email_confirmed_at)  -- id explícito: no GoTrue não há default
+    values (gen_random_uuid(), p_ident || '@teste.local', jsonb_build_object('nome', 'Teste ' || p_ident), now())
     returning id into v_id;
   end if;
   update core.usuarios set superadmin = p_superadmin where id = v_id;

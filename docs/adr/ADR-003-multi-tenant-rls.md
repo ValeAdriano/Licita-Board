@@ -29,6 +29,11 @@ Isolamento entre empresas é o requisito que, se falhar, derruba todo o resto. C
 - Service role nunca no front (hook + Semgrep).
 - Teste A x B em pgTAP para cada tabela de `priv`; `scripts/check_isolation_coverage.py` falha o CI se faltar.
 
+## Notas de implementação (Fase 01)
+
+- **Teto de concessão:** quem tem `permissoes/administrar_permissoes` só concede permissões que ele mesmo tem na empresa e não amplia o próprio vínculo (só reduz). SUPERADMIN fica fora do teto. Assim, "Ver custos e margens" não vira consequência automática de administrar permissões.
+- **Convites** ficam presos à conta do convidado, não ao e-mail atual.
+
 ## Consequências
 
 - **Positivas:** uma regra só para testar; agentes têm padrão claro para copiar.

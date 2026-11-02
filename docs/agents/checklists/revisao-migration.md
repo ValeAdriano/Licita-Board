@@ -33,6 +33,7 @@ Para o agente (auto-revisão) e para o Adriano (revisão linha a linha).
 - [ ] `security definer` só quando necessário, com `set search_path = ''`.
 - [ ] Função `stable`/`immutable` marcada corretamente.
 - [ ] Triggers de `updated_at` e `audit` ligados.
+- [ ] Colunas com dado pessoal (e-mail, CPF, telefone, nome de pessoa) listadas no 2º argumento de `audit.registrar(...)` para serem redigidas; nenhum dado pessoal em `usado_para_alvo` de step-up.
 - [ ] Sem SQL dinâmico com concatenação de entrada do usuário.
 
 ## Grants

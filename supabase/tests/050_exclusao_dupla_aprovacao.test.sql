@@ -171,7 +171,7 @@ select results_eq(
 select results_eq(
   $$ select conrelid::regclass::text from pg_constraint
       where contype = 'f' and confrelid = 'core.empresas'::regclass and confdeltype = 'c' order by 1 $$,
-  $$ values ('core.notificacoes'::text) $$,
+  $$ values ('core.convites'::text), ('core.notificacoes'::text) $$,
   'lista fechada de FKs com cascade para core.empresas (nova cascade exige decisão explícita aqui)');
 
 select * from finish();

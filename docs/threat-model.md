@@ -147,3 +147,36 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | Notificação só é criada pelo sistema; usuário não insere pela API | `070_notificacoes` | 01 | implementado |
 | `link` aceita só caminho interno do app (sem domínio) | `070_notificacoes` | 01 | implementado |
 | Cada usuário só vê e marca as próprias | `070_notificacoes` | 01 | implementado |
+
+## T2.2 · Tomada de convite por troca ou reuso de e-mail (nova, Fase 01)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Convite preso à conta (`usuario_id`), ligado na criação do convite ou da conta, nunca por troca de e-mail | `080_convites`: quem troca o e-mail não vê nem aceita | 01 | implementado |
+| Aceite exige e-mail confirmado | `080_convites` | 01 | implementado |
+| Produção: "Confirm email" e "Secure email change" ligados no Auth | checklist de configuração do projeto | 01 | planejado |
+
+## T2.3 · Convite órfão mantém acesso de quem foi removido (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Aceite e listagem exigem que o autor ainda administre a empresa; `salvar_vinculo` revoga convites de quem deixou de administrar | `080_convites`: convite de admin desativado não aparece nem é aceito | 01 | implementado |
+
+## T2.4 · `administrar_permissoes` como superpermissão (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Teto de concessão: só se concede o que o autor tem; ninguém amplia o próprio vínculo (SUPERADMIN fora do teto) | `080_convites`, `090_salvar_vinculo` | 01 | implementado |
+
+## T3.1 (ampliação) · Texto controlado por empresa em notificação de outro usuário
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Notificação de convite com título fixo; limite de 30 convites por empresa por dia | `080_convites` | 01 | implementado |
+
+## T4 (ampliação) · Dado pessoal em tabelas novas com auditoria
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| E-mail de convidado redigido na auditoria; step-up registra id do convite, não o e-mail | `080_convites` | 01 | implementado |
+| Checklist de migration exige listar colunas com dado pessoal a redigir | `docs/agents/checklists/revisao-migration.md` | 01 | implementado |

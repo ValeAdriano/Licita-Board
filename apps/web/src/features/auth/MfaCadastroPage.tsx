@@ -4,7 +4,7 @@ import { Aviso, Botao, Card, TelaCentral } from '../../components/ui'
 import { useAuth } from '../../lib/auth/AuthProvider'
 import { mensagemDeErro } from '../../lib/auth/erros'
 import { supabase } from '../../lib/supabase'
-import { CodigoMfa } from './CodigoMfa'
+import { CodigoMfa } from '../../components/CodigoMfa'
 
 type Cadastro = { factorId: string; qrCode: string; segredo: string }
 

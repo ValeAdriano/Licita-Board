@@ -10,6 +10,16 @@ export const estado = {
   recuperacao: false,
   empresas: [] as { id: string; razao_social: string; nome_fantasia: string | null }[],
   naoLidas: 0,
+  /** has_permission por 'modulo:acao' (verdadeiro se estiver na lista). */
+  podeNaEmpresa: [] as string[],
+  vinculos: [] as unknown[],
+  convites: [] as unknown[],
+  permissoes: [] as { modulo: string; acao: string }[],
+  meusConvites: [] as unknown[],
+  modulos: [
+    { slug: 'empresas', nome: 'Empresas' },
+    { slug: 'documentos', nome: 'Documentos' },
+  ],
   falharPerfil: false,
   falharSignOut: false,
 }
@@ -27,6 +37,8 @@ function consulta(resultado: () => unknown) {
 }
 
 export const signInWithPassword = vi.fn()
+export const challengeAndVerify = vi.fn(async () => ({ data: {}, error: null }))
+export const rpcChamadas: { nome: string; args: Record<string, unknown> }[] = []
 export const resetPasswordForEmail = vi.fn()
 
 export const supabaseFake = {
@@ -38,6 +50,7 @@ export const supabaseFake = {
     signOut: vi.fn(async () => ({ error: estado.falharSignOut ? { name: 'AuthRetryableFetchError' } : null })),
     mfa: {
       getAuthenticatorAssuranceLevel: vi.fn(async () => ({ data: { currentLevel: estado.aal }, error: null })),
+      challengeAndVerify,
       listFactors: vi.fn(async () => ({
         data: { totp: estado.fatores.filter((f) => f.status === 'verified'), all: estado.fatores },
         error: null,
@@ -55,9 +68,25 @@ export const supabaseFake = {
           ? { data: estado.empresas, error: null }
           : tabela === 'notificacoes'
           ? { data: [], count: estado.naoLidas, error: null }
+          : tabela === 'modulos'
+          ? { data: estado.modulos, error: null }
+          : tabela === 'convites'
+          ? { data: estado.convites, error: null }
+          : tabela === 'permissoes'
+          ? { data: estado.permissoes, error: null }
+          : tabela === 'vinculos' && estado.vinculos.length
+          ? { data: estado.vinculos, error: null }
           : { data: estado.papeis.map((papel) => ({ papel, id: papel, empresas: null })), error: null },
       ),
-    rpc: () => consulta(() => ({ data: [], error: null })),
+    rpc: (nome: string, args: Record<string, unknown> = {}) => {
+      rpcChamadas.push({ nome, args })
+      return consulta(() => {
+        if (nome === 'has_permission') return { data: estado.podeNaEmpresa.includes(`${args.p_modulo}:${args.p_acao}`), error: null }
+        if (nome === 'iniciar_step_up') return { data: 'token-step-up', error: null }
+        if (nome === 'meus_convites') return { data: estado.meusConvites, error: null }
+        return { data: [], error: null }
+      })
+    },
   }),
 }
 
@@ -70,6 +99,13 @@ export function resetarEstado() {
   estado.recuperacao = false
   estado.empresas = []
   estado.naoLidas = 0
+  estado.podeNaEmpresa = []
+  estado.vinculos = []
+  estado.convites = []
+  estado.permissoes = []
+  estado.meusConvites = []
+  rpcChamadas.length = 0
+  challengeAndVerify.mockClear()
   estado.falharPerfil = false
   estado.falharSignOut = false
   localStorage.clear()
