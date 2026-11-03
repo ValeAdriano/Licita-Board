@@ -1,7 +1,7 @@
 # Modelo de ameaças
 
 - **Status:** Proposto (aguardando aprovação do Adriano — critério de aceite da Fase 00)
-- **Atualizado em:** 2026-11-01
+- **Atualizado em:** 2026-11-03 (T5 reescrita para a auth própria, ADR-012/013)
 - **Regra:** toda fase revisa este documento; ameaça nova entra aqui com controle e teste antes do relatório de fase.
 
 Cada ameaça tem: controle adotado, **teste que comprova o controle** (Prompt Mestre 0.3) e status do teste (`planejado` → `implementado` → `no CI`).
@@ -51,13 +51,66 @@ Preços, custos e margens; propostas e peças jurídicas; documentos de habilita
 
 ## T5 · Sequestro de sessão e força bruta no login
 
+Revisão 2 (auth própria, ADR-012/013). Os controles da revisão 1 sobre Supabase Auth, JWT e Vercel (T5.2 a T5.5 abaixo) valem para o código congelado em `apps/web` e saem com ele.
+
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
-| Senha ≥ 12 + complexidade, leaked password, rate limit do Auth, CAPTCHA após N falhas | e2e: senha curta rejeitada; config conferida | 01 | planejado |
-| MFA TOTP obrigatório para perfis internos (`aal2` no RLS) | `020_core_isolamento`: ADMIN e SUPERADMIN com `aal1` não leem nada; CLIENTE lê com `aal1` | 01 | implementado (banco) |
-| JWT 15 min, refresh rotativo, time-box 12 h, inatividade 30 min, sair de todos | config + e2e de logout global | 01 | planejado |
-| CSP estrita, sem HTML injetado (risco residual de JWT no client, ADR-002) | teste de headers da Vercel + Semgrep | 01 | planejado |
-| Recuperação de senha neutra | e2e: e-mail inexistente → mesma mensagem | 01 | planejado |
+| Senha Argon2id (m=19 MiB, t=2, p=1), mínimo 12; hash nunca legível por `vv_api`/`vv_worker`; redigido na auditoria | `040_sessoes_login`; e2e troca de senha | 01 | implementado |
+| Sessão opaca (32 bytes), banco guarda só SHA-256; contexto da RLS = sessão viva conferida a cada consulta | `002_contexto` (forjar `app.*` com marca válida não vale) | 01 | implementado |
+| Web: cookie `__Host-` HttpOnly/Secure/SameSite=Strict + CSRF double submit; nativo: Bearer | e2e `auth`: atributos do cookie, CSRF em todo método que altera | 01 | implementado |
+| Inatividade 30 min, absoluta 12 h, sair de todos, encerrar sessão por id (só as próprias) | `002_contexto`, `040_sessoes_login`, e2e sessões | 01 | implementado |
+| Força bruta: tentativa registrada **antes** do Argon2, serializada por e-mail; 10 falhas/15 min bloqueiam o login novo; 10 tentativas/min por IP → 429 (também com senha certa) | `040_sessoes_login`; e2e rajada paralela e limite por IP | 01 | implementado |
+| Sem enumeração: mesma resposta e mesmo custo (hash falso) para e-mail inexistente, senha errada e conta bloqueada | e2e `auth` | 01 | implementado |
+| Fixação de sessão: login sempre emite token novo; troca de senha rotaciona o token | e2e fixação e troca de senha | 01 | implementado |
+| MFA TOTP conferido no banco (KEK conferida por verificador; replay barrado inclusive por concorrência; 5 erros/sessão encerram; 10/usuário em 15 min bloqueiam o MFA e encerram as sessões) | `050_mfa` | 01 | implementado (banco); API no PR 4 |
+| Senha vazada (HIBP k-anonymity), CAPTCHA (Turnstile) após a 3ª falha, recuperação neutra por e-mail | e2e | 01 | planejado (PR 3b) |
+
+## T5.6 · Bloqueio de conta usado como ataque de indisponibilidade (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Bloqueio por falhas só impede login **novo**; sessões abertas continuam | `002_contexto` | 01 | implementado |
+| Alerta por e-mail ao dono da conta; CAPTCHA em vez de bloqueio duro para IP novo | e2e | 01 | planejado |
+
+## T5.7 · Corrida no login contorna o bloqueio (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| `preparar_login` conta a tentativa antes da senha, com `pg_advisory_xact_lock` por e-mail; `concluir_login` só aceita a própria tentativa, uma vez | `040_sessoes_login`; e2e rajada de 12 pedidos | 01 | implementado |
+
+## T5.8 · Sessão só com senha (aal1) usada para gerir a conta (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Guard exige aal2 por padrão para quem tem ou precisa de MFA; só `@PermiteAal1()` (consultar sessão, sair, MFA) passa | e2e perfil interno | 01 | implementado |
+| `trocar_senha` e troca de autenticador exigem aal2 / MFA recente no banco | `050_mfa` | 01 | implementado |
+
+## T5.9 · Login CSRF (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Só JSON (sem urlencoded), corpo ≤ 16 kB; login web exige `Origin` listado e recusa `Sec-Fetch-Site: cross-site` | e2e login CSRF e 413 | 01 | implementado |
+
+## T5.10 · SQLi na API usada contra a identidade (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Contexto só por token de sessão viva; token cru nunca fica no banco nem no contexto | `002_contexto` | 01 | implementado |
+| KEK nunca no banco: só um verificador; cadastrar/conferir TOTP com KEK inventada falha | `050_mfa` | 01 | implementado |
+| Parâmetros de `vv_api` fora do log do Postgres (`log_parameter_max_length = 0`) | `001_guarda_global` | 01 | implementado |
+| Risco residual aceito (ADR-013): SQLi lê o hash Argon2id de um e-mail conhecido via `preparar_login` (quebra offline) e cria sessão aal1; dado de perfil interno continua exigindo aal2 | — | 01 | aceito |
+
+## T5.11 · IP de origem errado por topologia de proxy (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| `TRUST_PROXY` validado (false, loopback ou IP/CIDR do Caddy); XFF do cliente ignorado sem proxy confiável | `config.spec`; e2e proxy confiável e não confiável | 01 | implementado |
+
+## T7.1 · Indisponibilidade por custo do Argon2 (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| No máximo 4 Argon2 simultâneos (acima: 503 rápido); Argon2 fora de transação; limite por IP antes do hash | e2e rajada (aceita 503) | 01 | implementado |
 
 ## T6 · Erro humano: exclusão, proposta errada, preço abaixo do mínimo, prazo perdido
 

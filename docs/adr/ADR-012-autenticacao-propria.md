@@ -27,11 +27,11 @@ Sem o Supabase Auth, a API passa a ser dona da identidade. O Prompt pede Argon2i
 | --- | --- |
 | Hash | Argon2id (`argon2`, parâmetros OWASP: m=19 MiB, t=2, p=1), rehash automático se os parâmetros subirem |
 | Senha | ≥ 12 caracteres; consulta HIBP por k-anonymity (só os 5 primeiros caracteres do SHA-1 saem do servidor); se o HIBP falhar, cai para uma lista local das senhas mais comuns |
-| Força bruta | `core.tentativas_login` por usuário e por IP com atraso progressivo e bloqueio temporário; `@nestjs/throttler` no login, na recuperação e no MFA |
+| Força bruta | `core.preparar_login` registra a tentativa antes do Argon2 (serializada por e-mail): 10 falhas em 15 min bloqueiam o login novo por 15 min; mais de 10 tentativas/min por IP → 429. MFA: 5 erros encerram a sessão, 10 do usuário em 15 min bloqueiam o MFA |
 | Sessão | Token aleatório de 256 bits; o banco guarda só o SHA-256 em `core.sessoes` (usuário, `aal`, criada, último uso, expira, IP, user-agent, revogada). Inatividade de 30 min, absoluta de 12 h, rotação do token no login e no step-up |
 | Transporte web | Cookie `__Host-sessao` HttpOnly, Secure, SameSite=Strict, Path=/; token CSRF em header (double submit) em toda requisição que altera estado |
 | Transporte nativo | `Authorization: Bearer <token>`; token só no `expo-secure-store` (Keychain/Keystore) |
-| MFA | TOTP (`otplib`), segredo cifrado em campo (ADR-017), obrigatório para SUPERADMIN, ADMIN_EMPRESA, OPERADOR e JURÍDICO (a sessão fica `aal1` até o TOTP); 10 códigos de recuperação de uso único com hash Argon2id. Passkey fica para depois |
+| MFA | TOTP conferido **no banco** (HMAC do pgcrypto), segredo cifrado com a KEK, que o banco confere por verificador (ADR-017); obrigatório para SUPERADMIN, ADMIN_EMPRESA, OPERADOR e JURÍDICO (a sessão fica `aal1` até o TOTP, e o guard exige aal2 nas rotas de gestão); 10 códigos de recuperação de alta entropia, uso único, guardados por SHA-256. Passkey fica para depois |
 | Revogação | "Sair de todos os dispositivos" revoga todas as sessões do usuário; troca de senha também revoga |
 | Recuperação | Token de uso único (hash no banco), 30 min, mensagem sempre neutra, envio por e-mail pelo worker |
 | Cadastro | Fechado: usuários entram por convite (Fase 01) |

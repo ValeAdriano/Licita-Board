@@ -80,11 +80,12 @@ Colunas da revisão 1 (`nome`, `telefone`, `oab`, `superadmin`, `ativo`) mais:
 | `core.tokens_recuperacao` | `usuario_id`, `token_hash`, `expira_em` (30 min), `usado_em` | nenhum |
 | `core.dispositivos_push` | `usuario_id`, `tipo` (expo/webpush), `endereco`, `criado_em`, `revogado_em` | o próprio usuário |
 
-### Contexto validado no banco (ADR-013, Fase 01)
+### Contexto validado no banco (ADR-013, Fase 01) — implementado no PR 2
 
-- `core.definir_contexto(p_token text)` passa a receber **só o token opaco** da sessão. É `security definer`: busca `core.sessoes` por `sha256(token)`, confere `revogada_em is null`, `expira_em > now()` e inatividade (`ultimo_uso_em > now() - 30 min`), atualiza `ultimo_uso_em` e grava usuário, sessão e `aal` no contexto da transação.
-- A sessão só sobe para `aal2` por `core.confirmar_mfa(p_token, p_passo_totp)`, depois que a API confere o TOTP. **Ver pergunta aberta 1**: conferir o TOTP no próprio banco fecha o risco de um SQLi elevar a própria sessão.
-- Login e criação de sessão: `core.criar_sessao(...)` (`security definer`), chamada pela API depois de conferir a senha. A API nunca lê `senha_hash` por SELECT: usa `core.hash_do_login(email)`, que devolve o hash só para o fluxo de login e registra a tentativa.
+- `core.definir_contexto(p_token text)` grava na transação só o SHA-256 do token; `usuario_atual`/`sessao_atual`/`aal_atual` buscam a sessão viva em `core.sessoes` a cada consulta (não revogada, absoluta 12 h, inatividade 30 min, usuário ativo). `ultimo_uso_em` é renovado no máximo uma vez por minuto, sem trava.
+- Login em duas etapas: `core.preparar_login(email, ip)` (registra a tentativa como falha antes do Argon2, com advisory lock por e-mail; recusa conta bloqueada e IP acima de 10/min) e `core.concluir_login(tentativa, usuario, token, ...)` (só com a senha conferida). O bloqueio impede login novo, não derruba sessões abertas.
+- MFA no banco: `cadastrar_totp`, `confirmar_totp`, `verificar_totp` recebem a KEK (conferida contra `core.chaves_mestras`, registrada por `db/scripts/registrar-kek.sh`); `gerar_codigos_recuperacao`/`usar_codigo_recuperacao` com SHA-256; `rotacionar_sessao` troca o token após trocar a senha ou elevar a aal2.
+- Pendente para antes da primeira tabela de `priv` (desempenho, ADR-013): ler a sessão uma vez por consulta nas policies (`empresas_com_permissao`).
 
 ## 5. API (NestJS)
 
@@ -124,8 +125,8 @@ Parâmetros de segurança (ADR-012): Argon2id m=19 MiB, t=2, p=1; atraso progres
 ## 7. Plano de PRs (cada um < 500 linhas)
 
 1. ✅ `feat/fase-01-port-acesso`: empresas, modulos, vinculos, permissoes, has_permission, audit + pgTAP portados (contexto da Fase 00).
-2. `feat/fase-01-identidade` (lembrar: `senha_hash` sem grant de SELECT para `vv_api` e redigida/fora da auditoria): colunas de identidade em usuarios, sessoes, fatores_mfa, codigos, tentativas, tokens; `definir_contexto(token)`, `criar_sessao`, `confirmar_mfa`; pgTAP.
-3. `feat/fase-01-api-auth`: módulo auth (login, logout, sessões, recuperação, troca de senha), `SessaoGuard`, CSRF, `comContexto` (chama `definir_contexto` + `definir_requisicao`), e-mail via fila; e2e de ataque (força bruta, fixação de sessão, CSRF, enumeração de e-mail, `X-Forwarded-For` forjado pelo cliente: só vale o valor escrito pelo Caddy; IP inválido vira nulo, não derruba a requisição).
+2. ✅ `feat/fase-01-identidade` (lembrar: `senha_hash` sem grant de SELECT para `vv_api` e redigida/fora da auditoria): colunas de identidade em usuarios, sessoes, fatores_mfa, codigos, tentativas, tokens; `definir_contexto(token)`, `criar_sessao`, `confirmar_mfa`; pgTAP.
+3. ✅ `feat/fase-01-api-auth` (recuperação por e-mail, HIBP e CAPTCHA ficam no 3b): módulo auth (login, logout, sessões, recuperação, troca de senha), `SessaoGuard`, CSRF, `comContexto` (chama `definir_contexto` + `definir_requisicao`), e-mail via fila; e2e de ataque (força bruta, fixação de sessão, CSRF, enumeração de e-mail, `X-Forwarded-For` forjado pelo cliente: só vale o valor escrito pelo Caddy; IP inválido vira nulo, não derruba a requisição).
 4. `feat/fase-01-api-mfa`: cadastro/confirmação TOTP, códigos de recuperação, step-up; e2e (replay de TOTP, fator novo < 24 h).
 5. `feat/fase-01-port-stepup-exclusao`: step_up_tokens, aprovacoes_exclusao, salvar_vinculo, convites, notificacoes no banco + endpoints + e2e A x B.
 6. `feat/fase-01-app-auth`: login, MFA, recuperação, sessão no SecureStore/cookie, logout por inatividade.
