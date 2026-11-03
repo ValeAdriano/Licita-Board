@@ -1,5 +1,6 @@
 import { mensagemSair, useSessao } from '../auth/sessao'
 import { useAcesso } from '../features/acesso/contexto'
+import { Alertas } from '../features/acesso/conta/Alertas'
 import { Autenticador } from '../features/acesso/conta/Autenticador'
 import { Perfil } from '../features/acesso/conta/Perfil'
 import { Senha } from '../features/acesso/conta/Senha'
@@ -21,6 +22,7 @@ export default function Conta() {
           <Autenticador usuario={usuario} />
         </>
       ) : null}
+      <Alertas />
       <Sessoes />
       <Aviso texto={erro} />
       <Botao variante="secundario" onClick={() => void sair().catch((e: unknown) => setErro(mensagemSair(e)))}>

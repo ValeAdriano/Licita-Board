@@ -7,6 +7,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 // sessão (__Host-, SameSite=Strict) e o CSRF funcionam como em produção (Caddy), sem CORS.
 const API_DEV = process.env.VV_API_DEV_URL ?? 'http://localhost:3000'
 
+const proxy = { '/api': { target: API_DEV, changeOrigin: false, xfwd: true, rewrite: (p: string) => p.replace(/^\/api/, '') } }
+
 export default defineConfig({
   plugins: [
     react(),
@@ -42,14 +44,18 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         runtimeCaching: [],
+        // Web Push (public/push.js): eventos push e clique na notificação.
+        importScripts: ['push.js'],
       },
     }),
   ],
   server: {
     host: 'localhost',
     port: 5173,
-    proxy: { '/api': { target: API_DEV, changeOrigin: false, xfwd: true, rewrite: (p) => p.replace(/^\/api/, '') } },
+    proxy,
   },
+  // `npm run build && npm run preview`: testa o build com service worker (e o push) contra a API local.
+  preview: { host: 'localhost', port: 5173, proxy },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],

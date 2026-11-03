@@ -283,9 +283,21 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | T2.5b | Confirmação só com contagem esconde a escalada de privilégio | O resumo lista pelo nome as ações sensíveis acrescentadas (administrar permissões, custos e margens, aprovar, exportar) e em quais módulos | `matriz.test.ts` | implementado |
 | T3.1d | Texto livre de terceiro com caracteres bidi ou enorme disfarça CNPJ e autor | `<bdi>` e `overflow-wrap`; remover caracteres de formato no banco | — | parcial |
 | T5.25 | Cache de navegação (bfcache) devolve a tela com dados depois do logout em outra aba | `pageshow` com `persisted` relê a sessão | `sessao.tsx` | implementado |
-| T5.26 | (Web Push, PR 9) a inscrição de push continua ativa depois do logout e o próximo usuário recebe alertas do anterior | Cancelar a inscrição no logout; conteúdo sem dado sensível | — | planejado (antes de entregar o push) |
+| T5.26 | Web Push: a inscrição continua ativa depois do logout e o próximo usuário recebe alertas do anterior | "Sair" explícito revoga no servidor e cancela a inscrição local (melhor esforço: o local vence mesmo offline; o serviço de push responde 410 e o worker revoga); trocar a senha ou desativar a conta revoga todos os dispositivos (trigger); a carga é genérica. Expirar por inatividade NÃO cancela (o aviso serve a quem deixou a aba parada): risco residual aceito, sem conteúdo | `push.test.ts`, `sessao.test.tsx`, `db/tests/140_dispositivos_push` | implementado |
 | T4.b | Brecha nas regras de guarda: `VV_KEK`, `*_SECRET` e `VITE_*TOKEN` no bundle público | Semgrep (`vv-credencial-no-app`, sinks perigosos, fetch fora do cliente), hook e grep do `dist/` no CI | `test_guard.py`; CI | implementado |
 | T7.3 | Dependências de build (`vite-plugin-pwa` → `workbox-build`: glob, minimatch, ejs, deepmerge) fora do gate `--omit=dev` | `npm audit` completo informativo no CI; nada disso entra no bundle | CI | risco aceito |
+
+## T5.27 a T5.33 · Web Push (novas, PR 9, ADR-018)
+
+| ID | Ameaça | Controle | Teste | Status |
+| --- | --- | --- | --- | --- |
+| T5.27 | SSRF: o worker faz POST no endpoint que o usuário cadastra | Lista fechada de hosts de serviços de push (FCM, Mozilla, Apple, Windows), https, sem usuário/porta/IP/quebra de linha, nas 3 camadas (banco, API, worker); `max_redirects = 0`; timeout de 10 s | `140_dispositivos_push`, `push.e2e-spec`, `test_push.py` | implementado |
+| T5.28 | Vazamento de dado pelo push | Carga genérica e fixa (título, texto, `/notificacoes`, tag com o id); a fila leva só ids; o conteúdo só aparece no app, depois da sessão, permissão e RLS; clique abre sempre o caminho fixo (sem URL do payload) | `test_fila.py`, `test_push.py`, `140_dispositivos_push` | implementado |
+| T5.29 | Sequestro do endpoint por quem só sabe a URL | Só muda de dono quem reenvia as MESMAS chaves; `vv_api` nunca lê endpoint nem chaves; consulta e revogação não distinguem inexistente de alheio | `140_dispositivos_push`, `push.e2e-spec` | implementado |
+| T5.30 | Conta comprometida continua recebendo avisos (e o invasor revela atividade ao cadastrar o dele) | Trocar senha/desativar revoga os dispositivos; novo dispositivo avisa o dono por e-mail; teto de 10 ativos e 50 linhas por usuário; revogadas há 30 dias são apagadas | `140_dispositivos_push`, `test_email.py` | implementado |
+| T5.31 | Push amplifica notificação de terceiros (convite, prazo de outra empresa) | No máximo 5 pushes por hora por usuário; a notificação segue no app; notificação com mais de 24 h não vira push | `140_dispositivos_push`, `test_fila.py` | implementado |
+| T5.32 | Job de push envenenado ou revogação em massa por falha de infraestrutura | Exceção ao cifrar vira recusa do dispositivo (não derruba os outros); rede/429/5xx não contam contra o dispositivo; 401/403 (chave VAPID errada) é erro de configuração: nada é revogado, o job volta e falha; conferência do par VAPID na subida; reenvio não duplica para quem já recebeu | `test_fila.py`, `test_push.py` | implementado |
+| T5.33 | Metadado do push visível ao serviço de push; `push.js` preso no cache HTTP | O serviço vê momento e frequência por dispositivo (carga cifrada e genérica): risco aceito. `/push.js` com `no-cache` no Caddy | — | aceito / planejado (Caddy) |
 
 ## T5.15 · Worker comprometido forja recuperação de senha (nova)
 

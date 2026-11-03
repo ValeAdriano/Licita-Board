@@ -2,7 +2,10 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { chamar, limparCredenciais } from '../api/cliente'
+import { cancelarPushAoSair } from '../push/push'
 import { SessaoProvider, useSessao } from './sessao'
+
+vi.mock('../push/push', () => ({ cancelarPushAoSair: vi.fn().mockResolvedValue(undefined) }))
 
 function resposta(status: number, corpo: unknown): Response {
   return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(corpo) } as Response
@@ -131,5 +134,31 @@ describe('SessaoProvider', () => {
     document.dispatchEvent(new Event('visibilitychange'))
     await waitFor(() => expect(reload).toHaveBeenCalled())
     Object.defineProperty(window, 'location', { value: original, writable: true, configurable: true })
+  })
+
+  it('sair cancela a inscrição de push deste navegador (T5.26) antes de encerrar a sessão', async () => {
+    fetchMock.mockResolvedValueOnce(resposta(200, { aal: 'aal2', mfa: 'nao_requerido' }))
+    montar()
+    await waitFor(() => expect(screen.getByText('fase:ativa')).toBeInTheDocument())
+    fetchMock.mockResolvedValueOnce(resposta(204, null))
+    await userEvent.setup().click(screen.getByText('sair'))
+    await waitFor(() => expect(screen.getByText('fase:anonimo')).toBeInTheDocument())
+    expect(cancelarPushAoSair).toHaveBeenCalledWith(true)
+  })
+
+  it('expirar por inatividade NÃO cancela os alertas push (o aviso serve a quem deixou a aba parada)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      fetchMock.mockResolvedValueOnce(resposta(200, { aal: 'aal2', mfa: 'nao_requerido' }))
+      montar()
+      await waitFor(() => expect(screen.getByText('fase:ativa')).toBeInTheDocument())
+      vi.mocked(cancelarPushAoSair).mockClear()
+      fetchMock.mockResolvedValue(resposta(204, null))
+      await vi.advanceTimersByTimeAsync(31 * 60 * 1000)
+      await waitFor(() => expect(screen.getByText('fase:anonimo')).toBeInTheDocument())
+      expect(cancelarPushAoSair).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

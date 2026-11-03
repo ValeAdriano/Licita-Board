@@ -13,6 +13,7 @@ Front do VV Licitações: React 19 + Vite + TypeScript em PWA (ADR-018). Complem
 - Dinheiro chega como `string` e é formatado com `Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })` sobre um decimal (lib a definir na Fase 07). Nunca `parseFloat` em valor monetário. Datas em `America/Sao_Paulo`.
 - Recurso incompleto aparece com o selo **EM DESENVOLVIMENTO**, nunca como tela falsa. A `FaixaAmbiente` não pode ser removida nem escondida fora de produção.
 - PWA: o service worker guarda só os arquivos do app (shell). **Nunca cache de resposta da API** (`runtimeCaching` vazio e `/api` fora do fallback de navegação).
+- Web Push (ADR-018): só liga por clique (`Alertas`); o aviso é genérico e o clique abre sempre `/notificacoes` (`public/push.js`, sem URL do payload). Sair da conta (explícito) cancela a inscrição; expirar por inatividade não. A chave pública VAPID vem da API (`GET /push/chave`); nenhuma chave privada aqui.
 - Operação crítica (alterar permissões, convidar) passa por step-up: a confirmação mostra o resumo do que será gravado, um envio por vez, nunca reenvia o último código, e "Cancelar" vale também durante o envio (`StepUpModal`).
 
 ## Cabeçalhos do Caddy (obrigatórios antes de qualquer uso real; T5.18, B1 da revisão)
@@ -34,7 +35,7 @@ X-Frame-Options: DENY
 ```
 
 - Validar em homologação com `Content-Security-Policy-Report-Only`; só acrescentar o que o relatório pedir (ex.: `connect-src https://challenges.cloudflare.com` para o Turnstile). Sem COEP `require-corp` (quebra o iframe do Turnstile).
-- Cache: `index.html`, `sw.js`, `registerSW`, `manifest.webmanifest` com `no-cache`; `/assets/*` com `public, max-age=31536000, immutable`; `/api/*` nunca cacheado nem com o `no-store` da API sobrescrito. Mudou a CSP? Mude também o `index.html` (o Workbox guarda o HTML com os cabeçalhos da época).
+- Cache: `index.html`, `sw.js`, `push.js`, `manifest.webmanifest` com `no-cache`; `/assets/*` com `public, max-age=31536000, immutable`; `/api/*` nunca cacheado nem com o `no-store` da API sobrescrito. Mudou a CSP? Mude também o `index.html` (o Workbox guarda o HTML com os cabeçalhos da época).
 - Rotas: `handle_path /api/*` com `reverse_proxy` (preservar `Origin` e `Sec-Fetch-Site`, que o login usa); fallback de SPA só fora de `/api` e de `/.well-known`. Tirar `X-Csrf-Token` dos logs. `CORS_ORIGINS` da API = a origem https do app.
 
 ## Design (skill `apple-ui-design`)

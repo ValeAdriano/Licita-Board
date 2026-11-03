@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { chamar, definirCsrf, ErroApi, limparCredenciais, observarCliente } from '../api/cliente'
+import { cancelarPushAoSair } from '../push/push'
 
 // Estado da sessão no front (spec fase-01). A verdade é a API: o front só reflete o que ela diz e some
 // com a tela ao perder a sessão. O token fica no cookie HttpOnly (o JS nunca o vê). Inatividade de
@@ -131,6 +132,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   }, [iniciar, esquecer, reler])
 
   const sair = useCallback(async () => {
+    // Antes de encerrar a sessão (a revogação precisa dela): este navegador deixa de receber alertas.
+    await cancelarPushAoSair(true)
     try {
       await chamar('POST', '/auth/logout')
     } catch (e) {
@@ -140,6 +143,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   }, [esquecer])
 
   // Por inatividade a tela some de qualquer jeito; o servidor também expira em 30 min.
+  // Os alertas push NÃO são cancelados aqui: o aviso é genérico e serve justamente para quem deixou a
+  // aba parada. Só "Sair" explícito desliga os alertas deste navegador (T5.26).
   const expirar = useCallback(async () => {
     await chamar('POST', '/auth/logout').catch(() => {})
     esquecer()
