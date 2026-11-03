@@ -1,5 +1,6 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
+import { AuthModule } from './auth/auth.module.js';
 import type { Config } from './config.js';
 import { DbModule } from './db/db.module.js';
 import { HealthController } from './health/health.controller.js';
@@ -16,10 +17,16 @@ export class AppModule {
           pinoHttp: {
             level: config.LOG_LEVEL,
             // Logs JSON sem PII nem segredo (AGENTS.md §7): cabeçalhos de sessão nunca saem.
-            redact: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'],
+            redact: [
+              'req.headers.authorization',
+              'req.headers.cookie',
+              'req.headers["x-csrf-token"]',
+              'res.headers["set-cookie"]',
+            ],
           },
         }),
         DbModule,
+        AuthModule,
       ],
       controllers: [HealthController],
       providers: [{ provide: CONFIG, useValue: config }],

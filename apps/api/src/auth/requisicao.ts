@@ -1,0 +1,38 @@
+import { isIP } from 'node:net';
+import type { Request } from 'express';
+import type { DadosRequisicao } from '../db/contexto.service.js';
+
+export const COOKIE_SESSAO = '__Host-sessao';
+export const COOKIE_CSRF = '__Host-csrf';
+export const HEADER_CSRF = 'x-csrf-token';
+
+export interface Sessao {
+  token: string;
+  origem: 'cookie' | 'bearer';
+  usuarioId: string;
+  aal: 'aal1' | 'aal2';
+}
+
+export type RequisicaoVV = Request & { sessao?: Sessao };
+
+export function lerToken(req: Request): { token: string; origem: Sessao['origem'] } | null {
+  const auth = req.headers.authorization;
+  if (auth?.startsWith('Bearer ')) {
+    const token = auth.slice(7).trim();
+    return token ? { token, origem: 'bearer' } : null;
+  }
+  const cookies = req.cookies as Record<string, string | undefined> | undefined;
+  const token = cookies?.[COOKIE_SESSAO];
+  return token ? { token, origem: 'cookie' } : null;
+}
+
+// IP como indício (auditoria, tentativas): req.ip só confia no X-Forwarded-For do proxy configurado
+// em TRUST_PROXY (o Caddy local). Valor inválido vira nulo em vez de derrubar a requisição.
+export function ipDe(req: Request): string | null {
+  const ip = req.ip?.replace(/^::ffff:/, '') ?? '';
+  return isIP(ip) ? ip : null;
+}
+
+export function dadosDe(req: Request, token: string): DadosRequisicao {
+  return { token, ip: ipDe(req), userAgent: req.headers['user-agent']?.slice(0, 500) ?? null };
+}

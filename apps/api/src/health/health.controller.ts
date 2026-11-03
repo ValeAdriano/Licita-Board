@@ -1,5 +1,6 @@
 import { Controller, Get, Inject, ServiceUnavailableException } from '@nestjs/common';
 import { Kysely, sql } from 'kysely';
+import { Publico } from '../auth/sessao.guard.js';
 import { DB, type Database } from '../db/db.module.js';
 import { CONFIG } from '../tokens.js';
 import type { Config } from '../config.js';
@@ -12,6 +13,7 @@ export class HealthController {
     @Inject(CONFIG) private readonly config: Config,
   ) {}
 
+  @Publico()
   @Get()
   async health(): Promise<{ status: 'ok'; banco: 'ok'; ambiente: Config['VV_ENV'] }> {
     try {
