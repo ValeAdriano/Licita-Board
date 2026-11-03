@@ -17,6 +17,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/tests:/db/tests:ro
+      - ./db/scripts:/db/scripts:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d vv"]
       interval: 5s
@@ -43,6 +44,7 @@ services:
       VV_ENV: dev
       PORT: "3000"
       DATABASE_URL: postgres://vv_api:${VV_API_PASSWORD}@postgres:5432/vv?sslmode=disable
+      VV_KEK: ${VV_KEK:?rode scripts/dev-env.sh}
     ports: ["127.0.0.1:3000:3000"]
     depends_on:
       postgres: { condition: service_healthy }

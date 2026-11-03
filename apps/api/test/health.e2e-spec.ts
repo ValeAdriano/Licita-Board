@@ -5,11 +5,12 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { carregarConfig } from '../src/config.js';
+import { KEK_TESTE } from './apoio.js';
 
 async function subir(databaseUrl: string): Promise<INestApplication> {
-  const config = carregarConfig({ DATABASE_URL: databaseUrl, LOG_LEVEL: 'fatal', VV_ENV: 'dev' });
+  const config = carregarConfig({ DATABASE_URL: databaseUrl, LOG_LEVEL: 'fatal', VV_ENV: 'dev', VV_KEK: KEK_TESTE });
   const modulo = await Test.createTestingModule({ imports: [AppModule.com(config)] }).compile();
-  const app = modulo.createNestApplication({ logger: false });
+  const app = modulo.createNestApplication({ logger: false, bodyParser: false });
   await app.init();
   return app;
 }

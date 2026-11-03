@@ -100,6 +100,7 @@ jobs:
           echo "::add-mask::$P"
           psql -X -q -c "alter role vv_api password '$P'"
           echo "DATABASE_URL_TEST=postgres://vv_api:$P@127.0.0.1:5432/vv_test" >> "$GITHUB_ENV"
+          echo "DATABASE_URL_ADMIN_TEST=postgres://postgres:$PGPASSWORD@127.0.0.1:5432/vv_test" >> "$GITHUB_ENV"
       - working-directory: apps/api
         run: |
           npm ci

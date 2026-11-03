@@ -88,6 +88,9 @@ scripts/             guardas do CI (cobertura de isolamento, migrations)
 scripts/dev-env.sh                     # gera .env de dev com senhas aleatórias (uma vez)
 docker compose up -d --build           # postgres, api e worker (minio e mailpit entram com o primeiro uso)
 docker compose run --rm dbmate up      # aplica db/migrations (new <nome>, rollback, status)
+set -a && . ./.env && set +a && docker compose exec -e VV_KEK \
+  -e DATABASE_URL="postgres://vv_owner:$VV_OWNER_PASSWORD@localhost:5432/vv" postgres /db/scripts/registrar-kek.sh
+                                       # registra o verificador da KEK (uma vez por banco)
 PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # pgTAP num banco descartável
 
 # API (apps/api)
