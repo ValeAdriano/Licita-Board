@@ -97,7 +97,7 @@ select is_empty($$
   where n.nspname in ('core', 'pub', 'priv', 'ops', 'audit')
     and p.prosrc ~ 'app\.(sessao_hash|sessao_token|usuario_id|sessao_id|aal|tx|req_tx|ip|user_agent)'
     and p.oid::regprocedure::text not in ('core.contexto_valido()', 'core.sessao_valida()',
-      'core.definir_contexto(text)', 'core.rotacionar_sessao(text,text)', 'core.definir_requisicao(inet,text)', 'core.ip_atual()',
+      'core.definir_contexto(text)', 'core.definir_contexto(text,boolean)', 'core.rotacionar_sessao(text,text)', 'core.definir_requisicao(inet,text)', 'core.ip_atual()',
       'core.user_agent_atual()')
 $$, 'só as funções de contexto leem ou gravam app.*');
 

@@ -173,6 +173,25 @@ describe('auth', () => {
     await http().get('/auth/sessao').set('Authorization', `Bearer ${b}`).expect(401);
   });
 
+  it('consulta de fundo (X-VV-Fundo: 1) confere a sessão sem renovar a inatividade', async () => {
+    const token = await loginNativo(await criarUsuario('fundo'));
+    const ultimoUso = async () => (await admin.query<{ minutos: number }>(
+      `select (extract(epoch from now() - ultimo_uso_em) / 60)::int as minutos from core.sessoes
+        where token_hash = core.hash_token($1)`, [token])).rows[0]?.minutos ?? 0;
+    await admin.query(`update core.sessoes set ultimo_uso_em = now() - interval '10 minutes'
+                        where token_hash = core.hash_token($1)`, [token]);
+    await http().get('/notificacoes').set('Authorization', `Bearer ${token}`).set('X-VV-Fundo', '1').expect(200);
+    expect(await ultimoUso()).toBeGreaterThanOrEqual(9);
+    await http().get('/notificacoes').set('Authorization', `Bearer ${token}`).expect(200);
+    expect(await ultimoUso()).toBeLessThan(1);
+    // Ação (método que altera) sempre conta como uso, mesmo com o cabeçalho.
+    await admin.query(`update core.sessoes set ultimo_uso_em = now() - interval '10 minutes'
+                        where token_hash = core.hash_token($1)`, [token]);
+    await http().post(`/notificacoes/${crypto.randomUUID()}/lida`).set('Authorization', `Bearer ${token}`)
+      .set('X-VV-Fundo', '1').expect(204);
+    expect(await ultimoUso()).toBeLessThan(1);
+  });
+
   it('proxy confiável: o IP do X-Forwarded-For escrito pelo Caddy é o registrado', async () => {
     const ip = ipNovo();
     await login('quem@teste.local', 'web', ip, 'x').expect(401);

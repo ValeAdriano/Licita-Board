@@ -214,7 +214,7 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | Toda tela num `Stack.Protected` pela fase da sessão; tela nova fora do guard falha no teste | `src/rotas.test.ts` | 01 | implementado |
 | Sair só some com a sessão se o servidor confirmou (computador compartilhado); sem rede no início o token fica e o app oferece tentar de novo | `sessao.test.tsx` | 01 | implementado |
 | Inatividade de 30 min também no app, conferida ao voltar ao primeiro plano | `links.test.ts` (`expirou`) | 01 | implementado |
-| Requisição de segundo plano (polling de notificações) **não** pode renovar a inatividade, nem no app nem em `ultimo_uso_em` | — | 01 | planejado (obrigatório no PR 7, antes de qualquer polling) |
+| Requisição de segundo plano (polling de notificações, `X-VV-Fundo: 1`, só em GET) confere a sessão sem renovar a inatividade, nem no app nem em `ultimo_uso_em` | `db/tests/130_contexto_fundo`; e2e `auth` (fundo); `cliente.test.ts` | 01 | implementado |
 | Mouse/teclado no web e várias abas (atividade compartilhada sem dado sensível) | — | 01 | planejado |
 | Token no Keychain do iOS sobrevive à reinstalação (até 12 h): apagar na primeira execução | — | 01 | planejado |
 | Códigos de recuperação e segredo TOTP: exibição única; bloquear captura de tela no nativo (`expo-screen-capture`) | — | 01 | planejado |

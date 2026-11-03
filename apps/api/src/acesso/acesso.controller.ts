@@ -57,7 +57,7 @@ export class AcessoController {
   @Get('me')
   async me(@Req() req: RequisicaoVV) {
     return this.q(req, async (tx) => {
-      const u = await sql`select id, email::text as email, nome, telefone, oab, superadmin
+      const u = await sql`select id, email::text as email, nome, telefone, oab, superadmin, core.tem_mfa() as "temMfa"
                             from core.usuarios where id = core.usuario_atual()`.execute(tx);
       const v = await sql`
         select id, empresa_id as "empresaId", empresa, papel, ativo, permissoes from core.meus_vinculos()`.execute(tx);

@@ -51,9 +51,12 @@ export async function chamar<T>(
   metodo: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
   caminho: string,
   corpo?: unknown,
-  fetcher: typeof fetch = fetch,
+  opcoes: { fundo?: boolean; fetcher?: typeof fetch } = {},
 ): Promise<T> {
+  const { fundo = false, fetcher = fetch } = opcoes;
   const headers: Record<string, string> = { Accept: 'application/json' };
+  // Consulta automática (polling): não conta como uso, nem no app nem na API (T5.17).
+  if (fundo) headers['X-VV-Fundo'] = '1';
   if (corpo !== undefined) headers['Content-Type'] = 'application/json';
   if (Platform.OS === 'web') {
     if (credenciais.csrf && metodo !== 'GET') headers['X-CSRF-Token'] = credenciais.csrf;
@@ -77,6 +80,6 @@ export async function chamar<T>(
     if (res.status === 401 && caminho !== '/auth/login') aoPerderSessao();
     throw new ErroApi(res.status, mensagemDe(res.status, dados));
   }
-  aoUsar();
+  if (!fundo) aoUsar();
   return dados as T;
 }

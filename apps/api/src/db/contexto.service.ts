@@ -16,6 +16,8 @@ export interface DadosRequisicao {
   token: string;
   ip: string | null;
   userAgent: string | null;
+  // Requisição de segundo plano (polling do app): confere a sessão, mas não renova a inatividade.
+  fundo?: boolean;
 }
 
 // Toda consulta feita em nome de um usuário passa por aqui (ADR-013): a transação recebe o token da
@@ -27,7 +29,7 @@ export class ContextoService {
   async comContexto<T>(req: DadosRequisicao, fn: (tx: Transaction<Database>) => Promise<T>): Promise<T> {
     try {
       return await this.db.transaction().execute(async (tx) => {
-        await sql`select core.definir_contexto(${req.token})`.execute(tx);
+        await sql`select core.definir_contexto(${req.token}::text, ${!req.fundo}::boolean)`.execute(tx);
         await sql`select core.definir_requisicao(${req.ip}::inet, ${req.userAgent})`.execute(tx);
         return fn(tx);
       });

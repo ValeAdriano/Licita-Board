@@ -16,7 +16,7 @@ describe('chamar', () => {
     Platform.OS = 'ios';
     definirCredenciais({ token: 'tok', csrf: 'nao-usado' });
     const fetcher = jest.fn().mockResolvedValue(resposta(200, { ok: 1 }));
-    await expect(chamar('POST', '/x', { a: 1 }, fetcher)).resolves.toEqual({ ok: 1 });
+    await expect(chamar('POST', '/x', { a: 1 }, { fetcher })).resolves.toEqual({ ok: 1 });
     const [url, init] = fetcher.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('http://localhost:3000/x');
     expect(init.credentials).toBe('omit');
@@ -28,8 +28,8 @@ describe('chamar', () => {
     Platform.OS = 'web';
     definirCredenciais({ token: 'nunca-no-web', csrf: 'c1' });
     const fetcher = jest.fn().mockResolvedValue(resposta(200, {}));
-    await chamar('POST', '/x', {}, fetcher);
-    await chamar('GET', '/y', undefined, fetcher);
+    await chamar('POST', '/x', {}, { fetcher });
+    await chamar('GET', '/y', undefined, { fetcher });
     const [, post] = fetcher.mock.calls[0] as [string, RequestInit];
     const [, get] = fetcher.mock.calls[1] as [string, RequestInit];
     expect(post.credentials).toBe('include');
@@ -40,27 +40,31 @@ describe('chamar', () => {
 
   it('mostra a mensagem da API em 400 e genérica nos outros erros', async () => {
     const f400 = jest.fn().mockResolvedValue(resposta(400, { message: 'Código inválido.' }));
-    await expect(chamar('POST', '/x', {}, f400)).rejects.toEqual(new ErroApi(400, 'Código inválido.'));
+    await expect(chamar('POST', '/x', {}, { fetcher: f400 })).rejects.toEqual(new ErroApi(400, 'Código inválido.'));
     const f401 = jest.fn().mockResolvedValue(resposta(401, { message: 'E-mail ou senha incorretos.' }));
-    await expect(chamar('POST', '/auth/login', {}, f401)).rejects.toThrow('E-mail ou senha incorretos.');
+    await expect(chamar('POST', '/auth/login', {}, { fetcher: f401 })).rejects.toThrow('E-mail ou senha incorretos.');
     const sessao = jest.fn().mockResolvedValue(resposta(401, { message: 'Unauthorized' }));
-    await expect(chamar('GET', '/me', undefined, sessao)).rejects.toThrow('Sua sessão terminou. Entre de novo.');
+    await expect(chamar('GET', '/me', undefined, { fetcher: sessao })).rejects.toThrow('Sua sessão terminou. Entre de novo.');
     const f500 = jest.fn().mockResolvedValue(resposta(500, { message: 'detalhe interno' }));
-    await expect(chamar('GET', '/x', undefined, f500)).rejects.toThrow('Algo deu errado. Tente de novo.');
+    await expect(chamar('GET', '/x', undefined, { fetcher: f500 })).rejects.toThrow('Algo deu errado. Tente de novo.');
     const rede = jest.fn().mockRejectedValue(new TypeError('Network request failed'));
-    await expect(chamar('GET', '/x', undefined, rede)).rejects.toMatchObject({ status: 0 });
+    await expect(chamar('GET', '/x', undefined, { fetcher: rede })).rejects.toMatchObject({ status: 0 });
   });
 
   it('avisa a perda de sessão em 401 e registra uso no sucesso', async () => {
     const aoPerderSessao = jest.fn();
     const aoUsar = jest.fn();
     observarCliente({ aoPerderSessao, aoUsar });
-    await expect(chamar('GET', '/x', undefined, jest.fn().mockResolvedValue(resposta(401, {})))).rejects.toMatchObject({ status: 401 });
+    await expect(chamar('GET', '/x', undefined, { fetcher: jest.fn().mockResolvedValue(resposta(401, {})) })).rejects.toMatchObject({ status: 401 });
     expect(aoPerderSessao).toHaveBeenCalledTimes(1);
-    await expect(chamar('POST', '/auth/login', {}, jest.fn().mockResolvedValue(resposta(401, {})))).rejects.toMatchObject({ status: 401 });
+    await expect(chamar('POST', '/auth/login', {}, { fetcher: jest.fn().mockResolvedValue(resposta(401, {})) })).rejects.toMatchObject({ status: 401 });
     expect(aoPerderSessao).toHaveBeenCalledTimes(1); // login recusado não é sessão perdida
     expect(aoUsar).not.toHaveBeenCalled();
-    await chamar('POST', '/x', undefined, jest.fn().mockResolvedValue(resposta(204, null)));
+    await chamar('POST', '/x', undefined, { fetcher: jest.fn().mockResolvedValue(resposta(204, null)) });
     expect(aoUsar).toHaveBeenCalledTimes(1);
+    const fundo = jest.fn().mockResolvedValue(resposta(200, []));
+    await chamar('GET', '/notificacoes', undefined, { fetcher: fundo, fundo: true });
+    expect(aoUsar).toHaveBeenCalledTimes(1); // polling não conta como uso
+    expect((fundo.mock.calls[0] as [string, RequestInit])[1].headers).toMatchObject({ 'X-VV-Fundo': '1' });
   });
 });

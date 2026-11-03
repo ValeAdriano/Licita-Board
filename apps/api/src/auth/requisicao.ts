@@ -7,6 +7,8 @@ import type { DadosRequisicao } from '../db/contexto.service.js';
 export const COOKIE_SESSAO = '__Host-sessao';
 export const COOKIE_CSRF = '__Host-csrf';
 export const HEADER_CSRF = 'x-csrf-token';
+// O app marca a consulta automática (polling) com este cabeçalho: ela não conta como uso (T5.17).
+export const HEADER_FUNDO = 'x-vv-fundo';
 
 export interface Sessao {
   token: string;
@@ -36,7 +38,13 @@ export function ipDe(req: Request): string | null {
 }
 
 export function dadosDe(req: Request, token: string): DadosRequisicao {
-  return { token, ip: ipDe(req), userAgent: req.headers['user-agent']?.slice(0, 500) ?? null };
+  return {
+    token,
+    ip: ipDe(req),
+    userAgent: req.headers['user-agent']?.slice(0, 500) ?? null,
+    // Só leitura pode ser de fundo: ação da pessoa (POST/PUT/DELETE) sempre conta como uso.
+    fundo: req.method === 'GET' && req.headers[HEADER_FUNDO] === '1',
+  };
 }
 
 export const DOZE_HORAS = 12 * 60 * 60 * 1000;

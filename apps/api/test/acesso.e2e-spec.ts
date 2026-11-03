@@ -118,6 +118,7 @@ describe('acesso', () => {
     await http().post(`/me/convites/${convite?.id ?? ''}/aceitar`).set(t).expect(201);
     const me = await http().get('/me').set(t).expect(200);
     expect((me.body as { vinculos: { empresaId: string }[] }).vinculos.map((v) => v.empresaId)).toEqual([empA]);
+    expect(typeof (me.body as { usuario: { temMfa: unknown } }).usuario.temMfa).toBe('boolean');
     await http().get(`/empresas/${empA}`).set(t).expect(200);
     await http().patch(`/empresas/${empA}`).set(t).send({ nomeFantasia: 'X' }).expect(404);
   });
@@ -172,6 +173,7 @@ describe('acesso', () => {
     // O próprio vínculo continua visível em /me, mesmo sem empresas:visualizar.
     const me = await http().get('/me').set(t).expect(200);
     expect((me.body as { vinculos: { empresaId: string }[] }).vinculos.map((v) => v.empresaId)).toEqual([empA]);
+    expect(typeof (me.body as { usuario: { temMfa: unknown } }).usuario.temMfa).toBe('boolean');
   });
 
   it('erro de constraint não expõe nome de tabela ou índice', async () => {
