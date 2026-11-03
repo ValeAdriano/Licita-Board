@@ -123,9 +123,9 @@ Parâmetros de segurança (ADR-012): Argon2id m=19 MiB, t=2, p=1; atraso progres
 
 ## 7. Plano de PRs (cada um < 500 linhas)
 
-1. `feat/fase-01-port-acesso`: empresas, modulos, vinculos, permissoes, has_permission, audit + pgTAP portados (contexto da Fase 00).
-2. `feat/fase-01-identidade`: colunas de identidade em usuarios, sessoes, fatores_mfa, codigos, tentativas, tokens; `definir_contexto(token)`, `criar_sessao`, `confirmar_mfa`; pgTAP.
-3. `feat/fase-01-api-auth`: módulo auth (login, logout, sessões, recuperação, troca de senha), `SessaoGuard`, CSRF, `comContexto`, e-mail via fila; e2e de ataque (força bruta, fixação de sessão, CSRF, enumeração de e-mail).
+1. ✅ `feat/fase-01-port-acesso`: empresas, modulos, vinculos, permissoes, has_permission, audit + pgTAP portados (contexto da Fase 00).
+2. `feat/fase-01-identidade` (lembrar: `senha_hash` sem grant de SELECT para `vv_api` e redigida/fora da auditoria): colunas de identidade em usuarios, sessoes, fatores_mfa, codigos, tentativas, tokens; `definir_contexto(token)`, `criar_sessao`, `confirmar_mfa`; pgTAP.
+3. `feat/fase-01-api-auth`: módulo auth (login, logout, sessões, recuperação, troca de senha), `SessaoGuard`, CSRF, `comContexto` (chama `definir_contexto` + `definir_requisicao`), e-mail via fila; e2e de ataque (força bruta, fixação de sessão, CSRF, enumeração de e-mail, `X-Forwarded-For` forjado pelo cliente: só vale o valor escrito pelo Caddy; IP inválido vira nulo, não derruba a requisição).
 4. `feat/fase-01-api-mfa`: cadastro/confirmação TOTP, códigos de recuperação, step-up; e2e (replay de TOTP, fator novo < 24 h).
 5. `feat/fase-01-port-stepup-exclusao`: step_up_tokens, aprovacoes_exclusao, salvar_vinculo, convites, notificacoes no banco + endpoints + e2e A x B.
 6. `feat/fase-01-app-auth`: login, MFA, recuperação, sessão no SecureStore/cookie, logout por inatividade.

@@ -25,9 +25,12 @@ run -d postgres -f "$ROOT/db/init/01_papeis.sql.inc" >/dev/null
 export DATABASE_URL="postgres://vv_owner:$VV_OWNER_PASSWORD@$PGHOST:$PGPORT/$DB?sslmode=disable"
 export DBMATE_MIGRATIONS_DIR="$ROOT/db/migrations" DBMATE_MIGRATIONS_TABLE=dbmate.schema_migrations
 export DBMATE_NO_DUMP_SCHEMA=true
-# Sobe tudo, desce a última e sobe de novo: o "-- migrate:down" também é testado.
-$DBMATE --wait up >/dev/null && $DBMATE rollback >/dev/null && $DBMATE up >/dev/null \
-  || { echo "MIGRATIONS FALHARAM (dbmate up/rollback/up)" >&2; exit 1; }
+# Sobe tudo, desce todas (uma a uma) e sobe de novo: todo "-- migrate:down" é testado.
+n_migrations="$(find "$ROOT/db/migrations" -name '*.sql' | wc -l | tr -d ' ')"
+{ $DBMATE --wait up >/dev/null \
+  && for _ in $(seq 1 "$n_migrations"); do $DBMATE rollback >/dev/null || exit 1; done \
+  && $DBMATE up >/dev/null; } \
+  || { echo "MIGRATIONS FALHARAM (dbmate up/rollback de todas/up)" >&2; exit 1; }
 
 fail=0
 while IFS= read -r t; do

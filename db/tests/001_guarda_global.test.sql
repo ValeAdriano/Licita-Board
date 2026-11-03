@@ -95,9 +95,10 @@ select is_empty($$
   select p.oid::regprocedure::text
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('core', 'pub', 'priv', 'ops', 'audit')
-    and p.prosrc ~ 'app\.(usuario_id|sessao_id|aal|tx)'
+    and p.prosrc ~ 'app\.(usuario_id|sessao_id|aal|tx|req_tx|ip|user_agent)'
     and p.oid::regprocedure::text not in ('core.contexto_valido()', 'core.usuario_atual()',
-      'core.sessao_atual()', 'core.aal_atual()', 'core.definir_contexto(uuid,uuid,text)')
+      'core.sessao_atual()', 'core.aal_atual()', 'core.definir_contexto(uuid,uuid,text)',
+      'core.definir_requisicao(inet,text)', 'core.ip_atual()', 'core.user_agent_atual()')
 $$, 'só as funções de contexto leem ou gravam app.*');
 
 -- Donos ----------------------------------------------------------------------------------------
