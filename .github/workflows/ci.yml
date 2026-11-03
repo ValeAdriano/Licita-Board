@@ -155,9 +155,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      # Revisão 1 congelada: CLI fixado na 2.x (a 3.0 de 2026-11-02 quebrou o setup com "latest").
+      # Este job sai quando o schema da Fase 01 for portado para db/.
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.122.1
       - name: supabase db start (migrations + seed)
         run: |
           set -o pipefail
