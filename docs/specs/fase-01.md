@@ -1,8 +1,8 @@
 # Spec · Fase 01 · Arquitetura, segurança e controle de acessos
 
-- **Status:** Rascunho (revisão 2: stack nova, auth própria) — aguarda aprovação
+- **Status:** Aprovada (revisão 2: stack nova, auth própria) — 2026-11-02, com as recomendações da seção 9
 - **Onda:** 1 — Fundação
-- **Autor:** Claude Code · **Aprovação:** pendente (Adriano Vale)
+- **Autor:** Claude Code · **Aprovação:** Adriano Vale, 2026-11-02
 - **Validação jurídica:** LGPD (contrato operador/controlador) — pendente
 - **Fontes:** Prompt Mestre Fase 01 (1.1–1.5); Plano (revisão 2), Fase 01 e "Modelo de dados núcleo e RLS"; ADR-012, ADR-013, ADR-015, ADR-016, ADR-017
 
@@ -148,12 +148,12 @@ Parâmetros de segurança (ADR-012): Argon2id m=19 MiB, t=2, p=1; atraso progres
 | CA-7 | Ataques de auth barrados: força bruta, replay de TOTP, fixação de sessão, CSRF, enumeração de e-mail, sessão expirada/revogada | e2e dedicados |
 | CA-8 | Contexto forjado não vale: valor de sessão, token de outra pessoa, sessão revogada | pgTAP `002_contexto` ampliado |
 
-## 9. Perguntas abertas
+## 9. Decisões (antes perguntas abertas; aprovadas em 2026-11-02 conforme a recomendação)
 
-1. **Quem confere o TOTP?** (a) a API confere e chama `confirmar_mfa` — mais simples; um SQLi na API consegue elevar a própria sessão; (b) o banco confere (segredo sem grant para `vv_api`, HMAC via `pgcrypto`) — fecha esse risco, mas o segredo fica decifrável pelo banco. Recomendação: **(b)**, com o segredo cifrado pela chave-mestra e decifrado só dentro da função.
-2. **Senha vazada:** consultar o HIBP por k-anonymity (só 5 caracteres do hash saem do servidor) é um serviço externo novo. Recomendação: sim, com fallback para uma lista local das 100 mil senhas mais comuns.
-3. **E-mail transacional** (recuperação, convite, alerta de login novo): Resend, Amazon SES ou SMTP próprio? Recomendação: Resend (grátis no início); em dev, Mailpit no compose.
-4. **CAPTCHA** no login/recuperação após falhas: Turnstile? Recomendação: Turnstile, só depois da 3ª falha.
-5. **Alerta de login novo** por e-mail (dispositivo/IP novo) e de fator MFA cadastrado/removido: ligar já? Recomendação: sim.
-6. **ADMIN_EMPRESA vê auditoria da própria empresa?** Recomendação: sim, via `auditoria/visualizar`.
-7. **Quantos códigos de recuperação?** Recomendação: 10, de 10 caracteres, gerar de novo invalida os anteriores.
+1. **TOTP conferido no banco:** segredo em `core.fatores_mfa` sem grant para `vv_api`, conferido por função `security definer` (HMAC via `pgcrypto`); o segredo é cifrado pela chave-mestra e decifrado só dentro da função. Um SQLi na API não eleva a própria sessão.
+2. **Senha vazada:** HIBP por k-anonymity (só 5 caracteres do SHA-1 saem do servidor), com fallback para lista local das 100 mil senhas mais comuns.
+3. **E-mail transacional:** Resend em produção; Mailpit no compose de dev. Envio sempre pelo worker (fila).
+4. **CAPTCHA:** Turnstile, exigido a partir da 3ª falha de login ou recuperação.
+5. **Alertas por e-mail:** login de dispositivo/IP novo e fator MFA cadastrado/removido.
+6. **Auditoria:** ADMIN_EMPRESA vê a da própria empresa via `auditoria/visualizar`.
+7. **Códigos de recuperação:** 10, de 10 caracteres; gerar de novo invalida os anteriores.
