@@ -33,6 +33,7 @@ import {
   dadosDe,
   emitirTokenRotacionado,
   ipDe,
+  MSG_MFA_RECENTE,
   opcoesCookie,
   sessaoDe,
   validar,
@@ -189,7 +190,9 @@ export class AuthController {
 
   // Troca logada: cada tentativa conta como falha de verificação ANTES do Argon2 (rajada não ganha
   // palpites extras; 5 encerram a sessão; o sucesso zera). O Argon2 roda fora da transação. Sucesso
-  // troca o token desta sessão (rotação) e encerra as outras.
+  // troca o token desta sessão (rotação) e encerra as outras. Quem tem MFA precisa de MFA recente:
+  // conferido antes de contar a falha, e o estorno vai numa transação própria (uma recusa posterior
+  // não transforma a senha certa em erro de MFA).
   @Post('senha')
   @HttpCode(200)
   async trocarSenha(@Req() req: RequisicaoVV, @Res({ passthrough: true }) res: Response, @Body() corpo: unknown) {
@@ -200,6 +203,9 @@ export class AuthController {
     const s = sessaoDe(req);
     const dados = dadosDe(req, s.token);
     const hashAtual = await this.contexto.comContexto(dados, async (tx) => {
+      const pre = await sql<{ falta: boolean }>`
+        select (core.tem_mfa() or core.mfa_obrigatorio()) and not core.mfa_recente() as falta`.execute(tx);
+      if (pre.rows[0]?.falta !== false) throw new ForbiddenException(MSG_MFA_RECENTE);
       await sql`select core.registrar_falha_verificacao()`.execute(tx);
       const r = await sql<{ h: string | null }>`select core.hash_senha_atual(${this.config.VV_KEK}) as h`.execute(tx);
       return r.rows[0]?.h ?? null;
@@ -215,8 +221,8 @@ export class AuthController {
     }
     if (!ok) throw new BadRequestException('Senha atual incorreta.');
     const token = novoToken();
+    await this.contexto.comContexto(dados, (tx) => sql`select core.estornar_falha_verificacao()`.execute(tx));
     await this.contexto.comContexto(dados, async (tx) => {
-      await sql`select core.estornar_falha_verificacao()`.execute(tx);
       await sql`select core.trocar_senha(${novoHash})`.execute(tx);
       await sql`select core.rotacionar_sessao(${s.token}, ${token})`.execute(tx);
     });

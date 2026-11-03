@@ -9,6 +9,8 @@ export const COOKIE_CSRF = '__Host-csrf';
 export const HEADER_CSRF = 'x-csrf-token';
 // O app marca a consulta automática (polling) com este cabeçalho: ela não conta como uso (T5.17).
 export const HEADER_FUNDO = 'x-vv-fundo';
+// 403 quando a operação exige MFA recente (5 min): o app pede o código do autenticador e repete.
+export const MSG_MFA_RECENTE = 'Confirme o código do autenticador antes de continuar.';
 
 export interface Sessao {
   token: string;

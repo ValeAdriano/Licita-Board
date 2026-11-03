@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ForbiddenException,
   Controller,
   HttpCode,
   HttpException,
@@ -21,7 +22,7 @@ import { ContextoService } from '../db/contexto.service.js';
 import { CONFIG } from '../tokens.js';
 import { LimitePorIp, novoToken } from './auth.service.js';
 import { normalizarCodigoRecuperacao, novoSegredoTotp, novosCodigosRecuperacao, uriOtpAuth } from './mfa.js';
-import { type RequisicaoVV, dadosDe, emitirTokenRotacionado, ipDe, sessaoDe, validar } from './requisicao.js';
+import { MSG_MFA_RECENTE, type RequisicaoVV, dadosDe, emitirTokenRotacionado, ipDe, sessaoDe, validar } from './requisicao.js';
 import { Argon2Ocupado, conferirSenha } from './senha.js';
 import { PermiteAal1 } from './sessao.guard.js';
 
@@ -66,7 +67,10 @@ export class MfaController {
     const { senha } = validar(cadastroSchema, corpo);
     const s = sessaoDe(req);
     const dados = dadosDe(req, s.token);
+    // Trocar autenticador exige MFA recente: conferido antes de contar a falha (ver trocarSenha).
     const hash = await this.contexto.comContexto(dados, async (tx) => {
+      const pre = await sql<{ falta: boolean }>`select core.tem_mfa() and not core.mfa_recente() as falta`.execute(tx);
+      if (pre.rows[0]?.falta !== false) throw new ForbiddenException(MSG_MFA_RECENTE);
       await sql`select core.registrar_falha_verificacao()`.execute(tx);
       const r = await sql<{ h: string | null }>`select core.hash_senha_atual(${this.config.VV_KEK}) as h`.execute(tx);
       return r.rows[0]?.h ?? null;
@@ -80,8 +84,8 @@ export class MfaController {
     }
     if (!ok) throw new BadRequestException('Senha incorreta.');
     const segredo = novoSegredoTotp();
+    await this.contexto.comContexto(dados, (tx) => sql`select core.estornar_falha_verificacao()`.execute(tx));
     const r = await this.contexto.comContexto(dados, async (tx) => {
-      await sql`select core.estornar_falha_verificacao()`.execute(tx);
       const v = await sql<{ vence: Date }>`select core.cadastrar_totp(${segredo}, ${this.config.VV_KEK}) as vence`.execute(tx);
       const u = await sql<{ email: string }>`select email::text from core.usuarios where id = core.usuario_atual()`.execute(tx);
       return { vence: v.rows[0]?.vence, email: u.rows[0]?.email ?? '' };

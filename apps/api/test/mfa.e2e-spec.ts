@@ -92,6 +92,21 @@ describe('mfa', () => {
     await http().post('/auth/mfa/cadastrar').set(bearer(token)).send({ senha: SENHA }).expect(403);
   });
 
+  it('sem MFA recente, trocar senha ou autenticador recusa (403) sem contar erro de MFA', async () => {
+    const email = await criarUsuario('mfa-antigo');
+    const { token } = await cadastrarEConfirmar(email);
+    const falhas = async () => (await admin.query<{ n: number }>(
+      'select falhas_mfa as n from core.sessoes where token_hash = core.hash_token($1)', [token])).rows[0]?.n;
+    await admin.query(`update core.sessoes set mfa_em = now() - interval '6 minutes'
+                        where token_hash = core.hash_token($1)`, [token]);
+    for (let i = 0; i < 6; i++) {
+      await http().post('/auth/senha').set(bearer(token)).send({ atual: SENHA, nova: 'outra-senha-bem-longa-123' }).expect(403);
+      await http().post('/auth/mfa/cadastrar').set(bearer(token)).send({ senha: SENHA }).expect(403);
+    }
+    expect(await falhas()).toBe(0);
+    await http().get('/auth/sessoes').set(bearer(token)).expect(200);
+  });
+
   it('web: confirmar troca o cookie de sessão', async () => {
     const email = await criarUsuario('mfa6');
     const login = await http().post('/auth/login').set('X-Forwarded-For', ipNovo())
