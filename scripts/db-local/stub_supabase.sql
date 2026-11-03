@@ -49,6 +49,11 @@ $$;
 create function auth.role() returns text language sql stable as $$
   select coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role'))::text
 $$;
+-- Função do "RLS automático" que a plataforma cria em projeto novo (event trigger ensure_rls), com os
+-- mesmos grants do remoto. Só a assinatura e os grants importam aqui; o event trigger fica de fora.
+create function public.rls_auto_enable() returns event_trigger language plpgsql security definer
+  set search_path = '' as $$ begin end $$;
+grant execute on function public.rls_auto_enable() to anon, authenticated, service_role;
 grant usage on schema auth, extensions to anon, authenticated, service_role;
 grant execute on all functions in schema auth to anon, authenticated, service_role;
 grant execute on all functions in schema extensions to anon, authenticated, service_role;

@@ -1,7 +1,7 @@
 -- Guarda global (ADR-003, negar por padrão). Vale para toda migration futura.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(5);
+select plan(6);
 
 select is_empty(
   $$
@@ -55,6 +55,23 @@ select is_empty(
       and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%')
   $$,
   'toda função security definer fixa search_path'
+);
+
+-- Schemas expostos em /rest/v1/rpc. anon não executa nenhuma security definer; authenticated não
+-- executa as de public (inclui a public.rls_auto_enable() que a plataforma cria). As RPCs de core
+-- para authenticated são intencionais e checam permissão por dentro.
+select is_empty(
+  $$
+    select p.oid::regprocedure || ' -> ' || r.rolname
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    cross join (values ('anon'), ('authenticated')) r (rolname)
+    where p.prosecdef
+      and n.nspname in ('public', 'core', 'pub', 'priv')
+      and (r.rolname = 'anon' or n.nspname = 'public')
+      and has_function_privilege(r.rolname, p.oid, 'execute')
+  $$,
+  'nenhuma security definer exposta é executável por anon, nem as de public por authenticated'
 );
 
 select * from finish();
