@@ -112,6 +112,26 @@ jobs:
       - name: Imagem da API
         run: docker build -t vv-api ./apps/api
 
+  app:
+    name: "App Expo (lint, typecheck, testes, export web, audit)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/app
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/app/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build:web
+      - run: npm audit --audit-level=high --omit=dev
+
   worker:
     name: "Worker (ruff, mypy, pytest, pip-audit)"
     runs-on: ubuntu-latest
@@ -156,7 +176,7 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [guardas, web, api, worker, banco]
+    needs: [guardas, web, api, app, worker, banco]
     runs-on: ubuntu-latest
     steps:
       - name: Todos os jobs passaram
