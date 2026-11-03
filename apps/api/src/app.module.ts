@@ -1,6 +1,7 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { AcessoModule } from './acesso/acesso.module.js';
+import { PushModule } from './push/push.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import type { Config } from './config.js';
 import { DbModule } from './db/db.module.js';
@@ -29,6 +30,7 @@ export class AppModule {
         DbModule,
         AuthModule,
         AcessoModule,
+        PushModule,
       ],
       controllers: [HealthController],
       providers: [{ provide: CONFIG, useValue: config }],

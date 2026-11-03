@@ -34,6 +34,9 @@ const esquema = z.object({
   LOGIN_ATRASO_MS: z.coerce.number().int().min(0).max(1000).default(250),
   // Senha vazada (HIBP, k-anonymity). Vazio = só a lista local (testes, sem rede).
   HIBP_URL: z.string().default('https://api.pwnedpasswords.com/range/'),
+  // Chave pública VAPID do Web Push (a privada fica só no worker). Vazio = push desligado (404 em
+  // GET /push/chave e o front não oferece a opção).
+  VAPID_PUBLIC_KEY: z.string().regex(/^([A-Za-z0-9_-]{80,100})?$/, 'VAPID_PUBLIC_KEY inválida').default(''),
   // CAPTCHA Turnstile a partir da 3ª falha. Vazio = desligado (dev/teste).
   TURNSTILE_SECRET: z.string().default(''),
   // Chave-mestra (ADR-017): o banco só aceita login, recuperação e MFA com ela (confere contra o
