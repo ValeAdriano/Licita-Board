@@ -1,0 +1,8 @@
+export { Aviso } from './Aviso'
+export { Botao } from './Botao'
+export { Campo } from './Campo'
+export { Captcha, scriptTurnstileCarregado } from './Captcha'
+export { FaixaAmbiente } from './FaixaAmbiente'
+export { Interruptor } from './Interruptor'
+export { Modal } from './Modal'
+export { TelaAcesso } from './TelaAcesso'
