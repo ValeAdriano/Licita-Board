@@ -1,6 +1,6 @@
 # ADR-004 · Fila de jobs: `pgmq` + `pg_cron`, consumida pelo worker
 
-- **Status:** Proposto
+- **Status:** Substituído por ADR-014 (2026-11-02, troca de stack)
 - **Data:** 2026-11-01
 - **Decisor:** Adriano Vale
 - **Requisito relacionado:** Prompt Mestre 4.1, 0.5 ("agendador: filas e workers persistentes, com monitoramento")

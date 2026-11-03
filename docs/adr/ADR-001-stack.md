@@ -1,6 +1,6 @@
 # ADR-001 · Stack: Vite + React + TS, Supabase, worker Python, Vercel, Railway
 
-- **Status:** Proposto
+- **Status:** Substituído por ADR-011 (2026-11-02, troca de stack)
 - **Data:** 2026-11-01
 - **Decisor:** Adriano Vale
 - **Requisito relacionado:** Prompt Mestre, "Padrão técnico" (arquitetura sugerida) e 0.1

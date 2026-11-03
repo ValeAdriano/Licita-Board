@@ -1,6 +1,6 @@
 # ADR-002 · Autenticação: Supabase Auth adaptado
 
-- **Status:** Proposto
+- **Status:** Substituído por ADR-012 (2026-11-02, troca de stack)
 - **Data:** 2026-11-01
 - **Decisor:** Adriano Vale
 - **Requisito relacionado:** Prompt Mestre 1.4 (Autenticação, Operações críticas)

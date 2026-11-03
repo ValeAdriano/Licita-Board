@@ -2,13 +2,15 @@
 
 Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada fase.
 
-**Fase atual:** 00 · Fundação técnica — em andamento (pendências de conta/infra). 01 · banco de acesso em desenvolvimento.
-**Próximo passo:** Adriano revisar ADRs e modelo de ameaças; criar contas (Supabase Pro, Vercel, Railway, Sentry, Healthchecks.io); proteger `main`. Em paralelo: spec da Fase 01 (`/spec 01`).
+**Fase atual:** 00 · Fundação técnica — **recomeçando na stack nova** (revisão 2 do plano, 2026-11-02: Docker + Postgres + API NestJS + app Expo + worker Python; ADR-011 a 017).
+**Próximo passo:** Adriano aprovar o plano revisado e as ADRs 011 a 017; instalar Docker; em paralelo, agentes montam o esqueleto da Fase 00 (`compose.yml`, `db/`, `apps/api`, `apps/app`).
+
+> O trabalho da Fase 01 na revisão 1 (Supabase: migrations, RLS, pgTAP, telas Vite) fica congelado em `supabase/` e `apps/web` e será portado na Fase 01 nova.
 
 | Onda | Fase | Nome | Horas est. | Spec | Status |
 | --- | --- | --- | --- | --- | --- |
-| 1 | 00 | Fundação técnica | ~30 h | [fase-00](specs/fase-00.md) · Em revisão | 🟡 em andamento |
-| 1 | 01 | Arquitetura, segurança e acessos | ~60 h | [fase-01](specs/fase-01.md) · Rascunho | 🟡 acesso, step-up, auth, shell/PWA e matriz/convites no main; falta: backup externo + relatório da fase |
+| 1 | 00 | Fundação técnica | ~40 h | [fase-00](specs/fase-00.md) · Em revisão (reescrever para a stack nova) | 🟡 recomeçando |
+| 1 | 01 | Arquitetura, segurança e acessos | ~90 h | [fase-01](specs/fase-01.md) · Rascunho (reescrever: auth própria) | ⚪ schema/RLS/pgTAP da revisão 1 a portar; auth e telas a refazer |
 | 2 | 02 | Empresas, representantes e produtos | ~50 h | — | ⚪ |
 | 2 | 03 | Gestão documental e certidões | ~60 h | — | ⚪ |
 | 2 | 05 | Agenda e prazos jurídicos ★ MVP | ~70 h | — | ⚪ bloqueada: planilha atual |
@@ -34,4 +36,7 @@ Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada
 | 50 editais da amostra de cobertura | Operação VV | Aceite da Fase 04 |
 | 20 editais de veículos com gabarito | Operação VV | Aceite da Fase 06 |
 | Decisão ADR-007 | Adriano | Fechamento da Fase 00 |
+| Docker instalado na máquina de dev | Adriano | Rodar a stack local |
+| Provedor da VPS (São Paulo) e do S3 de produção | Adriano | Deploy da Fase 00 |
+| Destino do projeto Supabase `gqrilopolbanlrdyrrsd` | Adriano | — (custo/limpeza) |
 | Domínio e identidade visual | Adriano | PWA (Fase 01) |

@@ -1,6 +1,6 @@
 # ADR-003 · Multi-tenant: `empresa_id` + RLS + `core.has_permission()`
 
-- **Status:** Proposto
+- **Status:** Substituído por ADR-013 (2026-11-02, troca de stack)
 - **Data:** 2026-11-01
 - **Decisor:** Adriano Vale
 - **Requisito relacionado:** Prompt Mestre 1.2, 1.3, 1.4 (Autorização e isolamento), "Separação de dados"

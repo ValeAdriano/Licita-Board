@@ -1,6 +1,6 @@
 # ADR-010 · PWA: `vite-plugin-pwa` + Web Push via VAPID enviado pelo worker
 
-- **Status:** Proposto
+- **Status:** Substituído por ADR-016 (2026-11-02, troca de stack)
 - **Data:** 2026-11-01
 - **Decisor:** Adriano Vale
 - **Requisito relacionado:** Plano (Mobile: PWA instalável + Web Push), Prompt Mestre 3.3, 5.6

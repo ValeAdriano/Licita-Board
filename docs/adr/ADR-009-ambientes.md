@@ -1,6 +1,6 @@
 # ADR-009 · Ambientes: dev local + produção; homologação no 1º cliente real
 
-- **Status:** Proposto
+- **Status:** Substituído por ADR-015 (2026-11-02, troca de stack)
 - **Data:** 2026-11-01
 - **Decisor:** Adriano Vale
 - **Requisito relacionado:** Prompt Mestre 0.2

@@ -17,7 +17,7 @@ As regras do projeto valem para todos os agentes e estão em `AGENTS.md`, import
 | Comando | Uso |
 | --- | --- |
 | `/spec 01` | Escreve ou revisa `docs/specs/fase-01.md` a partir do Prompt Mestre e do plano |
-| `/migration <descrição>` | Gera migration + RLS + pgTAP de isolamento, seguindo `supabase/AGENTS.md` |
+| `/migration <descrição>` | Gera migration + RLS + pgTAP de isolamento, seguindo `db/` (regras de `supabase/AGENTS.md` até o port) |
 | `/isolamento <schema.tabela>` | Escreve o teste A x B de uma tabela |
 | `/adr <título>` | Cria o próximo ADR a partir do modelo |
 | `/revisar` | Revisa a branch atual contra o Definition of Done e o modelo de ameaças |
@@ -34,8 +34,8 @@ Os comandos são finos: cada um aponta para um prompt neutro em `docs/agents/pro
 
 ### Hooks (`.claude/hooks/guard.py`)
 
-Bloqueiam antes de executar: service role / chave secreta em `apps/web`, edição de `.env` reais, edição de migration já commitada no `main`, `float` em `rules/`, e comandos destrutivos (`git push --force`, `supabase db reset --linked`, `drop database`, `rm -rf /`...). Se um hook bloquear, **não contorne**: explique ao Adriano e peça orientação.
+Bloqueiam antes de executar: service role / chave secreta em `apps/web` (a atualizar para `apps/app` e `apps/api` na Fase 00), edição de `.env` reais, edição de migration já commitada no `main`, `float` em `rules/`, e comandos destrutivos (`git push --force`, `supabase db reset --linked`, `drop database`, `rm -rf /`...). Se um hook bloquear, **não contorne**: explique ao Adriano e peça orientação.
 
-### Supabase MCP
+### Supabase (revisão 1, descontinuado)
 
-Se o MCP do Supabase estiver conectado, use-o só para **ler** (docs, advisors, logs, listar tabelas). Mudança de schema vai sempre por arquivo de migration no repositório e PR, nunca por `apply_migration`/`execute_sql` direto em projeto remoto.
+O projeto saiu do Supabase (ADR-011). Não use o MCP do Supabase para nada além de leitura, e só se o Adriano pedir. O projeto remoto `gqrilopolbanlrdyrrsd` aguarda decisão (pausar ou excluir).
