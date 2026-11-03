@@ -27,13 +27,13 @@ Como o VV Licitações é construído por uma pessoa + agentes. As regras ficam 
 | `rules/` (prazos, preços, unidades) | Qualquer um, **testes primeiro** | Casos de teste vêm do jurídico/contador, não do agente |
 | Telas a partir de spec pronta | Antigravity / Codex / Paseo em paralelo (worktree) | Trabalho volumoso e bem delimitado; o Antigravity confere a tela no próprio navegador |
 | Conector de fonte (PNCP...) | Qualquer um, com fixture gravada | Isolado, fácil de testar |
-| Revisão cruzada de PR | Agente diferente do autor, com `prompts/revisao-pr.md` | Segundo olhar barato |
+| Revisão cruzada dos commits | Agente diferente do autor, com `prompts/revisao-pr.md` | Segundo olhar barato |
 
 ## Como usar um agente que não é o Claude Code
 
 1. Abra o agente na raiz do repositório (ele lê `AGENTS.md` sozinho; se não ler, cole o conteúdo). O Antigravity também carrega `.agents/rules/` sozinho.
 2. Cole o prompt do passo em `docs/agents/prompts/`, trocando os `<placeholders>`.
-3. Peça para ele trabalhar numa branch própria, atualizar a documentação na mesma entrega ([`documentacao-viva.md`](documentacao-viva.md)) e terminar com handoff.
+3. Peça para ele trabalhar direto no `main` (ou numa worktree, se houver outro agente em paralelo), atualizar a documentação na mesma entrega ([`documentacao-viva.md`](documentacao-viva.md)), dar push só com checks verdes e terminar com handoff.
 4. Rode a revisão (`prompts/revisao-pr.md`) com outro agente ou com o Claude Code `/revisar`.
 
 ## Gates humanos (não delegáveis)

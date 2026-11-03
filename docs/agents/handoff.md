@@ -1,6 +1,6 @@
 # Modelo de handoff
 
-Use ao pausar, terminar ou passar uma tarefa para outro agente/sessão. Cole na descrição do PR ou no fim de `em-andamento.md`.
+Use ao pausar, terminar ou passar uma tarefa para outro agente/sessão. Cole no fim de `em-andamento.md` (ou no corpo do último commit).
 
 ~~~markdown
 ## Handoff · <branch> · <AAAA-MM-DD> · <agente>

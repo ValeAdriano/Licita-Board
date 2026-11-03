@@ -1,6 +1,6 @@
 # Documentação viva
 
-A documentação deste repositório é a memória do projeto: o próximo agente (ou o Adriano, semanas depois) só sabe o que está escrito. Por isso **toda entrega atualiza a documentação no mesmo commit/PR do código**, nunca "depois". Vale para qualquer agente (Claude Code, Antigravity, Codex, Cursor...) e para humanos.
+A documentação deste repositório é a memória do projeto: o próximo agente (ou o Adriano, semanas depois) só sabe o que está escrito. Por isso **toda entrega atualiza a documentação no mesmo commit do código**, nunca "depois". Vale para qualquer agente (Claude Code, Antigravity, Codex, Cursor...) e para humanos.
 
 Regra de ouro: se o código e o documento discordam, o trabalho não terminou.
 
@@ -16,7 +16,7 @@ Regra de ouro: se o código e o documento discordam, o trabalho não terminou.
 | Tabela, função ou regra nova no banco | Comentário no topo da migration explicando o porquê; `db/AGENTS.md` se nasceu regra para quem escreve migration |
 | Regra nova para quem mexe num pacote | `AGENTS.md` local do pacote (`apps/app`, `apps/worker`, `db`) |
 | Comando novo, porta, variável de ambiente, script | `AGENTS.md` raiz §6 (comandos) e o `AGENTS.md` do pacote; variável pública do app em `apps/app/AGENTS.md` |
-| Dependência nova | Mensagem do commit/PR: nome, versão, licença e motivo |
+| Dependência nova | Corpo do commit: nome, versão, licença e motivo |
 | Termo de licitação novo | [`glossario.md`](glossario.md) |
 | Fim de fase | `docs/phase-reports/fase-XX.md` com evidências reais ([`prompts/06-relatorio-fase.md`](prompts/06-relatorio-fase.md)) e `docs/roadmap.md` |
 | Algo pendente para o Adriano (decisão, conta, fornecedor) | Tabela "Dependências externas abertas" em `docs/roadmap.md` |
@@ -28,7 +28,7 @@ Antes de dizer que terminou:
 
 - [ ] Spec, quadro (`em-andamento.md`) e roadmap refletem o estado real.
 - [ ] Threat-model e ADR atualizados se houve controle, risco ou decisão nova.
-- [ ] O que foi **testado**, o que foi **implementado sem teste** e o que **ficou de fora** está escrito (commit/PR e, se for pendência, na spec ou no threat-model).
+- [ ] O que foi **testado**, o que foi **implementado sem teste** e o que **ficou de fora** está escrito (corpo do commit e, se for pendência, na spec ou no threat-model).
 - [ ] Nenhum documento cita caminho, comando ou tecnologia que não existe mais.
 
 ## Como escrever
