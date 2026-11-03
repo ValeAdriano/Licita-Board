@@ -71,6 +71,8 @@ Revisão 2 (auth própria, ADR-012/013). Os controles da revisão 1 sobre Supaba
 | --- | --- | --- | --- |
 | Bloqueio por falhas só impede login **novo**; sessões abertas continuam | `002_contexto` | 01 | implementado |
 | Alerta por e-mail de senha alterada e autenticador cadastrado/removido (trigger → fila → worker); CAPTCHA a partir da 3ª falha | `db/tests/120_fila_recuperacao`; e2e CAPTCHA | 01 | implementado (alerta de login de IP novo: planejado) |
+| App nativo sem Turnstile (precisa de WebView): quem cai no CAPTCHA entra pelo navegador; um atacante pode manter o login **nativo** de uma conta travado repetindo 3 falhas | — | 01 | aceito até o WebView (PR de push/app nativo) |
+| App web: se a API exige CAPTCHA (`TURNSTILE_SECRET`) e o app não tem `EXPO_PUBLIC_TURNSTILE_SITEKEY`, ninguém passa do CAPTCHA | runbook de deploy (as duas juntas) | 01 | planejado |
 
 ## T5.7 · Corrida no login contorna o bloqueio (nova)
 
@@ -203,6 +205,37 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
 | App mostra nome da empresa sempre como texto e junto do CNPJ no aceite do convite | teste de componente | 01 | planejado (telas do app) |
+
+## T5.17 · Sessão no app: inatividade, logout e rotas (nova, PR 6)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Token só no SecureStore (`WHEN_UNLOCKED_THIS_DEVICE_ONLY`, fora do backup Android) no nativo; no web o app nunca vê o token (cookie HttpOnly) | `sessao.test.tsx`, `cliente.test.ts`; Semgrep `vv-sessao-fora-do-secure-store` | 01 | implementado |
+| Toda tela num `Stack.Protected` pela fase da sessão; tela nova fora do guard falha no teste | `src/rotas.test.ts` | 01 | implementado |
+| Sair só some com a sessão se o servidor confirmou (computador compartilhado); sem rede no início o token fica e o app oferece tentar de novo | `sessao.test.tsx` | 01 | implementado |
+| Inatividade de 30 min também no app, conferida ao voltar ao primeiro plano | `links.test.ts` (`expirou`) | 01 | implementado |
+| Requisição de segundo plano (polling de notificações) **não** pode renovar a inatividade, nem no app nem em `ultimo_uso_em` | — | 01 | planejado (obrigatório no PR 7, antes de qualquer polling) |
+| Mouse/teclado no web e várias abas (atividade compartilhada sem dado sensível) | — | 01 | planejado |
+| Token no Keychain do iOS sobrevive à reinstalação (até 12 h): apagar na primeira execução | — | 01 | planejado |
+| Códigos de recuperação e segredo TOTP: exibição única; bloquear captura de tela no nativo (`expo-screen-capture`) | — | 01 | planejado |
+
+## T5.18 · Script de terceiro na origem do app web (nova, PR 6)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Turnstile (Cloudflare, terceiro confiável) carregado sob demanda, só depois que a API pede CAPTCHA, e removido ao desmontar | revisão | 01 | implementado |
+| Login que carregou o Turnstile recarrega a página: o script não fica na sessão aberta (teria acesso ao CSRF) | revisão; teste manual no web | 01 | implementado |
+| CSP no web: `script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src <API>`, `frame-ancestors 'none'`, `Referrer-Policy: no-referrer` | — | 00/01 | planejado (Caddy, deploy) |
+| Siteverify conferindo `action` e `hostname` | — | 01 | planejado |
+
+## T5.19 · Token de redefinição fora do servidor (nova, PR 6)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Token no fragmento (não vai ao servidor nem no Referer); o entry `index.ts` tira o fragmento da URL antes do roteador (que o guardaria no estado e reescreveria) | `links.test.ts`; teste manual no web | 01 | implementado |
+| Uso único, 30 min, consumido só por POST com a nova senha (scanner de link que faz GET, como Safe Links, não queima o token); novo pedido invalida o anterior | `db/tests/120_fila_recuperacao`; e2e `recuperacao` | 01 | implementado |
+| Risco residual: reescritor de link do provedor de e-mail e histórico sincronizado do navegador guardam a URL original | — | 01 | aceito |
+| Link abrir o app nativo só por universal/app links verificados (nunca o esquema `vvlicitacoes://`); URI `otpauth://` só por ação explícita (a tela pede para digitar a chave) | — | 01 | planejado |
 
 ## T5.15 · Worker comprometido forja recuperação de senha (nova)
 

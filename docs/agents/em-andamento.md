@@ -6,5 +6,5 @@ Quadro simples de coordenação entre agentes. Atualize ao pegar e ao largar uma
 
 | Branch | Agente | Fase | Área | Migrations | Desde | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| main (push direto) | Claude Code | 01 | PRs 1–5 e 3b no main; próximo: telas do app (login, MFA, shell, matriz, convites) | ✅ | 2026-11-02 | em andamento |
+| main (push direto) | Claude Code | 01 | PRs 1–6 e 3b no main; próximo: PR 7 shell do app (menu/abas, seletor de empresa, notificações, conta) | ✅ | 2026-11-02 | em andamento |
 
