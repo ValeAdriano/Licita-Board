@@ -6,7 +6,7 @@ import { SENHA, criarUsuario, ipNovo, servidor, subirApp } from './apoio.js';
 
 // Cobertura de rotas (ADR-013, AGENTS.md §3.13): toda rota registrada exige sessão, exceto a lista
 // fechada de públicas. Rota nova pública fora da lista faz este teste falhar.
-const PUBLICAS = new Set(['POST /auth/login', 'GET /health']);
+const PUBLICAS = new Set(['POST /auth/login', 'POST /auth/recuperar', 'POST /auth/redefinir', 'GET /health']);
 // Rotas liberadas a quem só passou da senha (aal1) e tem/precisa de MFA. Fora daqui: 403.
 const PERMITE_AAL1 = new Set([
   'GET /auth/sessao', 'POST /auth/logout',

@@ -64,8 +64,11 @@ describe('carregarConfig', () => {
     for (const env of ['prod', 'homolog']) {
       expect(() => carregarConfig({ ...base, VV_ENV: env, TRUST_PROXY: '172.20.0.2' })).toThrow('CORS_ORIGINS');
       expect(() => carregarConfig({ ...base, VV_ENV: env, CORS_ORIGINS: 'https://app.vv.test' })).toThrow('TRUST_PROXY');
-      expect(carregarConfig({ ...base, VV_ENV: env, CORS_ORIGINS: 'https://app.vv.test', TRUST_PROXY: '172.20.0.2' })
-        .CORS_ORIGINS).toEqual(['https://app.vv.test']);
+      expect(() => carregarConfig({ ...base, VV_ENV: env, CORS_ORIGINS: 'https://app.vv.test', TRUST_PROXY: '172.20.0.2' }))
+        .toThrow('TURNSTILE_SECRET');
+      expect(carregarConfig({
+        ...base, VV_ENV: env, CORS_ORIGINS: 'https://app.vv.test', TRUST_PROXY: '172.20.0.2', TURNSTILE_SECRET: 's',
+      }).CORS_ORIGINS).toEqual(['https://app.vv.test']);
     }
   });
 

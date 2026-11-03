@@ -32,6 +32,10 @@ const esquema = z.object({
     ),
   // Atraso fixo na resposta de login recusado (ms): iguala senha errada e corrida perdida.
   LOGIN_ATRASO_MS: z.coerce.number().int().min(0).max(1000).default(250),
+  // Senha vazada (HIBP, k-anonymity). Vazio = só a lista local (testes, sem rede).
+  HIBP_URL: z.string().default('https://api.pwnedpasswords.com/range/'),
+  // CAPTCHA Turnstile a partir da 3ª falha. Vazio = desligado (dev/teste).
+  TURNSTILE_SECRET: z.string().default(''),
   // Chave-mestra (ADR-017): o banco só aceita login, recuperação e MFA com ela (confere contra o
   // verificador registrado por db/scripts/registrar-kek.sh). Nunca em log nem no app.
   VV_KEK: z.string().min(32, 'VV_KEK precisa de pelo menos 32 caracteres'),
@@ -48,6 +52,13 @@ const esquema = z.object({
   }
   if (c.TRUST_PROXY === 'loopback' || c.TRUST_PROXY === 'false') {
     ctx.addIssue({ code: 'custom', path: ['TRUST_PROXY'], message: 'fora de dev, TRUST_PROXY é o IP/CIDR do Caddy' });
+  }
+  // CAPTCHA e senha vazada não podem sumir por falta de configuração.
+  if (!c.TURNSTILE_SECRET) {
+    ctx.addIssue({ code: 'custom', path: ['TURNSTILE_SECRET'], message: 'fora de dev, TURNSTILE_SECRET é obrigatório' });
+  }
+  if (!c.HIBP_URL.startsWith('https://')) {
+    ctx.addIssue({ code: 'custom', path: ['HIBP_URL'], message: 'fora de dev, HIBP_URL precisa ser https' });
   }
 });
 

@@ -22,7 +22,8 @@ export function urls(): { api: string; admin: string } {
 
 export async function subirApp(extra: Record<string, string> = {}): Promise<INestApplication> {
   const config = carregarConfig({
-    DATABASE_URL: urls().api, LOG_LEVEL: 'fatal', TRUST_PROXY: 'loopback', LOGIN_ATRASO_MS: '0', VV_KEK: KEK_TESTE, ...extra,
+    DATABASE_URL: urls().api, LOG_LEVEL: 'fatal', TRUST_PROXY: 'loopback', LOGIN_ATRASO_MS: '0', VV_KEK: KEK_TESTE,
+    HIBP_URL: '', ...extra,
   });
   const modulo = await Test.createTestingModule({ imports: [AppModule.com(config)] }).compile();
   const app = modulo.createNestApplication({ logger: false, bodyParser: false });

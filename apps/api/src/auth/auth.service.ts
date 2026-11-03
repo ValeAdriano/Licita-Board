@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { setTimeout as esperar } from 'node:timers/promises';
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Inject,
@@ -13,6 +14,7 @@ import { sql } from 'kysely';
 import type { Config } from '../config.js';
 import { ContextoService, type DadosRequisicao } from '../db/contexto.service.js';
 import { CONFIG } from '../tokens.js';
+import { ContadorFalhas, captchaValido } from './protecoes.js';
 import { Argon2Ocupado, conferirSenha, obterHashFalso } from './senha.js';
 
 export type Plataforma = 'web' | 'ios' | 'android';
@@ -62,6 +64,7 @@ export class LimitePorIp {
 @Injectable()
 export class AuthService implements OnModuleInit {
   private readonly limite = new LimitePorIp();
+  private readonly falhas = new ContadorFalhas();
 
   constructor(
     private readonly contexto: ContextoService,
@@ -81,10 +84,30 @@ export class AuthService implements OnModuleInit {
   // Resposta igual para e-mail inexistente, senha errada, usuário inativo ou bloqueado (sem
   // enumeração). O banco registra a tentativa como falha ANTES do Argon2 (serializado por e-mail), então
   // rajadas paralelas não passam do limite; conta bloqueada ou IP no limite nem chegam a conferir a senha.
-  async login(email: string, senha: string, plataforma: Plataforma, ip: string | null, userAgent: string | null): Promise<ResultadoLogin> {
+  // CAPTCHA a partir da 3ª falha (por e-mail ou por IP) quando o Turnstile está configurado.
+  async exigirCaptcha(chaves: string[], resposta: string | undefined, ip: string | null): Promise<void> {
+    const segredo = this.config.TURNSTILE_SECRET;
+    if (!segredo || !chaves.some((c) => this.falhas.quantas(c) >= 3)) return;
+    if (!(await captchaValido(segredo, resposta, ip))) throw new BadRequestException('CAPTCHA');
+  }
+
+  registrarFalha(...chaves: string[]): void {
+    for (const c of chaves) this.falhas.registrar(c);
+  }
+
+  async login(
+    email: string,
+    senha: string,
+    plataforma: Plataforma,
+    ip: string | null,
+    userAgent: string | null,
+    captcha?: string,
+  ): Promise<ResultadoLogin> {
     if (!this.limite.permitir(ip)) {
       throw new HttpException('Muitas tentativas. Tente mais tarde.', HttpStatus.TOO_MANY_REQUESTS);
     }
+    const chaves = [`email:${email.toLowerCase()}`, `ip:${chaveDeIp(ip)}`];
+    await this.exigirCaptcha(chaves, captcha, ip);
     const prep = await this.contexto.semSessao(async (tx) => {
       const r = await sql<{ tentativa_id: string; usuario_id: string | null; senha_hash: string | null; motivo: string }>`
         select * from core.preparar_login(${email}, ${ip}::inet, ${this.config.VV_KEK})`.execute(tx);
@@ -102,7 +125,11 @@ export class AuthService implements OnModuleInit {
       if (e instanceof Argon2Ocupado) throw new ServiceUnavailableException();
       throw e;
     }
-    if (!senhaOk || !prep?.usuario_id) return this.recusar();
+    if (!senhaOk || !prep?.usuario_id) {
+      this.registrarFalha(...chaves);
+      return this.recusar();
+    }
+    this.falhas.limpar(chaves[0] ?? '');
 
     const token = novoToken();
     const usuario = prep.usuario_id;

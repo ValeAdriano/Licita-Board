@@ -7,11 +7,14 @@ import {
   Delete,
   Get,
   HttpCode,
+  HttpException,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Post,
   Req,
   Res,
+  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import type { Response } from 'express';
@@ -20,7 +23,8 @@ import { z } from 'zod';
 import type { Config } from '../config.js';
 import { ContextoService } from '../db/contexto.service.js';
 import { CONFIG } from '../tokens.js';
-import { AuthService, novoToken } from './auth.service.js';
+import { AuthService, LimitePorIp, chaveDeIp, novoToken } from './auth.service.js';
+import { senhaVazada } from './protecoes.js';
 import {
   COOKIE_CSRF,
   COOKIE_SESSAO,
@@ -40,13 +44,24 @@ const loginSchema = z.object({
   email: z.email().max(254),
   senha: z.string().min(1).max(1024),
   plataforma: z.enum(['web', 'ios', 'android']),
+  captcha: z.string().max(4096).optional(),
 });
+const recuperarSchema = z.object({ email: z.email().max(254), captcha: z.string().max(4096).optional() }).strict();
+const redefinirSchema = z.object({ token: z.string().min(43).max(128), senha: z.string() }).strict();
+const MSG_VAZADA = 'Esta senha aparece em vazamentos conhecidos. Escolha outra.';
+const logHibp = new Logger('hibp');
+// HIBP fora do ar: a senha passa só pela lista local; fica registrado (sem senha nem prefixo).
+const avisarHibp = () => {
+  logHibp.warn('hibp_indisponivel');
+};
 const trocaSenhaSchema = z.object({ atual: z.string().min(1).max(1024), nova: z.string() });
 const sairTodasSchema = z.object({ manterAtual: z.boolean().default(true) });
 
 
 @Controller('auth')
 export class AuthController {
+  private readonly limiteRecuperacao = new LimitePorIp();
+
   constructor(
     private readonly auth: AuthService,
     private readonly contexto: ContextoService,
@@ -69,15 +84,61 @@ export class AuthController {
   @Post('login')
   @HttpCode(200)
   async login(@Req() req: RequisicaoVV, @Res({ passthrough: true }) res: Response, @Body() corpo: unknown) {
-    const { email, senha, plataforma } = validar(loginSchema, corpo);
+    const { email, senha, plataforma, captcha } = validar(loginSchema, corpo);
     if (plataforma === 'web') this.conferirOrigem(req);
-    const r = await this.auth.login(email, senha, plataforma, ipDe(req), req.headers['user-agent'] ?? null);
+    const r = await this.auth.login(email, senha, plataforma, ipDe(req), req.headers['user-agent'] ?? null, captcha);
     if (plataforma === 'web') {
       res.cookie(COOKIE_SESSAO, r.token, { ...opcoesCookie, maxAge: DOZE_HORAS });
       res.cookie(COOKIE_CSRF, r.csrf, { ...opcoesCookie, maxAge: DOZE_HORAS });
       return { mfa: r.mfa, csrf: r.csrf };
     }
     return { mfa: r.mfa, token: r.token };
+  }
+
+  // Recuperação (Prompt 1.4): resposta sempre igual, exista ou não a conta. O e-mail com o link sai
+  // pelo worker (o token nasce lá; a API nunca vê o token). CAPTCHA a partir do 3º pedido do IP.
+  @Publico()
+  @Post('recuperar')
+  @HttpCode(202)
+  async recuperar(@Req() req: RequisicaoVV, @Body() corpo: unknown) {
+    const { email, captcha } = validar(recuperarSchema, corpo);
+    const ip = ipDe(req);
+    if (!this.limiteRecuperacao.permitir(ip)) {
+      throw new HttpException('Muitas tentativas. Tente mais tarde.', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    // CAPTCHA a partir do 3º pedido do mesmo IP (IPv6 por /64) em 15 min.
+    const chave = `recuperar:${chaveDeIp(ip)}`;
+    this.auth.registrarFalha(chave);
+    await this.auth.exigirCaptcha([chave], captcha, ip);
+    await this.contexto.semSessao((tx) => sql`select core.solicitar_recuperacao(${email}, ${this.config.VV_KEK})`.execute(tx));
+    return {};
+  }
+
+  // Nova senha pelo link do e-mail: política mínima + senha vazada; redefinir encerra as sessões e
+  // prova a posse do e-mail (liga convites pendentes).
+  @Publico()
+  @Post('redefinir')
+  @HttpCode(204)
+  async redefinir(@Req() req: RequisicaoVV, @Body() corpo: unknown) {
+    const { token, senha } = validar(redefinirSchema, corpo);
+    if (!this.limiteRecuperacao.permitir(ipDe(req))) {
+      throw new HttpException('Muitas tentativas. Tente mais tarde.', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    const problema = problemaNaSenha(senha);
+    if (problema) throw new BadRequestException(problema);
+    if (await senhaVazada(senha, this.config.HIBP_URL, fetch, avisarHibp)) throw new BadRequestException(MSG_VAZADA);
+    let hash: string;
+    try {
+      hash = await hashSenha(senha);
+    } catch (e) {
+      if (e instanceof Argon2Ocupado) throw new ServiceUnavailableException();
+      throw e;
+    }
+    const ok = await this.contexto.semSessao(async (tx) => {
+      const r = await sql<{ ok: boolean }>`select core.redefinir_senha(${token}, ${hash}, ${this.config.VV_KEK}) as ok`.execute(tx);
+      return r.rows[0]?.ok === true;
+    });
+    if (!ok) throw new BadRequestException('Link inválido ou expirado. Peça um novo.');
   }
 
   @PermiteAal1()
@@ -135,6 +196,7 @@ export class AuthController {
     const { atual, nova } = validar(trocaSenhaSchema, corpo);
     const problema = problemaNaSenha(nova);
     if (problema) throw new BadRequestException(problema);
+    if (await senhaVazada(nova, this.config.HIBP_URL, fetch, avisarHibp)) throw new BadRequestException(MSG_VAZADA);
     const s = sessaoDe(req);
     const dados = dadosDe(req, s.token);
     const hashAtual = await this.contexto.comContexto(dados, async (tx) => {

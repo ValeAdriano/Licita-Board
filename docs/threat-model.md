@@ -63,14 +63,14 @@ Revisão 2 (auth própria, ADR-012/013). Os controles da revisão 1 sobre Supaba
 | Sem enumeração: mesma resposta e mesmo custo (hash falso) para e-mail inexistente, senha errada e conta bloqueada | e2e `auth` | 01 | implementado |
 | Fixação de sessão: login sempre emite token novo; troca de senha rotaciona o token | e2e fixação e troca de senha | 01 | implementado |
 | MFA TOTP conferido no banco (KEK conferida por verificador; replay barrado inclusive por concorrência; 5 erros/sessão encerram; 10/usuário em 15 min bloqueiam o MFA e encerram as sessões); elevação a aal2 rotaciona o token | `050_mfa`, `060_mfa_endurecimento`; e2e `mfa` | 01 | implementado |
-| Senha vazada (HIBP k-anonymity), CAPTCHA (Turnstile) após a 3ª falha, recuperação neutra por e-mail | e2e | 01 | planejado (PR 3b) |
+| Senha vazada (HIBP k-anonymity com padding; lista local de reserva), CAPTCHA (Turnstile) a partir da 3ª falha por e-mail ou IP, recuperação neutra por e-mail com token gerado no worker (só o hash no banco; link no fragmento `#`) | `protecoes.spec`; e2e `recuperacao`; `db/tests/120_fila_recuperacao`; `tests/test_fila.py` | 01 | parcial (com o HIBP fora do ar só a lista local curta barra; trocar pelas 100 mil mais comuns) |
 
 ## T5.6 · Bloqueio de conta usado como ataque de indisponibilidade (nova)
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
 | Bloqueio por falhas só impede login **novo**; sessões abertas continuam | `002_contexto` | 01 | implementado |
-| Alerta por e-mail ao dono da conta; CAPTCHA em vez de bloqueio duro para IP novo | e2e | 01 | planejado |
+| Alerta por e-mail de senha alterada e autenticador cadastrado/removido (trigger → fila → worker); CAPTCHA a partir da 3ª falha | `db/tests/120_fila_recuperacao`; e2e CAPTCHA | 01 | implementado (alerta de login de IP novo: planejado) |
 
 ## T5.7 · Corrida no login contorna o bloqueio (nova)
 
@@ -161,7 +161,7 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | Trocar de autenticador exige MFA recente e encerra as outras sessões | `060_mfa_endurecimento`; e2e | 01 | implementado |
 | Reset do MFA por outro SUPERADMIN com MFA recente e a KEK, nunca sobre outro SUPERADMIN; invalida a senha do alvo (quem tinha a senha não cadastra antes do dono); auditado | `060_mfa_endurecimento`; e2e | 01 | implementado |
 | Runbook: SUPERADMIN bloqueado é desbloqueado por `vv_owner` no servidor (registro em ata), nunca pelo app | documento de operação | 01 | planejado |
-| Alerta por e-mail de autenticador cadastrado/trocado | e2e | 01 | planejado (PR 3b, fila de e-mail) |
+| Alerta por e-mail de autenticador cadastrado/trocado/removido | `db/tests/120_fila_recuperacao` | 01 | implementado |
 
 ## T5.13 · Interferência no cadastro pendente e cadastro em laço (nova)
 
@@ -203,6 +203,36 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
 | App mostra nome da empresa sempre como texto e junto do CNPJ no aceite do convite | teste de componente | 01 | planejado (telas do app) |
+
+## T5.15 · Worker comprometido forja recuperação de senha (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Token só para job `email_recuperacao` em execução pela própria execução do worker; um token por job; o worker manda só o SHA-256 | `db/tests/120_fila_recuperacao` | 01 | implementado |
+| A API não cria mais token de recuperação (não vê o token) | `db/tests/120_fila_recuperacao`, `040_sessoes_login` | 01 | implementado |
+| Risco residual: quem envia o e-mail vê o token (30 min, uso único) | — | 01 | aceito |
+
+## T5.16 · Token de recuperação no caminho do e-mail (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| STARTTLS com certificado conferido; fora de dev, SMTP exige TLS e login e o link é https | `tests/test_settings.py` | 01 | implementado |
+| Link com o token no fragmento (`#`), sem nome do usuário no e-mail; parâmetros de `vv_worker` fora do log do Postgres | `tests/test_email.py`, `db/tests/001_guarda_global` | 01 | implementado |
+| Rastreio de cliques do provedor de e-mail desligado | runbook de deploy | 01 | planejado |
+
+## T5.4b · Spam de e-mail e reputação do remetente (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Recuperação: 1 a cada 5 min e 5 por dia por usuário; CAPTCHA a partir do 3º pedido do IP (/64); 20/min por IP | `db/tests/120_fila_recuperacao`; e2e | 01 | implementado |
+| Teto global por hora com alerta de cota | — | 01 | planejado |
+
+## T7.2 · Consumidor da fila parado sem alerta (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Thread do consumidor não morre em erro; `/health` do worker responde 503 sem ciclo há mais de 90 s; job vencido na última tentativa vira `falhou` | `db/tests/120_fila_recuperacao` | 01 | implementado |
+| Alerta (Healthchecks/e-mail ao SUPERADMIN) para job em `falhou`; expurgo de `ops.jobs` concluídos | — | 01 | planejado |
 
 ## T5.1 · Sessão aal2 roubada usada para operação crítica (nova, Fase 01)
 
