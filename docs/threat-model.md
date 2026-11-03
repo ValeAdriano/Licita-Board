@@ -62,7 +62,7 @@ Revisão 2 (auth própria, ADR-012/013). Os controles da revisão 1 sobre Supaba
 | Força bruta: tentativa registrada **antes** do Argon2, serializada por e-mail; 10 falhas/15 min bloqueiam o login novo; 10 tentativas/min por IP → 429 (também com senha certa) | `040_sessoes_login`; e2e rajada paralela e limite por IP | 01 | implementado |
 | Sem enumeração: mesma resposta e mesmo custo (hash falso) para e-mail inexistente, senha errada e conta bloqueada | e2e `auth` | 01 | implementado |
 | Fixação de sessão: login sempre emite token novo; troca de senha rotaciona o token | e2e fixação e troca de senha | 01 | implementado |
-| MFA TOTP conferido no banco (KEK conferida por verificador; replay barrado inclusive por concorrência; 5 erros/sessão encerram; 10/usuário em 15 min bloqueiam o MFA e encerram as sessões) | `050_mfa` | 01 | implementado (banco); API no PR 4 |
+| MFA TOTP conferido no banco (KEK conferida por verificador; replay barrado inclusive por concorrência; 5 erros/sessão encerram; 10/usuário em 15 min bloqueiam o MFA e encerram as sessões); elevação a aal2 rotaciona o token | `050_mfa`, `060_mfa_endurecimento`; e2e `mfa` | 01 | implementado |
 | Senha vazada (HIBP k-anonymity), CAPTCHA (Turnstile) após a 3ª falha, recuperação neutra por e-mail | e2e | 01 | planejado (PR 3b) |
 
 ## T5.6 · Bloqueio de conta usado como ataque de indisponibilidade (nova)
@@ -153,6 +153,30 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | Vínculo/permissão só por quem tem `administrar_permissoes` na mesma empresa (`with check`) | `020_core_isolamento`: A não se vincula a B nem move vínculo | 01 | implementado |
 | Alteração de permissão exige step-up | `040_step_up` | 01 | implementado |
 
+## T5.12 · Sequestro do cadastro do primeiro autenticador (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Cadastrar autenticador exige a senha atual (reautenticação), conferida antes do Argon2 como falha de verificação | e2e `mfa`: senha errada/ausente → 400 | 01 | implementado |
+| Trocar de autenticador exige MFA recente e encerra as outras sessões | `060_mfa_endurecimento`; e2e | 01 | implementado |
+| Reset do MFA por outro SUPERADMIN com MFA recente e a KEK, nunca sobre outro SUPERADMIN; invalida a senha do alvo (quem tinha a senha não cadastra antes do dono); auditado | `060_mfa_endurecimento`; e2e | 01 | implementado |
+| Runbook: SUPERADMIN bloqueado é desbloqueado por `vv_owner` no servidor (registro em ata), nunca pelo app | documento de operação | 01 | planejado |
+| Alerta por e-mail de autenticador cadastrado/trocado | e2e | 01 | planejado (PR 3b, fila de e-mail) |
+
+## T5.13 · Interferência no cadastro pendente e cadastro em laço (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Pendente preso à sessão que o cadastrou; vence em 15 min | `060_mfa_endurecimento`; e2e outra sessão | 01 | implementado |
+| No máximo 5 cadastros por usuário a cada 15 min (429); 20 pedidos/min por IP nas rotas de MFA | `060_mfa_endurecimento` | 01 | implementado |
+
+## T5.14 · Força bruta lenta de TOTP abaixo do limite por janela (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Erros consecutivos (zerados só por acerto) bloqueiam o MFA sem prazo na 50ª falha; desbloqueio só por reset de SUPERADMIN | `060_mfa_endurecimento` | 01 | implementado |
+| Senha certa não soma erros (falha cobrada antes do Argon2 é estornada); pendente de outra sessão não troca o autenticador sem MFA recente na confirmação | `060_mfa_endurecimento`; e2e | 01 | implementado |
+
 ## T5.1 · Sessão aal2 roubada usada para operação crítica (nova, Fase 01)
 
 | Controle | Teste | Fase | Status |
@@ -160,7 +184,7 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | Step-up exige TOTP verificado há ≤ 2 min com fator cadastrado há ≥ 24 h | `040_step_up`: fator de 1 h não serve | 01 | implementado |
 | Uma verificação MFA = um token; token preso à sessão viva, uso único, 5 min | `040_step_up`: segundo token, logout, outra sessão, expirado | 01 | implementado |
 | Exclusão definitiva exige dois SUPERADMIN ativos, cada um com step-up | `050_exclusao_dupla_aprovacao` | 01 | implementado |
-| Notificação de cadastro/remoção de fator MFA | configuração do Supabase Auth | 01 | planejado |
+| Notificação de cadastro/remoção de fator MFA (revisão 2: e-mail pela fila do worker) | e2e | 01 | planejado (PR 3b) |
 
 ## T5.2 · Logout que falha aberto (nova, Fase 01 · revisão de segurança do front)
 

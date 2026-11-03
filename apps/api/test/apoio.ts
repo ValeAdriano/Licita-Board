@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import type { Server } from 'node:http';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -81,4 +82,20 @@ let ultimoIp = 0;
 export function ipNovo(): string {
   ultimoIp++;
   return `198.51.${String(100 + Math.floor(ultimoIp / 250))}.${String(1 + (ultimoIp % 250))}`;
+}
+
+// TOTP (RFC 6238) calculado como um app autenticador, a partir da URI otpauth do cadastro.
+export function totpDaUri(uri: string, deslocamento = 0): string {
+  const segredo = new URL(uri).searchParams.get('secret') ?? '';
+  const alfabeto = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  for (const c of segredo) bits += alfabeto.indexOf(c).toString(2).padStart(5, '0');
+  const chave = Buffer.from((bits.match(/.{8}/g) ?? []).map((b) => parseInt(b, 2)));
+  const passo = Math.floor(Date.now() / 1000 / 30) + deslocamento;
+  const msg = Buffer.alloc(8);
+  msg.writeBigUInt64BE(BigInt(passo));
+  const h = createHmac('sha1', chave).update(msg).digest();
+  const o = (h[19] ?? 0) & 15;
+  const bin = (((h[o] ?? 0) & 127) << 24) | ((h[o + 1] ?? 0) << 16) | ((h[o + 2] ?? 0) << 8) | (h[o + 3] ?? 0);
+  return String(bin % 1_000_000).padStart(6, '0');
 }

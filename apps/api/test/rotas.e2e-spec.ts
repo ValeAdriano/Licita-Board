@@ -8,7 +8,10 @@ import { SENHA, criarUsuario, ipNovo, servidor, subirApp } from './apoio.js';
 // fechada de públicas. Rota nova pública fora da lista faz este teste falhar.
 const PUBLICAS = new Set(['POST /auth/login', 'GET /health']);
 // Rotas liberadas a quem só passou da senha (aal1) e tem/precisa de MFA. Fora daqui: 403.
-const PERMITE_AAL1 = new Set(['GET /auth/sessao', 'POST /auth/logout']);
+const PERMITE_AAL1 = new Set([
+  'GET /auth/sessao', 'POST /auth/logout',
+  'POST /auth/mfa/cadastrar', 'POST /auth/mfa/confirmar', 'POST /auth/mfa/verificar', 'POST /auth/mfa/recuperacao',
+]);
 
 interface Camada { route?: { path: string; methods: Record<string, boolean> } }
 
@@ -40,7 +43,8 @@ describe('cobertura de rotas', () => {
       const url = caminho.replace(/:[a-zA-Z]+/g, crypto.randomUUID());
       const r = await request(servidor(app))[metodo.toLowerCase() as 'get'](url)
         .set('Authorization', `Bearer ${token}`).send({});
-      if (r.status !== 403) liberadas.push(rota);
+      // 403 do guard (falta aal2) vem com a mensagem 'MFA'; qualquer outra resposta = rota liberada.
+      if (!(r.status === 403 && (r.body as { message?: string }).message === 'MFA')) liberadas.push(rota);
     }
     expect(new Set(liberadas)).toEqual(PERMITE_AAL1);
   });
