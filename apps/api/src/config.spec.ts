@@ -43,11 +43,11 @@ describe('carregarConfig', () => {
   });
 
   it('lê CORS_ORIGINS como lista e recusa origem que não é http(s)', () => {
-    expect(carregarConfig(base).CORS_ORIGINS).toEqual(['http://localhost:8081']);
+    expect(carregarConfig(base).CORS_ORIGINS).toEqual(['http://localhost:5173']);
     expect(
-      carregarConfig({ ...base, CORS_ORIGINS: 'https://app.vv.test, http://localhost:8081' })
+      carregarConfig({ ...base, CORS_ORIGINS: 'https://app.vv.test, http://localhost:5173' })
         .CORS_ORIGINS,
-    ).toEqual(['https://app.vv.test', 'http://localhost:8081']);
+    ).toEqual(['https://app.vv.test', 'http://localhost:5173']);
     expect(() => carregarConfig({ ...base, CORS_ORIGINS: 'javascript:alert(1)' })).toThrow(
       'CORS_ORIGINS',
     );

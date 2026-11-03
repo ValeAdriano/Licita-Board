@@ -11,7 +11,7 @@ As regras do projeto estão no `AGENTS.md` da raiz (você já o recebe sempre) e
 
 1. Leia `docs/roadmap.md` (fase atual e próximo passo) e `docs/agents/em-andamento.md` (quem está mexendo em quê). Se outra tarefa ativa usa a mesma área, pare e pergunte.
 2. Leia a spec da fase em `docs/specs/fase-XX.md`. Sem status `Aprovada`, a única tarefa possível é escrever ou ajustar a spec; o próximo PR da fase (uma entrega de um ou mais commits no `main`) está na seção 7 dela.
-3. Leia o `AGENTS.md` do pacote que vai tocar (`apps/app`, `apps/worker`, `db`) e [`docs/agents/fluxo.md`](../../docs/agents/fluxo.md).
+3. Leia o `AGENTS.md` do pacote que vai tocar (`apps/web`, `apps/worker`, `db`) e [`docs/agents/fluxo.md`](../../docs/agents/fluxo.md).
 4. Anote a tarefa em `docs/agents/em-andamento.md`. Só um agente por vez escreve em `db/migrations/`.
 5. Mostre o plano ao Adriano antes de editar quando a tarefa tiver mais de um passo.
 

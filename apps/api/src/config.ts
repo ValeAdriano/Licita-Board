@@ -11,7 +11,7 @@ const esquema = z.object({
   // Origens do app web com acesso à API (lista separada por vírgula). O app nativo não usa CORS.
   CORS_ORIGINS: z
     .string()
-    .default('http://localhost:8081')
+    .default('http://localhost:5173')
     .transform((v) => v.split(',').map((o) => o.trim()).filter(Boolean))
     .pipe(z.array(z.url({ protocol: /^https?$/ }))),
   // Proxy cujo X-Forwarded-For é confiável: "false" (ignora o cabeçalho), "loopback" ou lista de

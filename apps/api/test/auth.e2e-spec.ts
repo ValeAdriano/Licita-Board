@@ -67,7 +67,7 @@ describe('auth', () => {
       .send({ email, senha: SENHA, plataforma: 'web' }).expect(403);
     await http().post('/auth/login').set('X-Forwarded-For', ipNovo()).set('Sec-Fetch-Site', 'cross-site')
       .send({ email, senha: SENHA, plataforma: 'web' }).expect(403);
-    await http().post('/auth/login').set('X-Forwarded-For', ipNovo()).set('Origin', 'http://localhost:8081')
+    await http().post('/auth/login').set('X-Forwarded-For', ipNovo()).set('Origin', 'http://localhost:5173')
       .send({ email, senha: SENHA, plataforma: 'web' }).expect(200);
   });
 

@@ -40,10 +40,14 @@ class GuardTest(unittest.TestCase):
         self.assertBlocked(run("Write", {"file_path": path("apps/web/src/x.ts"), "content": "const k = SUPABASE_SERVICE_ROLE_KEY"}))
         self.assertBlocked(run("Edit", {"file_path": path("apps/web/src/x.ts"), "old_string": "a", "new_string": "sb_secret_abc"}))
 
-    def test_credencial_no_app_bloqueada(self) -> None:
-        for conteudo in ("const u = process.env.DATABASE_URL", "vv_worker", "VV_OWNER_PASSWORD", "S3_SECRET_KEY"):
-            self.assertBlocked(run("Write", {"file_path": path("apps/app/src/x.ts"), "content": conteudo}))
-        self.assertAllowed(run("Write", {"file_path": path("apps/app/src/x.ts"), "content": "process.env.EXPO_PUBLIC_API_URL"}))
+    def test_credencial_no_front_bloqueada(self) -> None:
+        for conteudo in (
+            "const u = process.env.DATABASE_URL", "vv_worker", "VV_OWNER_PASSWORD", "S3_SECRET_KEY",
+            "VV_KEK=abc", "VITE_VV_KEK", "TURNSTILE_SECRET", "VITE_API_TOKEN", "VAPID_PRIVATE_KEY",
+        ):
+            self.assertBlocked(run("Write", {"file_path": path("apps/web/src/x.ts"), "content": conteudo}))
+        self.assertAllowed(run("Write", {"file_path": path("apps/web/src/x.ts"), "content": "import.meta.env.VITE_API_URL"}))
+        self.assertAllowed(run("Write", {"file_path": path("apps/web/src/x.ts"), "content": "VITE_TURNSTILE_SITEKEY"}))
 
     def test_api_so_usa_vv_api(self) -> None:
         self.assertBlocked(run("Write", {"file_path": path("apps/api/src/db/x.ts"), "content": "postgres://vv_worker:x@db/vv"}))

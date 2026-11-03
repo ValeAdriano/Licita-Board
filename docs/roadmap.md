@@ -2,10 +2,10 @@
 
 Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada fase.
 
-**Fase atual:** 00 · Fundação técnica — **recomeçando na stack nova** (revisão 2 do plano, 2026-11-02: Docker + Postgres + API NestJS + app Expo + worker Python; ADR-011 a 017).
-**Próximo passo:** Fase 01 em andamento: banco, API, fila/worker e telas de acesso, shell e equipe do app (login, MFA, conta, empresas, notificações, matriz de permissões, convites) no main; próximo PR 9, push. Adriano: instalar Docker; escolher VPS/S3.
+**Fase atual:** 00 · Fundação técnica — **recomeçando na stack nova** (revisão 2 do plano, 2026-11-02: Docker + Postgres + API NestJS + front React web + worker Python; ADR-011 a 018).
+**Próximo passo:** Fase 01 em andamento: banco, API, fila/worker e front React web (PWA, design Apple; ADR-018) com login, MFA, conta, empresas, notificações, matriz de permissões e convites no main; próximo PR 9, Web Push. Adriano: instalar Docker; escolher VPS/S3.
 
-> O trabalho da Fase 01 na revisão 1 (Supabase: migrations, RLS, pgTAP, telas Vite) fica congelado em `supabase/` e `apps/web` e será portado na Fase 01 nova.
+> O trabalho da Fase 01 na revisão 1 (Supabase: migrations, RLS, pgTAP) fica congelado em `supabase/` até o fechamento da Fase 01. O front da revisão 1 (Vite) foi substituído pelo front novo em `apps/web`.
 
 | Onda | Fase | Nome | Horas est. | Spec | Status |
 | --- | --- | --- | --- | --- | --- |
@@ -39,4 +39,4 @@ Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada
 | Docker instalado na máquina de dev | Adriano | Rodar a stack local |
 | Provedor da VPS (São Paulo) e do S3 de produção | Adriano | Deploy da Fase 00 |
 | Destino do projeto Supabase `gqrilopolbanlrdyrrsd` | Adriano | — (custo/limpeza) |
-| Domínio e identidade visual | Adriano | PWA (Fase 01) |
+| Domínio e identidade visual (logo, ícones do PWA) | Adriano | PWA em produção (Fase 01) |

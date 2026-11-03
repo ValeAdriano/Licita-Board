@@ -1,6 +1,6 @@
 # ADR-011 · Stack: Docker Compose, Postgres 17, API NestJS, app Expo, worker Python, VPS
 
-- **Status:** Aceito (2026-11-02)
+- **Status:** Aceito (2026-11-02). Nota de 2026-11-03: o front deixou de ser Expo e passou a React web em PWA (ADR-018); o restante da decisão continua valendo.
 - **Data:** 2026-11-02
 - **Decisor:** Adriano Vale
 - **Requisito relacionado:** Prompt Mestre, "Padrão técnico" (arquitetura sugerida), 0.1, 1.4

@@ -57,7 +57,7 @@ Revisão 2 (auth própria, ADR-012/013). Os controles da revisão 1 sobre Supaba
 | --- | --- | --- | --- |
 | Senha Argon2id (m=19 MiB, t=2, p=1), mínimo 12; hash nunca legível por `vv_api`/`vv_worker`; redigido na auditoria | `040_sessoes_login`; e2e troca de senha | 01 | implementado |
 | Sessão opaca (32 bytes), banco guarda só SHA-256; contexto da RLS = sessão viva conferida a cada consulta | `002_contexto` (forjar `app.*` com marca válida não vale) | 01 | implementado |
-| Web: cookie `__Host-` HttpOnly/Secure/SameSite=Strict + CSRF double submit; nativo: Bearer | e2e `auth`: atributos do cookie, CSRF em todo método que altera | 01 | implementado |
+| Cookie `__Host-` HttpOnly/Secure/SameSite=Strict + CSRF double submit (o front nunca vê o token; Bearer só para integrações) | e2e `auth`: atributos do cookie, CSRF em todo método que altera | 01 | implementado |
 | Inatividade 30 min, absoluta 12 h, sair de todos, encerrar sessão por id (só as próprias) | `002_contexto`, `040_sessoes_login`, e2e sessões | 01 | implementado |
 | Força bruta: tentativa registrada **antes** do Argon2, serializada por e-mail; 10 falhas/15 min bloqueiam o login novo; 10 tentativas/min por IP → 429 (também com senha certa) | `040_sessoes_login`; e2e rajada paralela e limite por IP | 01 | implementado |
 | Sem enumeração: mesma resposta e mesmo custo (hash falso) para e-mail inexistente, senha errada e conta bloqueada | e2e `auth` | 01 | implementado |
@@ -71,8 +71,8 @@ Revisão 2 (auth própria, ADR-012/013). Os controles da revisão 1 sobre Supaba
 | --- | --- | --- | --- |
 | Bloqueio por falhas só impede login **novo**; sessões abertas continuam | `002_contexto` | 01 | implementado |
 | Alerta por e-mail de senha alterada e autenticador cadastrado/removido (trigger → fila → worker); CAPTCHA a partir da 3ª falha | `db/tests/120_fila_recuperacao`; e2e CAPTCHA | 01 | implementado (alerta de login de IP novo: planejado) |
-| App nativo sem Turnstile (precisa de WebView): quem cai no CAPTCHA entra pelo navegador; um atacante pode manter o login **nativo** de uma conta travado repetindo 3 falhas | — | 01 | aceito até o WebView (PR de push/app nativo) |
-| App web: se a API exige CAPTCHA (`TURNSTILE_SECRET`) e o app não tem `EXPO_PUBLIC_TURNSTILE_SITEKEY`, ninguém passa do CAPTCHA | runbook de deploy (as duas juntas) | 01 | planejado |
+| Sem apps nativos por ora (ADR-018): o Turnstile roda no navegador e não há o bloqueio específico do login nativo | — | 01 | n/a (reabrir se o app nativo voltar) |
+| Front: se a API exige CAPTCHA (`TURNSTILE_SECRET`) e o front não tem `VITE_TURNSTILE_SITEKEY`, ninguém passa do CAPTCHA | runbook de deploy (as duas juntas) | 01 | planejado |
 
 ## T5.7 · Corrida no login contorna o bloqueio (nova)
 
@@ -206,20 +206,20 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | --- | --- | --- | --- |
 | App mostra nome da empresa sempre como texto, junto do CNPJ, de quem convidou e das permissões, e só aceita depois de um passo de revisão; `core.meus_convites()` devolve CNPJ e autor | `equipe.test.tsx` (ConvitesRecebidos); `db/tests/100_convites`; e2e `acesso` | 01 | implementado |
 
-## T5.17 · Sessão no app: inatividade, logout e rotas (nova, PR 6)
+## T5.17 · Sessão no front: inatividade, logout e rotas (nova, PR 6)
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
-| Token só no SecureStore (`WHEN_UNLOCKED_THIS_DEVICE_ONLY`, fora do backup Android) no nativo; no web o app nunca vê o token (cookie HttpOnly) | `sessao.test.tsx`, `cliente.test.ts`; Semgrep `vv-sessao-fora-do-secure-store` | 01 | implementado |
-| Toda tela num `Stack.Protected` pela fase da sessão; tela nova fora do guard falha no teste | `src/rotas.test.ts` | 01 | implementado |
-| Sair só some com a sessão se o servidor confirmou (computador compartilhado); sem rede no início o token fica e o app oferece tentar de novo | `sessao.test.tsx` | 01 | implementado |
-| Inatividade de 30 min também no app, conferida ao voltar ao primeiro plano | `links.test.ts` (`expirou`) | 01 | implementado |
+| A sessão vive só no cookie HttpOnly: o JavaScript nunca guarda nem lê o token; sem localStorage/sessionStorage/indexedDB no front | `sessao.test.tsx`, `cliente.test.ts` (sem Authorization); Semgrep `vv-sessao-fora-do-secure-store` | 01 | implementado |
+| Cada conjunto de telas só existe na fase certa da sessão (`Rotas`); endereço fora da fase volta para a tela da fase | `src/App.test.tsx` | 01 | implementado |
+| Sair só some com a sessão se o servidor confirmou (computador compartilhado); sem rede no início o front oferece tentar de novo (nada é descartado) | `sessao.test.tsx` | 01 | implementado |
+| Inatividade de 30 min também no front (mouse, toque e teclado renovam), conferida a cada 30 s e quando a aba volta a ficar visível | `links.test.ts` (`expirou`) | 01 | implementado |
 | Requisição de segundo plano (polling de notificações, `X-VV-Fundo: 1`, só em GET) confere a sessão sem renovar a inatividade, nem no app nem em `ultimo_uso_em` | `db/tests/130_contexto_fundo`; e2e `auth` (fundo); `cliente.test.ts` | 01 | implementado |
-| Mouse/teclado no web e várias abas (atividade compartilhada sem dado sensível) | — | 01 | planejado |
-| Token no Keychain do iOS sobrevive à reinstalação (até 12 h): apagar na primeira execução | — | 01 | planejado |
-| Códigos de recuperação e segredo TOTP: exibição única; captura de tela bloqueada no nativo (`expo-screen-capture`); somem ao sair da tela ou ir para o segundo plano; a chave não é selecionável | revisão; teste manual no web | 01 | implementado (web não impede captura) |
+| Várias abas (atividade compartilhada sem dado sensível): uma aba ociosa encerra a sessão das outras | — | 01 | planejado (BroadcastChannel) |
+| (apps nativos) Token no Keychain do iOS sobrevive à reinstalação | — | — | n/a (adiado, ADR-018) |
+| Códigos de recuperação e segredo TOTP: exibição única; os códigos somem ao sair da tela (a página desmonta) ou após 60 s com a aba em segundo plano; o cadastro pendente NÃO some (no celular é preciso sair para copiar a chave; ele vence no servidor em 5/15 min); a chave não vem em campo editável. O navegador não permite bloquear captura de tela | `Autenticador.tsx`; teste manual | 01 | parcial (captura: risco aceito no web) |
 | Falha de verificação cobrada e não estornada quando outra regra recusa depois (MFA não recente, limite de cadastros): pré-condição conferida antes de contar a falha e estorno em transação própria | e2e `mfa` (sem MFA recente: 403 e `falhas_mfa` = 0) | 01 | implementado |
-| Rotação do token × requisição em voo: 401 de requisição feita com o token anterior (ou durante a rotação) não derruba a sessão nova | `cliente.test.ts` | 01 | implementado |
+| Rotação do cookie × requisição em voo: 401 de requisição feita antes da rotação (ou durante) não derruba a sessão nova | `cliente.test.ts` | 01 | implementado |
 | User agent é texto do cliente e aparece na lista de sessões (engenharia social com sessão roubada): reduzir a navegador/SO | — | 01 | planejado |
 | Empresa escolhida é só filtro de tela; a tela de Equipe é montada por empresa (`key`); avisar quando a seleção cair por vínculo revogado fica para quando os módulos chegarem | `equipe.tsx` | 01/02 | parcial |
 | 403 "MFA" (perfil passou a exigir segundo fator, ex.: convite interno aceito) faz o app reler `/auth/sessao` (uma vez, em fundo) e levar ao MFA | `cliente.test.ts`, `sessao.test.tsx` | 01 | implementado |
@@ -257,19 +257,35 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
-| Turnstile (Cloudflare, terceiro confiável) carregado sob demanda, só depois que a API pede CAPTCHA, e removido ao desmontar | revisão | 01 | implementado |
-| Login que carregou o Turnstile recarrega a página: o script não fica na sessão aberta (teria acesso ao CSRF) | revisão; teste manual no web | 01 | implementado |
-| CSP no web: `script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src <API>`, `frame-ancestors 'none'`, `Referrer-Policy: no-referrer` | — | 00/01 | planejado (Caddy, deploy) |
+| Turnstile (Cloudflare, terceiro confiável) carregado sob demanda, só depois que a API pede CAPTCHA; só o widget sai ao desmontar (a tag do script e `window.turnstile` ficam até recarregar); a Cloudflare roda na tela com o campo de senha (risco aceito; alternativa: iframe isolado); `action` login/recuperar enviado ao widget | revisão | 01 | implementado |
+| Login depois de o script do Turnstile ter sido carregado (nesta tela ou na de recuperação) recarrega a página: encurta a janela do script de terceiro na sessão aberta (um script da mesma origem sempre lê o CSRF por `GET /auth/sessao`: a defesa real é a CSP) | `Entrar.tsx`; teste manual | 01 | implementado |
+| CSP e cabeçalhos exatos do Caddy (`apps/web/AGENTS.md`): `default-src 'none'`, `script-src 'self' https://challenges.cloudflare.com`, `style-src 'self'`, `connect-src 'self'`, `frame-src` Turnstile, `worker-src`/`manifest-src 'self'`, `frame-ancestors 'none'`, HSTS, `Referrer-Policy: no-referrer`; **bloqueia o uso real até existir** | — | 00/01 | planejado (Caddy, deploy; bloqueante de liberação) |
 | Siteverify conferindo `action` e `hostname` | — | 01 | planejado |
 
 ## T5.19 · Token de redefinição fora do servidor (nova, PR 6)
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
-| Token no fragmento (não vai ao servidor nem no Referer); o entry `index.ts` tira o fragmento da URL antes do roteador (que o guardaria no estado e reescreveria) | `links.test.ts`; teste manual no web | 01 | implementado |
+| Token no fragmento (não vai ao servidor nem no Referer); `src/auth/fragmento.ts`, importado primeiro em `main.tsx`, tira o fragmento da URL e do histórico antes de qualquer outra coisa e guarda o token só em memória | `links.test.ts`; teste manual | 01 | implementado |
 | Uso único, 30 min, consumido só por POST com a nova senha (scanner de link que faz GET, como Safe Links, não queima o token); novo pedido invalida o anterior | `db/tests/120_fila_recuperacao`; e2e `recuperacao` | 01 | implementado |
 | Risco residual: reescritor de link do provedor de e-mail e histórico sincronizado do navegador guardam a URL original | — | 01 | aceito |
-| Link abrir o app nativo só por universal/app links verificados (nunca o esquema `vvlicitacoes://`); URI `otpauth://` só por ação explícita (a tela pede para digitar a chave) | — | 01 | planejado |
+| URI `otpauth://` só por ação explícita (a tela pede para digitar a chave) | — | 01 | implementado |
+
+## T5.21 a T5.26 · Front React em PWA (novas, ADR-018)
+
+| ID | Ameaça | Controle | Teste | Status |
+| --- | --- | --- | --- | --- |
+| T5.21 | Várias abas: A sai, B entra em outra aba, e a aba velha mostra a identidade de A com dado de B ou fica com CSRF velho | O front relê `/auth/sessao` (em fundo) ao voltar a ficar visível, no pageshow do bfcache e no 403 "CSRF"/"MFA"; se o `usuarioId` mudou, recarrega a página | `sessao.test.tsx`, `cliente.test.ts` | implementado (BroadcastChannel: planejado) |
+| T5.22 | Script de terceiro (Turnstile) na página autenticada, ao lado do campo de senha | Ver T5.18: reload quando o script foi carregado; CSP; `action` no widget | `Entrar.tsx` | implementado (isolamento em iframe: planejado) |
+| T5.23 | Service Worker não atualiza e a correção de segurança do front não chega; CSP presa no HTML cacheado | `registerSW` com `immediate`, `skipWaiting` e `clientsClaim`; mudar o `index.html` ao mudar a CSP | build (`dist/sw.js`) | implementado |
+| T5.24 | Replay de TOTP entre telas (login, step-up, troca de senha, autenticador) conta erro de MFA e auto-bloqueia | O `SessaoProvider` recusa localmente (sem rede) o último código enviado, de qualquer tela | `sessao.test.tsx` | implementado |
+| T2.7 | Operação crítica executada depois do Cancelar ou da tela fechada (step-up já emitido) | Cancelar e Esc deixam de valer depois que o código foi aceito; desmontar durante a conferência invalida a operação | `equipe.test.tsx`; `StepUpModal.tsx` | implementado |
+| T2.5b | Confirmação só com contagem esconde a escalada de privilégio | O resumo lista pelo nome as ações sensíveis acrescentadas (administrar permissões, custos e margens, aprovar, exportar) e em quais módulos | `matriz.test.ts` | implementado |
+| T3.1d | Texto livre de terceiro com caracteres bidi ou enorme disfarça CNPJ e autor | `<bdi>` e `overflow-wrap`; remover caracteres de formato no banco | — | parcial |
+| T5.25 | Cache de navegação (bfcache) devolve a tela com dados depois do logout em outra aba | `pageshow` com `persisted` relê a sessão | `sessao.tsx` | implementado |
+| T5.26 | (Web Push, PR 9) a inscrição de push continua ativa depois do logout e o próximo usuário recebe alertas do anterior | Cancelar a inscrição no logout; conteúdo sem dado sensível | — | planejado (antes de entregar o push) |
+| T4.b | Brecha nas regras de guarda: `VV_KEK`, `*_SECRET` e `VITE_*TOKEN` no bundle público | Semgrep (`vv-credencial-no-app`, sinks perigosos, fetch fora do cliente), hook e grep do `dist/` no CI | `test_guard.py`; CI | implementado |
+| T7.3 | Dependências de build (`vite-plugin-pwa` → `workbox-build`: glob, minimatch, ejs, deepmerge) fora do gate `--omit=dev` | `npm audit` completo informativo no CI; nada disso entra no bundle | CI | risco aceito |
 
 ## T5.15 · Worker comprometido forja recuperação de senha (nova)
 

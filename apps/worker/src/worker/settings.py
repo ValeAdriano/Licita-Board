@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     smtp_starttls: bool = False
     email_remetente: str = "VV Licitações <nao-responda@vv.local>"
     # URL pública do app, base dos links enviados por e-mail.
-    app_url: str = "http://localhost:8081"
+    app_url: str = "http://localhost:5173"
 
     @field_validator("database_url")
     @classmethod

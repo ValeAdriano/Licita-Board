@@ -7,7 +7,7 @@ Como o VV Licitações é construído por uma pessoa + agentes. As regras ficam 
 | Peça | Onde | Para quê |
 | --- | --- | --- |
 | Regras globais | `AGENTS.md` (raiz) | Lido automaticamente por Antigravity, Codex, Cursor, Copilot, Paseo; importado pelo `CLAUDE.md` |
-| Regras locais | `apps/app/AGENTS.md`, `apps/worker/AGENTS.md`, `db/AGENTS.md` | Detalhes de cada pacote; o agente lê ao trabalhar na pasta (`apps/web` e `supabase/` são da revisão 1, congelados) |
+| Regras locais | `apps/web/AGENTS.md`, `apps/worker/AGENTS.md`, `db/AGENTS.md` | Detalhes de cada pacote; o agente lê ao trabalhar na pasta (`supabase/` é da revisão 1, congelado) |
 | Documentação viva | [`documentacao-viva.md`](documentacao-viva.md) | O que atualizar em cada entrega; checklist de fim de tarefa |
 | Fluxo por fase | [`fluxo.md`](fluxo.md) | Passo a passo spec → banco → backend → front → testes → relatório |
 | Prompts neutros | [`prompts/`](prompts/) | Texto pronto para colar em qualquer agente, um por passo |

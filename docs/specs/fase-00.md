@@ -20,15 +20,15 @@
 | RF-00.2 | Ambientes identificados; faixa colorida fora de prod | Prompt 0.2 | dev feito (faixa no app); homologação adiada (ADR-015) |
 | RF-00.3 | Modelo de ameaças com as 7 ameaças, controle e teste | Prompt 0.3 | feito na revisão 1; **revisar para API própria** (contexto forjável por SQLi, RCE na API, VPS única) |
 | RF-00.4 | Git com `main` protegido | Prompt 0.4 | pendente (Adriano optou por push direto no `main` enquanto trabalha sozinho) |
-| RF-00.5 | CI: lint, testes, SAST, dependências, segredos | Prompt 0.4 | feito (jobs API + banco, App Expo, Worker, Guardas) |
+| RF-00.5 | CI: lint, testes, SAST, dependências, segredos | Prompt 0.4 | feito (jobs API + banco, Web, Worker, Guardas) |
 | RF-00.6 | Migrations versionadas e reversíveis | Prompt 0.4 | feito: dbmate, CI roda up → rollback → up |
 | RF-00.7 | Cobertura ≥ 80% em permissão, preço, prazos, análise | Prompt 0.4 | regra definida; aplicada quando os módulos existirem |
 | RF-00.8 | Logs estruturados sem dados sensíveis | Prompt 0.5 | feito: pino na API (sem cookie/authorization), JSON no worker |
 | RF-00.9 | Rastreamento de erros e monitoramento do agendador | Prompt 0.5 | pendente (Sentry, Healthchecks.io) |
-| RF-00.10 | Regras para agentes (`AGENTS.md`, `CLAUDE.md`, `db/AGENTS.md`, `apps/app/AGENTS.md`, hooks) | Plano | feito |
+| RF-00.10 | Regras para agentes (`AGENTS.md`, `CLAUDE.md`, `db/AGENTS.md`, `apps/web/AGENTS.md`, hooks) | Plano | feito |
 | RF-00.11 | `docker compose up` sobe Postgres, API e worker com healthcheck | ADR-015 | feito no código; **não executado** (Docker não instalado na máquina de dev) |
 | RF-00.12 | Papéis `vv_owner`/`vv_api`/`vv_worker` e contexto do usuário preso à transação | ADR-013 | feito (`db/tests/001`, `002`) |
-| RF-00.13 | App Expo em iOS, Android e Web chamando `/health` | ADR-016 | web exportado no CI; iOS/Android não abertos em simulador |
+| RF-00.13 | Front chamando `/api/health` | ADR-018 (antes: app Expo, ADR-016) | feito no front React web; apps nativos adiados |
 | RF-00.14 | Produção vazia: VPS, Caddy (TLS), `infra/compose.prod.yml`, deploy pelo pipeline | ADR-015 | pendente (escolha da VPS) |
 
 ## 3. Tarefas restantes

@@ -1,6 +1,6 @@
 # ADR-012 · Autenticação própria na API: Argon2id, sessão opaca, TOTP e step-up
 
-- **Status:** Aceito (2026-11-02)
+- **Status:** Aceito. Nota de 2026-11-03 (ADR-018): sem cliente nativo por ora, a sessão do front é só cookie HttpOnly; o transporte Bearer segue na API para integrações e para um app nativo futuro (2026-11-02)
 - **Data:** 2026-11-02
 - **Decisor:** Adriano Vale
 - **Requisito relacionado:** Prompt Mestre 1.4 (Autenticação, Operações críticas)

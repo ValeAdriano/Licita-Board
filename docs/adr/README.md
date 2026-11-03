@@ -21,5 +21,6 @@ Só o Adriano muda status para **Aceito**. Agentes tratam ADR `Proposto` como in
 | [013](ADR-013-multi-tenant-duas-camadas.md) | Multi-tenant em duas camadas: guard NestJS + RLS por contexto | Aceito |
 | [014](ADR-014-fila-ops-jobs.md) | Fila `ops.jobs` (SKIP LOCKED) + agendador no worker | Aceito |
 | [015](ADR-015-ambientes-docker.md) | Ambientes: Docker Compose em dev, homologação e produção | Aceito |
-| [016](ADR-016-app-expo.md) | App: Expo para iOS, Android e Web; push nativo + Web Push | Aceito |
+| [016](ADR-016-app-expo.md) | App: Expo para iOS, Android e Web; push nativo + Web Push | Substituído por 018 |
 | [017](ADR-017-arquivos-e-criptografia.md) | Arquivos em S3 compatível + criptografia de campo em envelope | Aceito |
+| [018](ADR-018-front-react-web-pwa.md) | Front: React web (Vite) em PWA, design Apple; apps nativos adiados | Aceito |

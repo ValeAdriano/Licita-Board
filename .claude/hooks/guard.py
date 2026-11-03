@@ -20,11 +20,11 @@ from pathlib import PurePosixPath
 
 PROJECT_DIR = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
 
-SECRET_IN_FRONT = re.compile(r"service[_-]?role|sb_secret_|SUPABASE_JWT_SECRET", re.IGNORECASE)
-# App (bundle público): nenhuma credencial de banco, S3 ou chave-mestra (AGENTS.md §3.11, ADR-017).
+# Front (bundle público): nenhuma credencial de banco, S3 ou chave-mestra (AGENTS.md §3.11, ADR-017).
 SECRET_IN_APP = re.compile(
     r"service[_-]?role|sb_secret_|vv_(worker|owner|api)\b|VV_\w*PASSWORD|POSTGRES_PASSWORD|DATABASE_URL"
-    r"|S3_SECRET|SECRET_ACCESS_KEY|CHAVE_MESTRA|\bKEK\b",
+    r"|S3_SECRET|SECRET_ACCESS_KEY|CHAVE_MESTRA|(?<![A-Za-z])KEK(?![A-Za-z])|TURNSTILE_SECRET|JWT_SECRET"
+    r"|VAPID_PRIVATE|SMTP_PASS\w*|VITE_\w*(?:SECRET|PASSWORD|PRIVATE|TOKEN)",
     re.IGNORECASE,
 )
 # API: só usa vv_api (ADR-013); credenciais do worker/owner nunca entram.
@@ -108,11 +108,8 @@ def check_file(tool_input: dict[str, object]) -> None:
     if re.fullmatch(r"\.env(\..+)?", name) and not name.endswith((".example", ".sample")):
         block(f"edição de arquivo de segredos ({path}). Use o .env.example correspondente.")
 
-    if path.startswith("apps/web/") and SECRET_IN_FRONT.search(text):
-        block(f"service role / chave secreta em código do front ({path}).")
-
-    if path.startswith(("apps/app/", "packages/shared/")) and SECRET_IN_APP.search(text):
-        block(f"credencial de banco/S3/chave-mestra no app, que vai para o bundle público ({path}).")
+    if path.startswith(("apps/web/", "packages/shared/")) and SECRET_IN_APP.search(text):
+        block(f"credencial de banco/S3/chave-mestra/service role no front, que vai para o bundle público ({path}).")
 
     is_test = re.search(r"(\.spec\.ts|\.e2e-spec\.ts)$", path) or path.startswith("apps/api/test/")
     if path.startswith("apps/api/") and not is_test and SECRET_IN_API.search(text):

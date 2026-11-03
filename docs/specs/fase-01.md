@@ -26,13 +26,13 @@
 | RF-01.6 | Isolamento em duas camadas; A x B por tabela (pgTAP) e por endpoint (e2e) | Prompt 1.4; ADR-013 |
 | RF-01.7 | Senha Argon2id, mínimo 12, bloqueio de senha vazada | Prompt 1.4; ADR-012 |
 | RF-01.8 | Bloqueio progressivo por usuário e IP | Prompt 1.4 |
-| RF-01.9 | Sessão: cookie HttpOnly/Secure/SameSite (web), token no SecureStore (nativo); inatividade 30 min, absoluta 12 h; revogação de todas | Prompt 1.4; ADR-012 |
+| RF-01.9 | Sessão: cookie HttpOnly/Secure/SameSite (o front nunca vê o token); inatividade 30 min, absoluta 12 h; revogação de todas | Prompt 1.4; ADR-012, ADR-018 |
 | RF-01.10 | MFA TOTP obrigatório para perfis internos; códigos de recuperação de uso único | Prompt 1.4 |
 | RF-01.11 | Recuperação de senha por token de uso único, 30 min, sem revelar se o e-mail existe | Prompt 1.4 |
 | RF-01.12 | Step-up (token de 5 min) em operações críticas | Prompt 1.4 |
 | RF-01.13 | Exclusão definitiva só SUPERADMIN, com dupla aprovação | Prompt 1.3 |
 | RF-01.14 | Shell: menu lateral (web largo) / abas (celular), notificações, conta, seletor de empresa | Prompt 1.1 |
-| RF-01.15 | Push: registro de dispositivo (Expo) e inscrição Web Push | ADR-016 |
+| RF-01.15 | Push: inscrição Web Push (PWA) e envio pelo worker | ADR-018 |
 | RF-01.16 | Backup externo + restauração testada | Prompt 1.4 Backup; ADR-015 |
 | RF-01.17 | Inventário LGPD e minuta operador/controlador | Prompt 1.5 |
 
@@ -132,9 +132,10 @@ Parâmetros de segurança (ADR-012): Argon2id m=19 MiB, t=2, p=1; atraso progres
 6. ✅ `feat/fase-01-app-auth`: login, MFA (verificar, cadastrar com exibição única dos códigos, código de recuperação), recuperação, sessão no SecureStore/cookie, logout por inatividade; testado no web contra a API local. Pendentes: Turnstile no nativo (WebView), QR code do TOTP, universal/app links para o link de redefinição abrir o app nativo.
 7. ✅ `feat/fase-01-app-shell`: shell (abas no celular, menu lateral no web largo), seletor de empresa, notificações (polling de fundo que não renova a inatividade: `core.definir_contexto(token, renovar)` + `X-VV-Fundo`), conta (dados, senha, sessões, autenticador: ativar, trocar, gerar códigos); testado no web contra a API local.
 8. ✅ `feat/fase-01-app-matriz`: aba Equipe (só com `usuarios:visualizar`): usuários da empresa, matriz módulo × 12 ações com sugestão por papel, convidar (7 dias), revogar, convites recebidos e aceitar; salvar e convidar passam por step-up `alterar_permissoes`; `GET /modulos` (catálogo). Pendente: tela de auditoria da empresa (`auditoria/visualizar`), exclusão definitiva com dupla aprovação (SUPERADMIN) e criação de empresa no app; testado no web contra a API local.
-9. `feat/fase-01-push`: dispositivos e envio pelo worker.
+8b. ✅ `feat/fase-01-front-react` (ADR-018, pedido do Adriano em 2026-11-03): o app Expo (`apps/app`) foi trocado por um front React web em `apps/web` (Vite, PWA, React Router, design Apple em CSS com tokens: claro e escuro, alvos ≥ 44 px). Portados e testados no navegador contra a API local: login, MFA, recuperação e redefinição, shell (menu lateral no desktop, abas no celular), seletor de empresa, notificações, conta, equipe, matriz, convites e step-up. Sessão só em cookie HttpOnly (mesma origem, `/api`). O front da revisão 1 (Supabase) e o `apps/app` saíram do repositório. Pendentes: CSP e cabeçalhos no Caddy, ícones definitivos do PWA.
+9. `feat/fase-01-push`: Web Push (VAPID): inscrição no PWA (`core.dispositivos_push`, tipo `webpush`) e envio pelo worker.
 10. `chore/fase-01-backup`: WAL + base semanal cifrados para bucket externo, restauração documentada.
-11. `docs/relatorio-fase-01` e remoção de `supabase/` e `apps/web`.
+11. `docs/relatorio-fase-01` e remoção de `supabase/`.
 
 ## 8. Critérios de aceite
 

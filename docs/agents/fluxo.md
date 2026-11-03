@@ -27,17 +27,17 @@ O "método obrigatório por fase" do Prompt Mestre adaptado a uma pessoa + agent
 - Worker: testes primeiro em `rules/`. Casos de prazo/preço vêm de fonte humana (jurídico/contador), com origem citada no teste.
 - Jobs pela fila `ops.jobs`, idempotentes, com validação de `empresa_id`.
 
-## 4. App (`apps/app`, Expo)
+## 4. Front (`apps/web`, React)
 
 - Uma feature por PR. Começa em 360 px; web largo é melhoria.
-- Toda chamada passa por `src/api/cliente.ts`; toda tela num `Stack.Protected` (o teste `src/rotas.test.ts` confere).
+- Toda chamada passa por `src/api/cliente.ts`; toda tela entra em `Rotas` (`src/App.tsx`) na fase certa da sessão (o teste `src/App.test.tsx` confere). Visual só com os tokens e componentes de `src/ui` (design Apple).
 - Estados obrigatórios em toda tela: carregando, vazio, erro, sem permissão, sucesso.
 - Recurso pela metade = selo EM DESENVOLVIMENTO.
 
 ## 5. Testes
 
 - Positivos, negativos, permissão (cada ação da matriz), isolamento A x B, persistência (sai e entra, dado continua).
-- Caminho principal da fase conferido no app web contra a API local, em 360 px e desktop.
+- Caminho principal da fase conferido no front contra a API local (`npm run dev`), em 360 px e desktop, nos modos claro e escuro.
 
 Em todos os passos: a documentação é atualizada na mesma entrega ([`documentacao-viva.md`](documentacao-viva.md)).
 

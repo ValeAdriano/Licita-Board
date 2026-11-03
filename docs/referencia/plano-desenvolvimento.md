@@ -2,11 +2,11 @@
 
 > Cópia de referência do plano. Decisões que mudarem aqui viram ADR em `docs/adr/`.
 
-Nov 1, 2026 · @Adriano Vale · **Revisão 2 (2026-11-02): troca de stack.** Saem Supabase, Vite e Vercel. Entram Postgres próprio e Docker em todos os ambientes, API em Node (NestJS) e app em React Native (Expo para iOS, Android e Web). O worker Python continua. A revisão 1 fica no histórico do git; as ADRs 001, 002, 003, 004, 009 e 010 foram substituídas pelas ADRs 011 a 017.
+Nov 1, 2026 · @Adriano Vale · **Revisão 2 (2026-11-02): troca de stack; front trocado para React web (PWA) em 2026-11-03 (ADR-018).** Saem Supabase, Vite e Vercel. Entram Postgres próprio e Docker em todos os ambientes, API em Node (NestJS) e app em React Native (Expo para iOS, Android e Web). O worker Python continua. A revisão 1 fica no histórico do git; as ADRs 001, 002, 003, 004, 009 e 010 foram substituídas pelas ADRs 011 a 017.
 
 ## Visão geral e decisões
 
-O VV Licitações será construído em 8 ondas. Teremos um app Expo (iOS, Android e Web, mobile-first) e uma API NestJS, que é a única porta de entrada dos dados. O banco é Postgres com RLS como segunda camada de isolamento, e um worker Python cuida de tudo que é pesado. Tudo roda em Docker, do notebook à produção. O plano segue o Prompt Mestre 2.1 fase a fase e registra cada desvio em ADR.
+O VV Licitações será construído em 8 ondas. Teremos um front React web (PWA instalável, mobile-first, ADR-018) e uma API NestJS, que é a única porta de entrada dos dados. O banco é Postgres com RLS como segunda camada de isolamento, e um worker Python cuida de tudo que é pesado. Tudo roda em Docker, do notebook à produção. O plano segue o Prompt Mestre 2.1 fase a fase e registra cada desvio em ADR.
 
 O MVP operacional (Ondas 1 e 2) substitui a planilha de agenda e o controle de certidões. A partir dele, cada onda entrega valor isolado: captura automática, análise técnica, propostas, jurídico e pós-licitação.
 
@@ -15,7 +15,7 @@ O MVP operacional (Ondas 1 e 2) substitui a planilha de agenda e o controle de c
 | Modelo de negócio | Híbrido: começa como consultoria VV e vira SaaS | Multi-tenant desde o dia 1; billing e onboarding self-service ficam para a Onda 8 |
 | Equipe | Adriano solo + agentes de IA (Claude Code, Codex, Paseo) | Incrementos pequenos (< 500 linhas), spec por fase como prompt dos agentes, CI rígido como rede de segurança |
 | Prazo | Sem data fixa | Estimativas em horas; ordem guiada por valor, não por calendário |
-| Front | **Expo (React Native + TS) com Expo Router e react-native-web**: um código para iOS, Android e Web | Mobile-first de verdade; o web build substitui o PWA; lojas exigem contas Apple/Google |
+| Front | **React 19 + Vite + TS (SPA) em PWA**, CSS próprio com tokens (skill Apple design), sessão só em cookie HttpOnly | Web de verdade, sem custo de lojas; apps nativos adiados (ADR-018) |
 | Backend | **API NestJS (Node 26 LTS, TS)** + **worker Python 3.12** | A API autentica, autoriza e expõe os endpoints; o worker consome a fila (PNCP, PDF/OCR, IA, DOCX, antivírus) e nunca expõe endpoint de negócio |
 | Banco | **PostgreSQL 17 em Docker**, migrations em **SQL puro (dbmate)**, consultas com **Kysely** | O schema, a RLS e os testes pgTAP da Fase 01 são reaproveitados, trocando `auth.*` por contexto da API |
 | Isolamento | Duas camadas: guard NestJS em todo endpoint **e** RLS no Postgres | Atende o Prompt 1.4 à risca; teste A x B por endpoint (API) e por tabela (pgTAP) |
@@ -28,7 +28,7 @@ O MVP operacional (Ondas 1 e 2) substitui a planilha de agenda e o controle de c
 | Validação jurídica | Jurídico interno da VV | Dono das tabelas de prazos, base legal e casos de teste |
 | Volume ano 1 | Até 10 empresas, \~20 usuários | Um Postgres resolve; sem sharding, sem fila externa |
 | Categoria inicial (Fase 06) | Veículos | Atributos, normalização de unidades e conjunto de teste começam por veículos |
-| Notificações | In-app, push nativo (Expo Notifications), Web Push no web, e-mail, Google Calendar | WhatsApp fica para a Onda 8 |
+| Notificações | In-app, Web Push (PWA), e-mail, Google Calendar | WhatsApp fica para a Onda 8 |
 
 Pendência que bloqueia a Onda 2: a planilha Excel atual de agenda. Sem ela, o modelo da agenda é desenhado pelo Prompt e ajustado depois.
 
@@ -37,8 +37,8 @@ Pendência que bloqueia a Onda 2: a planilha Excel atual de agenda. Sem ela, o m
 O app fala só com a API. A API autentica a sessão e confere a permissão no guard. Em seguida abre uma transação no Postgres com um papel sem bypass de RLS e o contexto do usuário (`app.usuario_id`, `app.sessao_id`, `app.aal`), então a RLS confere de novo. O worker Python consome a fila no mesmo Postgres, faz o trabalho pesado e grava o resultado. Ele valida `empresa_id` em todo job e não expõe nada ao app.
 
 ```text
-[App Expo: iOS | Android | Web]
-        | HTTPS (cookie HttpOnly no web, Bearer opaco no nativo)
+[Front React (PWA)]
+        | HTTPS, mesma origem (/api), cookie HttpOnly + CSRF
         v
 [Caddy (TLS)] --> [API NestJS] --guard + transação com contexto--> [PostgreSQL 17 + RLS]
                       |  URL assinada (60 s)                          ^      |
@@ -48,7 +48,7 @@ O app fala só com a API. A API autentica a sessão e confere a permissão no gu
                                                                            LibreOffice, e-mail, push, Google Calendar
 ```
 
-Tudo acima roda como serviço do Docker Compose (`postgres`, `minio`, `api`, `worker`, `clamav`, `caddy`, `mailpit` em dev). O app nativo roda no Expo Go ou em build de desenvolvimento e aponta para a API local. O web build é servido pelo Caddy.
+Tudo acima roda como serviço do Docker Compose (`postgres`, `minio`, `api`, `worker`, `clamav`, `caddy`, `mailpit` em dev). O front roda no Vite em desenvolvimento (proxy `/api` para a API local) e o build estático é servido pelo Caddy na mesma origem da API.
 
 ## Desvios e adaptações frente ao Prompt Mestre
 
@@ -56,7 +56,7 @@ Com a API própria, quase todos os requisitos de segurança do Prompt passam a s
 
 | Requisito do Prompt | Como fica | Risco residual |
 | --- | --- | --- |
-| Next.js no front | Expo (React Native) com web build. Mesmo React + TS; ganha app nativo | Baixo. Desvio de framework registrado na ADR-011 |
+| Next.js no front | React + Vite (SPA) em PWA. Mesmo React + TS; sem SSR (app autenticado) | Baixo. Desvio de framework registrado nas ADR-011 e ADR-018 |
 | FastAPI no backend | NestJS na API; FastAPI só no worker (healthcheck interno) | Baixo. Desvio registrado na ADR-011 |
 | Argon2id, senha ≥ 12, senha vazada | `argon2` (Argon2id) na API; HIBP por k-anonymity, com fallback de lista local | Baixo |
 | Sessão em cookie HttpOnly, 30 min / 12 h | Web: cookie HttpOnly + Secure + SameSite=Strict + token CSRF. Nativo: token opaco no SecureStore (cookie não se aplica). Sessão em `core.sessoes` com inatividade e absoluta | Baixo |
@@ -76,12 +76,13 @@ Com a API própria, quase todos os requisitos de segurança do Prompt passam a s
 
 | ADR | Decisão | Substitui |
 | --- | --- | --- |
-| ADR-011 | Stack: Docker Compose, Postgres 17, NestJS, Expo universal, worker Python, VPS | 001 |
+| ADR-011 | Stack: Docker Compose, Postgres 17, NestJS, front web, worker Python, VPS | 001 |
 | ADR-012 | Autenticação própria na API (Argon2id, sessão opaca, TOTP, step-up) | 002 |
 | ADR-013 | Multi-tenant em duas camadas: guard NestJS + RLS por contexto de transação | 003 |
 | ADR-014 | Fila `ops.jobs` (SKIP LOCKED) e agendador no worker | 004 |
 | ADR-015 | Ambientes: Docker Compose em dev, homologação e produção | 009 |
-| ADR-016 | App: Expo (Router, react-native-web), push nativo + Web Push | 010 |
+| ADR-016 | (substituído) App: Expo para iOS, Android e Web | 010 |
+| ADR-018 | Front: React web (Vite) em PWA, design Apple; apps nativos adiados | 016 |
 | ADR-017 | Arquivos em S3 compatível (MinIO/S3) e criptografia de campo em envelope | trecho Vault/Storage de 005 e 007 |
 
 ADR-005 (IA), ADR-006 (documentos), ADR-007 (certificados) e ADR-008 (busca) continuam valendo. Onde citam o Vault, passa a valer a ADR-017.
@@ -97,10 +98,10 @@ licita-board/
 │   │   ├── src/modules/     # 1 módulo por domínio (auth, empresas, documentos, agenda...)
 │   │   ├── src/common/      # guards (sessão, permissão, step-up), contexto de banco, filtros
 │   │   └── test/            # e2e com Postgres real; A x B por endpoint
-│   ├── app/                 # Expo (React Native + TS), Expo Router, iOS/Android/Web
-│   │   ├── app/             # rotas (Expo Router)
+│   ├── web/                 # React 19 + Vite + TS (PWA), React Router
+│   │   ├── src/pages/       # rotas
 │   │   ├── src/features/    # 1 pasta por módulo
-│   │   └── src/ui/          # design system
+│   │   └── src/ui/          # design system (tokens CSS + componentes)
 │   └── worker/              # Python 3.12: jobs, conectores, llm, rules
 ├── db/
 │   ├── migrations/          # SQL versionado (dbmate: -- migrate:up / -- migrate:down)
@@ -114,12 +115,12 @@ licita-board/
 └── .github/workflows/       # CI
 ```
 
-O código da revisão 1 (`supabase/`, `apps/web`) fica congelado como referência. Cada parte é removida no mesmo PR que entrega o equivalente na stack nova.
+O código da revisão 1 (`supabase/`) fica congelado como referência e sai no PR de fechamento da Fase 01. O front da revisão 1 (`apps/web`) foi substituído pelo front novo no mesmo caminho (ADR-018); o app Expo (`apps/app`) sai quando o equivalente web estiver completo.
 
 ### Padrões técnicos
 
 - **API:** NestJS com módulos por domínio; DTOs validados por Zod (`nestjs-zod`); todo controller passa por `SessaoGuard` e declara `@Permissao(modulo, acao)`. Endpoint sem decorator de permissão falha no teste de cobertura de rotas. Toda consulta de usuário roda em `comContexto(req, tx => ...)`, com papel `vv_api` e `set local app.*`. Logs JSON (pino) sem PII.
-- **App:** Expo Router, TanStack Query, React Hook Form + Zod, componentes próprios sobre React Native (lista de cards no celular, tabela no web largo), `expo-secure-store` para o token nativo. Toda tela nasce em 360 px. Testes com Jest + React Native Testing Library; Playwright no web build.
+- **Front:** React Router, hooks próprios para leitura (`useGet`), componentes próprios em CSS com tokens (lista de cards no celular, tabela no desktop). Sessão só em cookie HttpOnly (o JS nunca vê o token). Toda tela nasce em 360 px. Testes com Vitest + Testing Library; Playwright no caminho principal.
 - **Worker:** Ruff + mypy, pytest, jobs idempotentes (chave de idempotência por execução), logs JSON sem PII, conexão com papel `vv_worker`.
 - **Banco:** toda tabela privada com `empresa_id`, UUID v7, `created_at`, `updated_at`, `created_by`, `deleted_at` (soft delete), dinheiro em `numeric(18,4)`. Papéis: `vv_owner` (migrations), `vv_api` (sem BYPASSRLS), `vv_worker` (BYPASSRLS, com validação de `empresa_id` em código).
 - **Dinheiro:** `numeric(18,4)` no banco, `decimal.Decimal` no Python, `string` no JSON e no TS (cálculo no TS, quando inevitável, com `decimal.js`). Nunca `float`/`number`.
@@ -209,10 +210,10 @@ Nenhum código de negócio antes desta fase fechada.
 - [ ] `compose.yml` de desenvolvimento: `postgres` (imagem própria com pgTAP + pgvector), `minio`, `mailpit`, `api`, `worker`, `clamav`
 - [ ] `db/`: dbmate, papéis `vv_owner`/`vv_api`/`vv_worker`, schemas vazios, guarda pgTAP global (RLS ligado em tudo)
 - [ ] `apps/api`: NestJS com `/health` (checa banco), logs JSON, config validada por Zod, Dockerfile multi-stage
-- [ ] `apps/app`: Expo com Expo Router, faixa colorida "DESENVOLVIMENTO" fora de prod, tela inicial chamando `/health`, rodando em iOS, Android e Web
+- [ ] `apps/web`: React + Vite (PWA), faixa colorida "DESENVOLVIMENTO" fora de prod, tela inicial chamando `/api/health`
 - [ ] `apps/worker` no Compose, conectando como `vv_worker`
 - [ ] CI: lint, typecheck e testes dos três apps, pgTAP, build das imagens, Semgrep, Gitleaks, audit de dependências, Trivy
-- [ ] Guardas: Semgrep proíbe credencial `vv_worker`/`vv_owner` em `apps/app` e `apps/api`; hook do Claude Code atualizado
+- [ ] Guardas: Semgrep proíbe credencial `vv_worker`/`vv_owner` em `apps/web` e `apps/api`; hook do Claude Code atualizado
 - [ ] Sentry (app + API + worker) e Healthchecks.io
 - [ ] Produção vazia: VPS com Docker, Caddy (TLS), `compose.prod.yml`, deploy pelo pipeline do `main`
 
@@ -231,8 +232,8 @@ Reaproveita o schema, a RLS e os testes pgTAP da revisão 1, portados para `db/m
 - [ ] Step-up: TOTP novo gera token de 5 min, uso único, preso à sessão, para operações críticas
 - [ ] `has_permission()` + policies + guard `@Permissao` + teste A x B por tabela e por endpoint
 - [ ] Matriz de permissões (12 ações do Prompt), convites com aceite, exclusão definitiva com dupla aprovação
-- [ ] App: login, MFA, recuperação, shell (menu lateral no web largo, tabs no celular), seletor de empresa, notificações, conta, matriz e convites
-- [ ] Push: registro de dispositivo (Expo Notifications) e inscrição Web Push
+- [ ] Front: login, MFA, recuperação, shell (menu lateral no desktop, barra de abas no celular), seletor de empresa, notificações, conta, matriz e convites
+- [ ] Push: inscrição Web Push (PWA) e envio pelo worker
 - [ ] LGPD: inventário em `docs/lgpd.md`, minuta do contrato operador/controlador (jurídico VV)
 - [ ] Backup: WAL contínuo + base semanal cifrados para bucket externo; primeiro teste de restauração documentado
 
@@ -440,9 +441,6 @@ Dificuldade geral: **4 de 5**. Não pela stack, que é comum, mas pela soma de m
 | VPS homologação | não | US$ 10 a 20 |
 | Armazenamento S3 privado + backup externo (ex.: Cloudflare R2) | \~US$ 1 a 5 | \~US$ 5 a 10 |
 | E-mail transacional (Resend ou similar) | grátis | US$ 20 |
-| Expo EAS (builds e updates) | grátis | US$ 0 a 19 |
-| Apple Developer Program | US$ 99/ano (\~US$ 8/mês) | idem |
-| Google Play (taxa única) | US$ 25 | — |
 | Sentry, Healthchecks.io | grátis | grátis |
 | **Total** | **\~US$ 30 a 55** | **\~US$ 85 a 135** |
 
@@ -480,7 +478,7 @@ O maior risco não é técnico: é um prazo jurídico calculado errado ou um ATE
 
 - [ ] Instalar Docker (Docker Desktop ou OrbStack) na máquina de desenvolvimento
 - [ ] Escolher o provedor da VPS em São Paulo e o provedor S3 de produção
-- [ ] Contas Apple Developer e Google Play (quando o app nativo for para as lojas)
+- [ ] Contas Apple Developer e Google Play (só se os apps nativos voltarem; ADR-018 os adiou)
 - [ ] Decidir o destino do projeto Supabase criado na revisão 1 (pausar ou excluir)
 - [ ] Enviar a planilha Excel atual de agenda (bloqueia o desenho final da Fase 05)
 - [ ] Confirmar a dedicação semanal real (o cronograma assume 20 h)

@@ -5,9 +5,9 @@ Instruções para **qualquer agente de IA** (Claude Code, Antigravity, Codex, Pa
 ## 1. O projeto em 5 linhas
 
 - Plataforma multiempresa para administrar licitações públicas: empresas, certidões, agenda e prazos jurídicos, captura de editais (PNCP), análise técnica com IA, preços, propostas, peças jurídicas, contratos.
-- Stack (ADR-011, revisão 2 do plano): **app Expo (React Native + TS)** para iOS, Android e Web em `apps/app` · **API NestJS** (Node 26) em `apps/api` · **PostgreSQL 17** com RLS, migrations SQL (dbmate) em `db/` · **worker Python 3.12** em `apps/worker` · tudo em **Docker Compose**.
-- O app fala só com a API. A API confere sessão e permissão no guard e consulta o banco como `vv_api` com o contexto do usuário, filtrado por RLS (duas camadas, ADR-013). O worker consome `ops.jobs` como `vv_worker` e nunca expõe endpoint de negócio.
-- `supabase/` e `apps/web` são da revisão 1 e estão **congelados**: servem de referência para o port e saem no PR que entrega o equivalente. Não escreva código novo neles.
+- Stack (ADR-011 e ADR-018): **front React 19 + Vite + TS em PWA** em `apps/web` (design Apple: `src/ui`) · **API NestJS** (Node 26) em `apps/api` · **PostgreSQL 17** com RLS, migrations SQL (dbmate) em `db/` · **worker Python 3.12** em `apps/worker` · tudo em **Docker Compose**.
+- O front fala só com a API (mesma origem, `/api`; sessão só em cookie HttpOnly). A API confere sessão e permissão no guard e consulta o banco como `vv_api` com o contexto do usuário, filtrado por RLS (duas camadas, ADR-013). O worker consome `ops.jobs` como `vv_worker` e nunca expõe endpoint de negócio.
+- `supabase/` é da revisão 1 e está **congelado**: serve de referência e sai no PR de fechamento da Fase 01. Não escreva código novo nele. Apps nativos (iOS/Android) foram adiados (ADR-018).
 - Equipe: Adriano (dono, revisor único) + agentes. Por isso entregas pequenas, specs explícitas e CI rígido.
 - Erros que não podem acontecer: vazar dado entre empresas, calcular prazo jurídico errado, marcar ATENDE sem evidência, citar lei/acórdão inexistente.
 
@@ -37,7 +37,7 @@ Copiadas da instrução final do Prompt Mestre, mais as regras do plano. Violar 
 8. Não substituir funcionalidade real por tela ilustrativa. Recurso incompleto aparece marcado como **"EM DESENVOLVIMENTO"**.
 9. Preservar o que já foi aprovado. Alterar módulo aprovado exige teste de regressão.
 10. Todo módulo reutilizável, seguro, documentado, multiempresa.
-11. **Credenciais de `vv_worker`, `vv_owner`, S3 e chave-mestra nunca entram em `apps/app`**, e a API só usa `vv_api`. Semgrep e hook bloqueiam.
+11. **Credenciais de `vv_worker`, `vv_owner`, S3 e chave-mestra nunca entram em `apps/web`**, e a API só usa `vv_api`. Semgrep e hook bloqueiam.
 12. **Nunca desligar RLS** nem criar policy `using (true)` em tabela privada. Consulta de usuário na API sempre dentro de `comContexto` (ADR-013).
 13. **Toda tabela nova em `priv` exige teste de isolamento A x B** em `db/tests/isolamento/`, e **todo endpoint novo exige e2e A x B** em `apps/api/test/`. O CI falha sem eles.
 14. **Dinheiro:** `numeric(18,4)` no banco, `decimal.Decimal` no Python, `string` no JSON/TS. Nunca `float`/`number` para valor monetário.
@@ -64,7 +64,7 @@ Detalhes, exemplos e como dividir uma fase em PRs: [`docs/agents/fluxo.md`](docs
 ## 5. Mapa do repositório
 
 ```text
-apps/app/            Expo (React Native + TS), iOS/Android/Web
+apps/web/            React + Vite + TS (PWA). Regras locais: apps/web/AGENTS.md
 apps/api/            NestJS + Kysely (Node 26)
 apps/worker/         Python 3.12 + jobs. Regras locais: apps/worker/AGENTS.md
 db/                  migrations SQL (dbmate), seed fictício, pgTAP, Dockerfile do Postgres
@@ -98,10 +98,10 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 npm ci --prefix apps/api
 npm run lint --prefix apps/api && npm run typecheck --prefix apps/api && npm test --prefix apps/api
 
-# App (apps/app)
-npm ci --prefix apps/app
-npm run web --prefix apps/app          # web; `npm run ios` / `npm run android` com Expo
-npm run lint --prefix apps/app && npm run typecheck --prefix apps/app && npm test --prefix apps/app
+# Front (apps/web)
+npm ci --prefix apps/web
+npm run dev --prefix apps/web          # http://localhost:5173 (proxy /api para a API em :3000)
+npm run lint --prefix apps/web && npm run typecheck --prefix apps/web && npm test --prefix apps/web && npm run build --prefix apps/web
 
 # Worker (apps/worker)
 cd apps/worker && uv sync

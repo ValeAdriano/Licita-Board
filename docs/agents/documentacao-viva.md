@@ -14,8 +14,8 @@ Regra de ouro: se o código e o documento discordam, o trabalho não terminou.
 | Decisão de arquitetura nova (lib, serviço, padrão, troca de abordagem) | ADR novo em `docs/adr/` (modelo em [`prompts/nova-adr.md`](prompts/nova-adr.md)); status `Proposto` até o Adriano aceitar |
 | Controle de segurança novo, ameaça nova ou risco aceito | `docs/threat-model.md` (linha com controle, teste, fase e status: implementado / planejado / aceito) |
 | Tabela, função ou regra nova no banco | Comentário no topo da migration explicando o porquê; `db/AGENTS.md` se nasceu regra para quem escreve migration |
-| Regra nova para quem mexe num pacote | `AGENTS.md` local do pacote (`apps/app`, `apps/worker`, `db`) |
-| Comando novo, porta, variável de ambiente, script | `AGENTS.md` raiz §6 (comandos) e o `AGENTS.md` do pacote; variável pública do app em `apps/app/AGENTS.md` |
+| Regra nova para quem mexe num pacote | `AGENTS.md` local do pacote (`apps/web`, `apps/worker`, `db`) |
+| Comando novo, porta, variável de ambiente, script | `AGENTS.md` raiz §6 (comandos) e o `AGENTS.md` do pacote; variável pública do front em `apps/web/AGENTS.md` |
 | Dependência nova | Corpo do commit: nome, versão, licença e motivo |
 | Termo de licitação novo | [`glossario.md`](glossario.md) |
 | Fim de fase | `docs/phase-reports/fase-XX.md` com evidências reais ([`prompts/06-relatorio-fase.md`](prompts/06-relatorio-fase.md)) e `docs/roadmap.md` |
