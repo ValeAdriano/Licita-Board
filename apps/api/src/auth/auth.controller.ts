@@ -13,7 +13,6 @@ import {
   Req,
   Res,
   ServiceUnavailableException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { sql } from 'kysely';
@@ -22,7 +21,18 @@ import type { Config } from '../config.js';
 import { ContextoService } from '../db/contexto.service.js';
 import { CONFIG } from '../tokens.js';
 import { AuthService, novoToken } from './auth.service.js';
-import { COOKIE_CSRF, COOKIE_SESSAO, type RequisicaoVV, type Sessao, dadosDe, ipDe } from './requisicao.js';
+import {
+  COOKIE_CSRF,
+  COOKIE_SESSAO,
+  DOZE_HORAS,
+  type RequisicaoVV,
+  dadosDe,
+  emitirTokenRotacionado,
+  ipDe,
+  opcoesCookie,
+  sessaoDe,
+  validar,
+} from './requisicao.js';
 import { Argon2Ocupado, conferirSenha, hashSenha, problemaNaSenha } from './senha.js';
 import { PermiteAal1, Publico } from './sessao.guard.js';
 
@@ -34,19 +44,6 @@ const loginSchema = z.object({
 const trocaSenhaSchema = z.object({ atual: z.string().min(1).max(1024), nova: z.string() });
 const sairTodasSchema = z.object({ manterAtual: z.boolean().default(true) });
 
-const DOZE_HORAS = 12 * 60 * 60 * 1000;
-const opcoesCookie = { httpOnly: true, secure: true, sameSite: 'strict', path: '/' } as const;
-
-function validar<T>(schema: z.ZodType<T>, corpo: unknown): T {
-  const r = schema.safeParse(corpo);
-  if (!r.success) throw new BadRequestException('Dados inválidos.');
-  return r.data;
-}
-
-function sessaoDe(req: RequisicaoVV): Sessao {
-  if (!req.sessao) throw new UnauthorizedException();
-  return req.sessao;
-}
 
 @Controller('auth')
 export class AuthController {
@@ -157,13 +154,10 @@ export class AuthController {
     if (!ok) throw new BadRequestException('Senha atual incorreta.');
     const token = novoToken();
     await this.contexto.comContexto(dados, async (tx) => {
+      await sql`select core.estornar_falha_verificacao()`.execute(tx);
       await sql`select core.trocar_senha(${novoHash})`.execute(tx);
       await sql`select core.rotacionar_sessao(${s.token}, ${token})`.execute(tx);
     });
-    if (s.origem === 'cookie') {
-      res.cookie(COOKIE_SESSAO, token, { ...opcoesCookie, maxAge: DOZE_HORAS });
-      return {};
-    }
-    return { token };
+    return emitirTokenRotacionado(res, s, token);
   }
 }

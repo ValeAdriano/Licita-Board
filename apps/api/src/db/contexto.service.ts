@@ -1,4 +1,11 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Kysely, sql, type Transaction } from 'kysely';
 import { DB, type Database } from './db.module.js';
 
@@ -23,6 +30,10 @@ export class ContextoService {
       });
     } catch (e) {
       if (codigoPg(e) === '28000') throw new UnauthorizedException();
+      // Regra do banco recusou por falta de MFA recente/permissão (ex.: trocar autenticador).
+      if (codigoPg(e) === '42501') throw new ForbiddenException();
+      // Limite de uso imposto pelo banco (ex.: cadastros de autenticador).
+      if (codigoPg(e) === '54000') throw new HttpException('Muitas tentativas. Tente mais tarde.', HttpStatus.TOO_MANY_REQUESTS);
       throw e;
     }
   }

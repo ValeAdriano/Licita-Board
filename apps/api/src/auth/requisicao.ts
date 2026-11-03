@@ -1,5 +1,7 @@
 import { isIP } from 'node:net';
-import type { Request } from 'express';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import type { Request, Response } from 'express';
+import type { z } from 'zod';
 import type { DadosRequisicao } from '../db/contexto.service.js';
 
 export const COOKIE_SESSAO = '__Host-sessao';
@@ -35,4 +37,28 @@ export function ipDe(req: Request): string | null {
 
 export function dadosDe(req: Request, token: string): DadosRequisicao {
   return { token, ip: ipDe(req), userAgent: req.headers['user-agent']?.slice(0, 500) ?? null };
+}
+
+export const DOZE_HORAS = 12 * 60 * 60 * 1000;
+export const opcoesCookie = { httpOnly: true, secure: true, sameSite: 'strict', path: '/' } as const;
+
+export function validar<T>(schema: z.ZodType<T>, corpo: unknown): T {
+  const r = schema.safeParse(corpo);
+  if (!r.success) throw new BadRequestException('Dados inválidos.');
+  return r.data;
+}
+
+export function sessaoDe(req: RequisicaoVV): Sessao {
+  if (!req.sessao) throw new UnauthorizedException();
+  return req.sessao;
+}
+
+// Depois de rotacionar o token no banco (troca de senha, elevação a aal2): web recebe o cookie novo;
+// nativo recebe o token no corpo para regravar no SecureStore.
+export function emitirTokenRotacionado(res: Response, s: Sessao, token: string): { token?: string } {
+  if (s.origem === 'cookie') {
+    res.cookie(COOKIE_SESSAO, token, { ...opcoesCookie, maxAge: DOZE_HORAS });
+    return {};
+  }
+  return { token };
 }
