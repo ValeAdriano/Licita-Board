@@ -152,10 +152,10 @@ select ok(
 );
 
 select ok(
-  (select count(*) = 2 from pg_db_role_setting, unnest(setconfig) c
-    where setrole = 'vv_api'::regrole
-      and c in ('log_parameter_max_length=0', 'log_parameter_max_length_on_error=0')),
-  'parâmetros de vv_api (KEK, códigos, tokens) não vão para o log do Postgres'
+  (select count(*) from pg_db_role_setting, unnest(setconfig) c
+    where setrole in ('vv_api'::regrole, 'vv_worker'::regrole)
+      and c in ('log_parameter_max_length=0', 'log_parameter_max_length_on_error=0')) = 4,
+  'parâmetros de vv_api e vv_worker (KEK, códigos, tokens) não vão para o log do Postgres'
 );
 
 select is_empty($$

@@ -29,6 +29,9 @@ alter role vv_api set log_parameter_max_length = 0;
 alter role vv_api set log_parameter_max_length_on_error = 0;
 -- Erro sem a linha que falhou (DETAIL pode trazer e-mail, nome, telefone).
 alter role vv_api set log_error_verbosity = terse;
+alter role vv_worker set log_parameter_max_length = 0;
+alter role vv_worker set log_parameter_max_length_on_error = 0;
+alter role vv_worker set log_error_verbosity = terse;
 
 select format('create database %I', :'db_name')
  where not exists (select 1 from pg_database where datname = :'db_name') \gexec

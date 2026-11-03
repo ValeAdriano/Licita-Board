@@ -28,7 +28,7 @@ select throws_ok($$ select * from core.preparar_login('login_a@teste.local', nul
 select throws_ok($$ select * from core.preparar_login('login_a@teste.local', null, null) $$,
   '28000', null, 'KEK nula também é recusada');
 select throws_ok($$ select core.criar_token_recuperacao('login_a@teste.local', repeat('r', 43), null) $$,
-  '28000', null, 'sem a KEK não se cria token de recuperação');
+  '42501', null, 'a API não cria token de recuperação (quem cria é o worker, 20261103060000)');
 
 -- Bloqueio: toda tentativa conta como falha antes da senha; a 11ª é recusada sem conferir a senha.
 reset role;
@@ -110,12 +110,12 @@ select is((select count(*)::int from audit.audit_log
               and coalesce(old_data ->> 'senha_hash', '[redigido]') = '[redigido]'),
   2, 'senha_hash nunca entra na auditoria (redigida antes e depois)');
 
--- Recuperação de senha -----------------------------------------------------------------------
-set local role vv_api;
+-- Recuperação de senha (criar o token como dono; redefinir como vv_api) ----------------------
 select is(core.criar_token_recuperacao('ninguem@teste.local', 'rec-x' || repeat('x', 40), tests.kek()), null,
   'e-mail inexistente não gera token (e a API responde igual)');
 select is(core.criar_token_recuperacao('Login_B@teste.local', 'rec-b' || repeat('x', 40), tests.kek()), tests.usuario_id('login_b'),
   'e-mail existente gera token');
+set local role vv_api;
 select ok(core.redefinir_senha('rec-b' || repeat('x', 40), '$argon2id$v=19$m=19456,t=2,p=1$cmVj$cmVj', tests.kek()), 'token certo redefine');
 select ok(not core.redefinir_senha('rec-b' || repeat('x', 40), '$argon2id$x', tests.kek()), 'token é de uso único');
 reset role;
