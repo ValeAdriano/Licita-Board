@@ -3,14 +3,14 @@
 Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada fase.
 
 **Fase atual:** 00 · Fundação técnica — **recomeçando na stack nova** (revisão 2 do plano, 2026-11-02: Docker + Postgres + API NestJS + app Expo + worker Python; ADR-011 a 017).
-**Próximo passo:** plano revisado e ADRs 011 a 017 aceitos (2026-11-02). Esqueleto da Fase 00 no main (`db/`, `apps/api`, `apps/app`, CI). Falta: worker no compose, guardas Semgrep/hook da stack nova, spec da Fase 01 reescrita; Adriano instalar Docker e escolher VPS/S3.
+**Próximo passo:** Adriano revisar a spec da Fase 01 (revisão 2) e responder as 7 perguntas abertas; instalar Docker; escolher VPS/S3. Fase 00: falta produção, Sentry e modelo de ameaças revisado.
 
 > O trabalho da Fase 01 na revisão 1 (Supabase: migrations, RLS, pgTAP, telas Vite) fica congelado em `supabase/` e `apps/web` e será portado na Fase 01 nova.
 
 | Onda | Fase | Nome | Horas est. | Spec | Status |
 | --- | --- | --- | --- | --- | --- |
-| 1 | 00 | Fundação técnica | ~40 h | [fase-00](specs/fase-00.md) · Em revisão (reescrever para a stack nova) | 🟡 recomeçando |
-| 1 | 01 | Arquitetura, segurança e acessos | ~90 h | [fase-01](specs/fase-01.md) · Rascunho (reescrever: auth própria) | ⚪ schema/RLS/pgTAP da revisão 1 a portar; auth e telas a refazer |
+| 1 | 00 | Fundação técnica | ~40 h | [fase-00](specs/fase-00.md) · Em revisão | 🟡 banco, API, app, worker, CI e guardas no main; falta: rodar com Docker, produção (VPS), Sentry, ameaças revisadas |
+| 1 | 01 | Arquitetura, segurança e acessos | ~90 h | [fase-01](specs/fase-01.md) · Rascunho (revisão 2, auth própria) | ⚪ schema/RLS/pgTAP da revisão 1 a portar; auth e telas a refazer |
 | 2 | 02 | Empresas, representantes e produtos | ~50 h | — | ⚪ |
 | 2 | 03 | Gestão documental e certidões | ~60 h | — | ⚪ |
 | 2 | 05 | Agenda e prazos jurídicos ★ MVP | ~70 h | — | ⚪ bloqueada: planilha atual |

@@ -1,201 +1,159 @@
 # Spec · Fase 01 · Arquitetura, segurança e controle de acessos
 
-- **Status:** Rascunho — a base de banco (PR 1) segue o modelo do plano aprovado; telas e regras abertas aguardam aprovação
+- **Status:** Rascunho (revisão 2: stack nova, auth própria) — aguarda aprovação
 - **Onda:** 1 — Fundação
 - **Autor:** Claude Code · **Aprovação:** pendente (Adriano Vale)
 - **Validação jurídica:** LGPD (contrato operador/controlador) — pendente
-- **Fontes:** Prompt Mestre Fase 01 (1.1–1.5); Plano, Fase 01 e "Modelo de dados núcleo e RLS"; ADR-002, ADR-003, ADR-009, ADR-010
+- **Fontes:** Prompt Mestre Fase 01 (1.1–1.5); Plano (revisão 2), Fase 01 e "Modelo de dados núcleo e RLS"; ADR-012, ADR-013, ADR-015, ADR-016, ADR-017
+
+> A revisão 1 desta fase foi implementada sobre o Supabase (`supabase/migrations`, `apps/web`) e está congelada. As regras de negócio dela foram aprovadas na prática e **continuam valendo**; esta revisão muda só a infraestrutura: identidade e sessão passam a ser da API, e o contexto do usuário passa a ser conferido no banco.
 
 ## 1. Escopo
 
-**Entra:** schemas e helpers do banco, auditoria imutável, empresas (campos mínimos), usuários, vínculos, permissões, `has_permission()`, MFA no RLS, step-up, login/recuperação/MFA/sessões no front, shell do app, matriz de permissões, exclusão definitiva com dupla aprovação, PWA base, inventário LGPD, backup externo com restauração testada.
+**Entra:** port do schema de acesso e auditoria para `db/`; autenticação própria (senha, sessão, MFA TOTP, códigos de recuperação, recuperação de senha, bloqueio progressivo, step-up); contexto do usuário validado contra `core.sessoes`; API de acesso (empresas mínimas, vínculos, permissões, convites, notificações, exclusão com dupla aprovação, auditoria); app (login, MFA, recuperação, shell, seletor de empresa, notificações, conta, matriz e convites); registro de push; inventário LGPD; backup com restauração testada.
 
-**Não entra:** campos completos de empresa, dados bancários/PIX, representantes (Fase 02); documentos e storage (Fase 03); qualquer tabela de `priv` (a partir da Fase 02).
+**Não entra:** campos completos de empresa, dados bancários/PIX, representantes (Fase 02); documentos e S3 (Fase 03); tabelas de `priv` (a partir da Fase 02); passkeys (depois).
 
 ## 2. Requisitos
 
 | ID | Requisito | Origem |
 | --- | --- | --- |
-| RF-01.1 | Schemas `core`, `pub`, `priv`, `ops`, `audit`; UUID v7; `updated_at` automático | Plano; Prompt 1.4 (UUID) |
-| RF-01.2 | `audit.audit_log` insert-only: quem, o quê, quando, IP, empresa, antes/depois; ninguém altera ou apaga | Prompt 1.4 Auditoria |
-| RF-01.3 | `core.empresas` com CNPJ validado por dígito verificador (numérico e alfanumérico) | Prompt 2.1, 1.4 |
+| RF-01.1 | Schemas, UUID v7, `updated_at` automático (feito na Fase 00 + port) | Plano; Prompt 1.4 |
+| RF-01.2 | `audit.audit_log` insert-only: quem, o quê, quando, IP, empresa, antes/depois | Prompt 1.4 Auditoria |
+| RF-01.3 | `core.empresas` com CNPJ validado (numérico e alfanumérico) | Prompt 2.1, 1.4 |
 | RF-01.4 | Perfis SUPERADMIN, ADMIN_EMPRESA, OPERADOR, JURÍDICO, CLIENTE | Prompt 1.2 |
-| RF-01.5 | Matriz por empresa × módulo × 12 ações, negar por padrão | Prompt 1.3 |
-| RF-01.6 | Isolamento em duas camadas; teste A x B | Prompt 1.4 |
-| RF-01.7 | MFA obrigatório para perfis internos (exigido no RLS) | Prompt 1.4; ADR-002 |
-| RF-01.8 | Step-up MFA (token de 5 min) para operações críticas | Prompt 1.4 Operações críticas |
-| RF-01.9 | Exclusão definitiva só SUPERADMIN, com dupla aprovação | Prompt 1.3 |
-| RF-01.10 | Login, recuperação neutra, MFA, sessões ativas, sair de todos | Prompt 1.1, 1.4 |
-| RF-01.11 | Shell: menu lateral (desktop) / bottom nav (mobile), notificações, configurações, seletor de empresa | Prompt 1.1; Plano |
-| RF-01.12 | PWA base: manifest, ícones, service worker, tela offline | ADR-010 |
-| RF-01.13 | Backup semanal externo + restauração testada | Prompt 1.4 Backup |
-| RF-01.14 | Inventário LGPD e minuta operador/controlador | Prompt 1.5 |
+| RF-01.5 | Matriz empresa × módulo × 12 ações, negar por padrão | Prompt 1.3 |
+| RF-01.6 | Isolamento em duas camadas; A x B por tabela (pgTAP) e por endpoint (e2e) | Prompt 1.4; ADR-013 |
+| RF-01.7 | Senha Argon2id, mínimo 12, bloqueio de senha vazada | Prompt 1.4; ADR-012 |
+| RF-01.8 | Bloqueio progressivo por usuário e IP | Prompt 1.4 |
+| RF-01.9 | Sessão: cookie HttpOnly/Secure/SameSite (web), token no SecureStore (nativo); inatividade 30 min, absoluta 12 h; revogação de todas | Prompt 1.4; ADR-012 |
+| RF-01.10 | MFA TOTP obrigatório para perfis internos; códigos de recuperação de uso único | Prompt 1.4 |
+| RF-01.11 | Recuperação de senha por token de uso único, 30 min, sem revelar se o e-mail existe | Prompt 1.4 |
+| RF-01.12 | Step-up (token de 5 min) em operações críticas | Prompt 1.4 |
+| RF-01.13 | Exclusão definitiva só SUPERADMIN, com dupla aprovação | Prompt 1.3 |
+| RF-01.14 | Shell: menu lateral (web largo) / abas (celular), notificações, conta, seletor de empresa | Prompt 1.1 |
+| RF-01.15 | Push: registro de dispositivo (Expo) e inscrição Web Push | ADR-016 |
+| RF-01.16 | Backup externo + restauração testada | Prompt 1.4 Backup; ADR-015 |
+| RF-01.17 | Inventário LGPD e minuta operador/controlador | Prompt 1.5 |
 
-## 3. Modelo de dados (PR 1 · implementado)
+## 3. O que vem da revisão 1 (port)
 
-### Convenções
+As migrations `supabase/migrations/2026110112*–16*` e os testes `supabase/tests/*` são portados para `db/` com estas trocas mecânicas. Regras, colunas, constraints e testes de negócio ficam iguais.
 
-- `core.uuid_v7()` gera os IDs (Postgres 17 não tem `uuidv7()` nativo).
-- `core.set_updated_at()` em toda tabela com `updated_at`.
-- `audit.registrar()` em toda tabela de `core` e `priv`. O argumento opcional diz qual coluna é a empresa (padrão `empresa_id`; `id` em `core.empresas`).
+| Revisão 1 (Supabase) | Revisão 2 |
+| --- | --- |
+| `auth.uid()` | `core.usuario_atual()` |
+| `auth.jwt()->>'aal'`, `core.mfa_ok()` | `core.aal_atual() = 'aal2'` |
+| `auth.jwt()->>'session_id'`, `auth.sessions` | `core.sessao_atual()`, `core.sessoes` |
+| `auth.mfa_factors` | `core.fatores_mfa` |
+| claim `amr` (instante do TOTP) | `core.sessoes.mfa_em` |
+| `auth.users` + trigger de perfil | `core.usuarios` é a própria tabela de identidade |
+| papel `authenticated` | `vv_api` |
+| papel `service_role` | `vv_worker` |
+| `anon` | sem papel: só os endpoints públicos da API (login, recuperação, health) |
+| RPC chamada pelo front | endpoint da API que chama a mesma função dentro de `comContexto` |
 
-### `core.empresas` (mínimo; Fase 02 completa)
+Itens portados sem mudança de regra: `core.empresas`, `core.modulos`, `core.vinculos`, `core.permissoes`, `core.has_permission`, `core.is_superadmin`, `core.cnpj_valido`, `audit.audit_log` + `audit.registrar()`, `core.step_up_tokens` (iniciar/consumir), `core.aprovacoes_exclusao` (solicitar/decidir/executar), `core.notificacoes`, `core.convites`, `core.salvar_vinculo`, `core.definir_permissoes`, regra do teto de concessão e do "ao menos um admin", e as regras de negócio da seção 6.
+
+## 4. Modelo de dados novo (identidade e sessão)
+
+### `core.usuarios` (passa a ser a identidade)
+
+Colunas da revisão 1 (`nome`, `telefone`, `oab`, `superadmin`, `ativo`) mais:
 
 | Coluna | Tipo | Regra |
 | --- | --- | --- |
-| id | uuid | PK, v7 |
-| razao_social | text | não nulo, 2–200 caracteres |
-| nome_fantasia | text | opcional |
-| cnpj | text | 14 caracteres, maiúsculo, sem máscara, único, `core.cnpj_valido()`; **não editável pela API** |
-| ativo | boolean | padrão true |
-| created_at, updated_at, created_by, deleted_at | | padrão |
+| email | citext | único, normalizado; troca exige confirmação no e-mail novo (fora desta fase) |
+| senha_hash | text | Argon2id (PHC string); **sem grant de leitura para `vv_api`** |
+| senha_trocada_em | timestamptz | revoga sessões anteriores |
+| bloqueado_ate | timestamptz | bloqueio progressivo |
+| mfa_obrigatorio | boolean | calculado: perfil interno em qualquer vínculo ativo ou SUPERADMIN |
 
-### `core.usuarios` (perfil 1:1 de `auth.users`, criado por trigger)
+### Tabelas novas
 
-| Coluna | Tipo | Regra |
+| Tabela | Conteúdo | Acesso de `vv_api` |
 | --- | --- | --- |
-| id | uuid | PK = `auth.users.id` |
-| nome, email, telefone | text | |
-| oab | text | opcional (perfil JURÍDICO) |
-| superadmin | boolean | padrão false; **não editável** pelo próprio usuário (grant por coluna) |
-| ativo | boolean | padrão true |
+| `core.sessoes` | `usuario_id`, `token_hash` (SHA-256), `aal`, `mfa_em`, `criada_em`, `ultimo_uso_em`, `expira_em` (12 h), `revogada_em`, `ip`, `user_agent`, `plataforma` | nenhum direto; só por funções `security definer` |
+| `core.fatores_mfa` | `usuario_id`, `tipo` ('totp'), `segredo_cifrado` (envelope, ADR-017), `verificado_em`, `ultimo_passo` (anti-replay) | nenhum |
+| `core.codigos_recuperacao` | `usuario_id`, `codigo_hash` (Argon2id), `usado_em` | nenhum |
+| `core.tentativas_login` | `email_hash`, `ip`, `sucesso`, `em` | nenhum |
+| `core.tokens_recuperacao` | `usuario_id`, `token_hash`, `expira_em` (30 min), `usado_em` | nenhum |
+| `core.dispositivos_push` | `usuario_id`, `tipo` (expo/webpush), `endereco`, `criado_em`, `revogado_em` | o próprio usuário |
 
-### `core.vinculos` (usuário × empresa × papel)
+### Contexto validado no banco (ADR-013, Fase 01)
 
-`usuario_id`, `empresa_id`, `papel` ∈ {ADMIN_EMPRESA, OPERADOR, JURIDICO, CLIENTE}, `ativo`, colunas padrão. Único por (usuário, empresa) enquanto não excluído. `usuario_id` e `empresa_id` são imutáveis pela API. `usuario_id` é RESTRICT: usuário nunca é apagado, só desativado/anonimizado (RPC futura, LGPD).
+- `core.definir_contexto(p_token text)` passa a receber **só o token opaco** da sessão. É `security definer`: busca `core.sessoes` por `sha256(token)`, confere `revogada_em is null`, `expira_em > now()` e inatividade (`ultimo_uso_em > now() - 30 min`), atualiza `ultimo_uso_em` e grava usuário, sessão e `aal` no contexto da transação.
+- A sessão só sobe para `aal2` por `core.confirmar_mfa(p_token, p_passo_totp)`, depois que a API confere o TOTP. **Ver pergunta aberta 1**: conferir o TOTP no próprio banco fecha o risco de um SQLi elevar a própria sessão.
+- Login e criação de sessão: `core.criar_sessao(...)` (`security definer`), chamada pela API depois de conferir a senha. A API nunca lê `senha_hash` por SELECT: usa `core.hash_do_login(email)`, que devolve o hash só para o fluxo de login e registra a tentativa.
 
-### `core.modulos` e `core.permissoes`
+## 5. API (NestJS)
 
-- `core.modulos(slug, nome, ordem)`: catálogo de módulos (empresas, usuarios, permissoes, auditoria, representantes, produtos, documentos, agenda, editais, analises, precos, propostas, juridico, contratos, financeiro, relatorios, configuracoes).
-- `core.permissoes(vinculo_id, empresa_id, modulo, acao)`: uma linha por permissão concedida. FK composta `(vinculo_id, empresa_id)` garante que a empresa é a do vínculo. `acao` ∈ {visualizar, cadastrar, editar, arquivar, substituir_arquivos, gerar_documentos, ver_custos_margens, elaborar_peca, aprovar_peca, aprovar, exportar, administrar_permissoes}. Sem linha = negado.
+Todo endpoint autenticado passa por `SessaoGuard` (cookie `__Host-sessao` ou `Authorization: Bearer`) e declara `@Permissao(modulo, acao)` ou `@SoAutenticado()`. Endpoints que alteram estado exigem token CSRF no web. Respostas de erro não revelam se e-mail, empresa ou recurso existe (404 para recurso de outra empresa).
 
-### Funções de autorização
-
-| Função | Regra |
+| Grupo | Endpoints |
 | --- | --- |
-| `core.mfa_ok()` | `auth.jwt()->>'aal' = 'aal2'` |
-| `core.is_superadmin()` | usuário ativo com `superadmin = true` **e** MFA |
-| `core.has_permission(empresa, modulo, acao)` | vínculo ativo + usuário ativo + empresa ativa + permissão na tabela + MFA (CLIENTE dispensa MFA **só para visualizar**), ou SUPERADMIN |
-| `core.cnpj_valido(text)` | 12 caracteres `[0-9A-Z]` + 2 dígitos; DV módulo 11 com valor do caractere = ASCII − 48 (regra da Receita para o CNPJ alfanumérico, que também vale para o numérico); rejeita sequência repetida |
+| Auth público | `POST /auth/login`, `POST /auth/recuperar`, `POST /auth/redefinir` |
+| Sessão | `POST /auth/mfa/verificar`, `POST /auth/mfa/recuperacao` (código de uso único), `POST /auth/logout`, `POST /auth/logout-todas`, `GET /auth/sessoes`, `DELETE /auth/sessoes/:id`, `POST /auth/senha` (trocar logado, exige a atual) |
+| MFA | `POST /auth/mfa/cadastrar` (QR + segredo uma vez), `POST /auth/mfa/confirmar`, `POST /auth/mfa/codigos` (gera 10 novos, mostra uma vez, exige step-up) |
+| Step-up | `POST /auth/step-up` (TOTP novo → token de 5 min do escopo) |
+| Conta | `GET /me` (perfil, vínculos, permissões por empresa), `PATCH /me` (nome, telefone, OAB) |
+| Acesso | `GET/POST /empresas`, `GET/PATCH /empresas/:id`; `GET /empresas/:id/usuarios`; `PUT /vinculos/:id` (salvar_vinculo com step-up); convites (`POST`, `DELETE`, `GET /me/convites`, `POST /me/convites/:id/aceitar`) |
+| Exclusão | `POST /exclusoes` (solicitar), `POST /exclusoes/:id/decidir` |
+| Notificações | `GET /notificacoes`, `POST /notificacoes/:id/lida`, `POST /dispositivos-push`, `DELETE /dispositivos-push/:id` |
+| Auditoria | `GET /empresas/:id/auditoria` (`auditoria/visualizar`) |
 
-### RLS
+Parâmetros de segurança (ADR-012): Argon2id m=19 MiB, t=2, p=1; atraso progressivo a partir da 3ª falha e bloqueio de 15 min na 10ª (por e-mail e por IP); rate limit de 10/min por IP em login, recuperação e MFA; TOTP com janela de ±1 passo e sem reuso do mesmo passo.
 
-| Tabela | select | insert | update | delete |
-| --- | --- | --- | --- | --- |
-| core.empresas | `has_permission(id,'empresas','visualizar')` | SUPERADMIN | `has_permission(id,'empresas','editar')`, só `razao_social`/`nome_fantasia` | ninguém (soft delete via RPC) |
-| core.usuarios | o próprio, SUPERADMIN, ou quem tem `usuarios/visualizar` numa empresa em comum | ninguém (trigger) | o próprio (só nome, telefone, oab) ou SUPERADMIN | ninguém |
-| core.vinculos | o próprio ou `usuarios/visualizar` na empresa | SUPERADMIN (convite com aceite em PR futuro) | `permissoes/administrar_permissoes`, só `papel`/`ativo` | ninguém |
-| core.permissoes | do próprio vínculo ou `permissoes/visualizar` na empresa | `permissoes/administrar_permissoes` | ninguém (revogar = delete) | `permissoes/administrar_permissoes` |
-| core.modulos | autenticado | ninguém | ninguém | ninguém |
-| audit.audit_log | SUPERADMIN ou `auditoria/visualizar` na empresa | ninguém (só trigger) | bloqueado por trigger, inclusive para o dono | bloqueado por trigger |
-
-## 3.1 Step-up e dupla aprovação (PR 2 · implementado)
-
-### `core.step_up_tokens`
-
-`usuario_id`, `escopo` ∈ {alterar_permissoes, exclusao_definitiva, preco_abaixo_minimo, proposta_final, aprovar_peca}, `sessao_id`, `mfa_em` (instante da verificação TOTP), `expira_em` (5 min), `usado_em`, `usado_para_empresa_id`, `usado_para_alvo`. Sem acesso pela API: só as funções leem e escrevem. Uso auditado na empresa onde foi usado.
-
-| Função | Regra |
-| --- | --- |
-| `core.iniciar_step_up(escopo)` | Exige `aal2`, verificação TOTP há ≤ 2 min (claim `amr`), sessão viva em `auth.sessions` e **fator TOTP verificado há ≥ 24 h** (sessão roubada que cadastra fator novo não consegue step-up). **Uma verificação MFA = um token** (`unique (sessao_id, mfa_em)`). |
-| `core.consumir_step_up(token, escopo, empresa, alvo)` | Interna. Token do próprio usuário, mesmo escopo, mesma sessão e sessão ainda viva (logout invalida), não usado, não expirado. Registra empresa e alvo. |
-| `core.criar_vinculo(usuario, empresa, papel, token)` | Só SUPERADMIN + step-up `alterar_permissoes`. |
-| `core.atualizar_vinculo(vinculo, papel, ativo, token)` | `permissoes/administrar_permissoes` na empresa + step-up. |
-| `core.definir_permissoes(vinculo, ['modulo:acao'], token)` | Idem; substitui o conjunto inteiro; lista nula é rejeitada. |
-
-Toda alteração de vínculo/permissão trava os vínculos da empresa e exige que **reste ao menos um administrador de permissões ativo** (sem lockout). Insert/update/delete direto em `core.vinculos` e `core.permissoes` foram revogados do papel `authenticated`.
-
-Só TOTP é aceito no step-up; habilitar WebAuthn/telefone exige nova migration (falha fechado). Um Custom Access Token Hook, se criado, precisa preservar `aal`, `amr` e `session_id`.
-
-### `core.aprovacoes_exclusao`
-
-Pedido de exclusão definitiva: `alvo_tabela` (lista fechada; hoje só `core.empresas`), `alvo_id`, `motivo` (10–2000 caracteres), `status` (pendente → executada/rejeitada/expirada), `solicitado_por`, `decidido_por` (≠ solicitante, também por constraint), `expira_em` (72 h), `resumo_alvo`. Registro imutável (trigger ALWAYS: sem DELETE/TRUNCATE; só sai de `pendente` uma vez, mudando apenas status e decisão). Nem o `service_role` apaga empresa fora do fluxo.
-
-| Função | Regra |
-| --- | --- |
-| `core.solicitar_exclusao(tabela, id, motivo, token)` | SUPERADMIN + step-up `exclusao_definitiva`. Um pedido pendente por alvo. |
-| `core.decidir_exclusao(pedido, aprovar, token)` | Outro SUPERADMIN + step-up. Recusa pedido expirado ou de solicitante que não é mais SUPERADMIN ativo. Aprovar executa a exclusão física (empresa + vínculos + permissões) na mesma transação. |
-
-Teste-guarda: toda FK que apontar para `core.empresas` precisa ser tratada em `core.executar_exclusao`.
-
-### Pendências registradas (revisão de 2026-11-01)
-
-- Job no worker para limpar `step_up_tokens` expirados.
-- `core.cancelar_exclusao` para o solicitante desistir do pedido.
-- Desativação feita por SUPERADMIN hoje pode ser revertida pelo ADMIN_EMPRESA; avaliar `bloqueado_por_superadmin`.
-- Guarda no deploy: falhar se o schema `tests` existir em produção.
-- Ligar no Supabase as notificações de segurança de "fator MFA cadastrado/removido".
-
-## 4. Regras de negócio
+## 6. Regras de negócio (mantidas da revisão 1)
 
 1. Negar por padrão: sem linha em `core.permissoes`, não há acesso. Não existe permissão implícita por papel no banco.
-2. Revogação vale na próxima consulta (permissões não ficam no JWT).
-3. Usuário ou vínculo inativo, ou empresa arquivada (`deleted_at`), não acessa nada.
-4. Perfis internos sem `aal2` não acessam dado da empresa; CLIENTE pode usar `aal1` (ADR-002).
+2. Revogação vale na próxima requisição (permissões e sessão consultadas a cada transação).
+3. Usuário ou vínculo inativo, ou empresa arquivada, não acessa nada.
+4. Perfis internos sem `aal2` não acessam dado da empresa; CLIENTE pode usar `aal1` só para visualizar.
 5. Auditoria ignora UPDATE que só muda `updated_at`.
-6. CLIENTE só recebe a ação `visualizar` (trigger); mudar um vínculo para CLIENTE exige remover antes as permissões de escrita.
-7. Dado pessoal de `core.usuarios` (nome, e-mail, telefone, OAB) é gravado como `[redigido]` na auditoria, que é imutável.
-8. IP da auditoria é indício: `cf-connecting-ip` → `x-real-ip` → 1º `x-forwarded-for`.
-9. Colunas sensíveis (CNPJ, `ativo`, `deleted_at`, `created_by`, `superadmin`, `usuario_id`, `empresa_id`) não são graváveis pela API: grants por coluna. Mudanças vão por RPC com step-up (PR 2).
+6. CLIENTE só recebe a ação `visualizar`.
+7. Dado pessoal de `core.usuarios` vai como `[redigido]` na auditoria; `senha_hash` e segredos nunca entram na auditoria.
+8. IP da auditoria vem do Caddy (`X-Forwarded-For` confiável só do proxy local), repassado pela API ao contexto.
+9. Colunas sensíveis (CNPJ, `ativo`, `deleted_at`, `created_by`, `superadmin`, `usuario_id`, `empresa_id`, `senha_hash`) não são graváveis por `vv_api`; mudanças vão por função com step-up.
+10. Step-up: fator TOTP verificado há ≥ 24 h; uma verificação = um token; uso único; preso à sessão viva.
+11. Dupla aprovação: outro SUPERADMIN decide em até 72 h; registro imutável.
+12. Notificação: criada só pelo worker; visível só ao destinatário enquanto ele tiver `<modulo>/visualizar`; link só interno.
+13. Convite: preso à conta do convidado; vale 7 dias; resposta igual exista ou não a conta.
+14. Permissões padrão por papel são só **sugestão na tela** (decidido na revisão 1).
 
-## 5. Plano de PRs
+## 7. Plano de PRs (cada um < 500 linhas)
 
-1. ✅ `feat/fase-01-fundacao-banco`: RF-01.1 a RF-01.7 no banco + helpers de teste + pgTAP.
-2. ✅ Step-up: `core.step_up_tokens`, RPCs de vínculo/permissão, dupla aprovação (`core.aprovacoes_exclusao`).
-3. ✅ Auth no front: supabase-js, login, recuperação neutra, cadastro/verificação de MFA, sessões (`core.minhas_sessoes`), sair de todos, logout por inatividade (30 min), seed fictício para login local.
-4. ✅ Shell: menu lateral (desktop) e barra inferior (celular), seletor de empresa ativa (lembrado por usuário), sino e tela de notificações (`core.notificacoes`), conta (nome/telefone, autenticadores, sessões), módulos futuros com tela EM DESENVOLVIMENTO, PWA (manifest, ícones provisórios, service worker só com o shell), aviso de sem conexão.
-5. ✅ Matriz de permissões: tela por empresa ativa (usuários, papel, situação, matriz módulo × ação, sugestão por papel), `core.salvar_vinculo` atômica com um step-up, convites com aceite (`core.convites`, convidar/revogar/aceitar).
-6. `chore/fase-01-backup`: `pg_dump` criptografado semanal + relatório de restauração.
-7. `docs/relatorio-fase-01`.
+1. `feat/fase-01-port-acesso`: empresas, modulos, vinculos, permissoes, has_permission, audit + pgTAP portados (contexto da Fase 00).
+2. `feat/fase-01-identidade`: colunas de identidade em usuarios, sessoes, fatores_mfa, codigos, tentativas, tokens; `definir_contexto(token)`, `criar_sessao`, `confirmar_mfa`; pgTAP.
+3. `feat/fase-01-api-auth`: módulo auth (login, logout, sessões, recuperação, troca de senha), `SessaoGuard`, CSRF, `comContexto`, e-mail via fila; e2e de ataque (força bruta, fixação de sessão, CSRF, enumeração de e-mail).
+4. `feat/fase-01-api-mfa`: cadastro/confirmação TOTP, códigos de recuperação, step-up; e2e (replay de TOTP, fator novo < 24 h).
+5. `feat/fase-01-port-stepup-exclusao`: step_up_tokens, aprovacoes_exclusao, salvar_vinculo, convites, notificacoes no banco + endpoints + e2e A x B.
+6. `feat/fase-01-app-auth`: login, MFA, recuperação, sessão no SecureStore/cookie, logout por inatividade.
+7. `feat/fase-01-app-shell`: shell, seletor de empresa, notificações, conta (sessões, autenticador, códigos).
+8. `feat/fase-01-app-matriz`: matriz de permissões e convites.
+9. `feat/fase-01-push`: dispositivos e envio pelo worker.
+10. `chore/fase-01-backup`: WAL + base semanal cifrados para bucket externo, restauração documentada.
+11. `docs/relatorio-fase-01` e remoção de `supabase/` e `apps/web`.
 
-## 6. Critérios de aceite
+## 8. Critérios de aceite
 
 | # | Critério | Como será comprovado |
 | --- | --- | --- |
-| CA-1 | SUPERADMIN e ADMIN_EMPRESA acessam só o que administram | pgTAP `core_isolamento` |
-| CA-2 | OPERADOR e JURÍDICO acessam só empresas autorizadas | pgTAP `core_isolamento` |
-| CA-3 | CLIENTE não acessa outra empresa nem alterando requisição | pgTAP + e2e (PR 3) |
-| CA-4 | Acessos e alterações relevantes auditáveis | pgTAP `audit_log` |
-| CA-5 | Dados persistem após sair e entrar | e2e (PR 3) |
-| CA-6 | Restauração de backup testada | relatório (PR 6) |
+| CA-1 | SUPERADMIN e ADMIN_EMPRESA acessam só o que administram | pgTAP de isolamento + e2e |
+| CA-2 | OPERADOR e JURÍDICO acessam só empresas autorizadas | pgTAP + e2e |
+| CA-3 | CLIENTE não acessa outra empresa nem alterando a requisição | e2e A x B em todo endpoint |
+| CA-4 | Acessos e alterações relevantes auditáveis | pgTAP `audit_log` + e2e |
+| CA-5 | Dados persistem após sair e entrar | e2e |
+| CA-6 | Restauração de backup testada | relatório |
+| CA-7 | Ataques de auth barrados: força bruta, replay de TOTP, fixação de sessão, CSRF, enumeração de e-mail, sessão expirada/revogada | e2e dedicados |
+| CA-8 | Contexto forjado não vale: valor de sessão, token de outra pessoa, sessão revogada | pgTAP `002_contexto` ampliado |
 
-## 3.2 Notificações (PR 4 · implementado)
+## 9. Perguntas abertas
 
-`core.notificacoes`: `usuario_id`, `empresa_id` + `modulo` (juntos ou ambos nulos; cascade na exclusão da empresa), `tipo`, `titulo` (≤ 140), `corpo` (≤ 1000), `link`, `lida_em`, `created_at`.
-
-- Criadas só pelo sistema (service role). O banco recusa notificação de empresa para destinatário sem vínculo ativo (segunda camada).
-- Visível só ao destinatário **e** enquanto ele tiver `<modulo>/visualizar` na empresa (com MFA para perfil interno). Revogou o acesso, a notificação some.
-- `link`: só caminho interno (sem `//`, `\`, `..`, `%`, domínio). O front confere de novo antes de virar link.
-- `lida_em` é carimbado pelo servidor e não é desfeito. Ninguém reescreve o conteúdo enviado (nem o worker).
-- Exceção consciente: sem colunas padrão e sem trigger de auditoria (justificativa no cabeçalho da migration).
-
-## 3.3 Convites e matriz (PR 5 · implementado)
-
-| Função | Regra |
-| --- | --- |
-| `core.convidar_usuario(empresa, email, papel, permissoes, token)` | `permissoes/administrar_permissoes` + step-up. Valida módulos/ações e a regra do CLIENTE **antes** de consumir o token. Um convite pendente por e-mail e empresa; recusa quem já tem vínculo. Responde igual exista ou não a conta; quem tem conta recebe aviso in-app. Vale 7 dias. |
-| `core.revogar_convite(convite)` | Quem administra permissões da empresa. Sem step-up (reduz acesso). |
-| `core.meus_convites()` / `core.aceitar_convite(convite)` | Só o dono do e-mail (conta ativa) vê e aceita; aceitar cria vínculo e permissões com o autor do convite como `created_by`. |
-| `core.salvar_vinculo(vinculo, papel, ativo, permissoes, token)` | Matriz: grava permissões, depois papel/situação, numa transação com um step-up; mantém ao menos um admin. |
-
-Pendente: envio do convite por e-mail para quem ainda não tem conta (Admin API no worker/Edge Function).
-
-## 6.1 Lacunas conhecidas do front de autenticação
-
-- **Códigos de recuperação de uso único (Prompt 1.4):** o Supabase Auth não oferece. Alternativas: cadastrar um segundo autenticador como reserva, ou redefinição do MFA pelo SUPERADMIN via worker (Admin API) com verificação de identidade. Decisão pendente.
-- Encerrar **uma** sessão específica não é possível pelo cliente; só "outras" ou "todas".
-- Trocar a senha estando logado (com a senha atual) ainda não existe; `/redefinir-senha` só atende o link do e-mail.
-- CAPTCHA (Turnstile) no login/recuperação e `connect-src` fixo no projeto ficam para quando o projeto de produção existir.
-- `core.minhas_sessoes` esconde IP/dispositivo de perfil interno sem MFA (`core.perfil_interno()`).
-- Bundle único de ~730 KB: dividir por rota (lazy) quando os módulos de negócio entrarem.
-- Ícones e cores do PWA são provisórios até a identidade visual ser definida.
-- Layout validado por testes de componente; falta checagem visual em 360 px no navegador (precisa do Supabase local para passar do login).
-- Testes e2e (Playwright) contra o Supabase local ficam para quando houver Docker na máquina de desenvolvimento.
-
-## 7. Perguntas abertas
-
-0. ~~Convite de usuário~~ — resolvido: convite com aceite (seção 3.3).
-
-1. **Permissões padrão por papel** — implementado como sugestão na tela (não implícito no banco), conforme a recomendação; confirmar os conjuntos: sim, só como sugestão na tela (ADMIN_EMPRESA = tudo da empresa; OPERADOR = tudo menos permissões/auditoria/custos; JURÍDICO = visualizar + peças; CLIENTE = visualizar em documentos, agenda, editais, produtos), sempre editável e nunca implícita no banco.
-2. **ADMIN_EMPRESA vê auditoria da própria empresa?** Recomendação: sim, via `auditoria/visualizar`.
-3. **CAPTCHA no login** — Turnstile ou hCaptcha (os dois são suportados pelo Supabase Auth)? Recomendação: Turnstile.
+1. **Quem confere o TOTP?** (a) a API confere e chama `confirmar_mfa` — mais simples; um SQLi na API consegue elevar a própria sessão; (b) o banco confere (segredo sem grant para `vv_api`, HMAC via `pgcrypto`) — fecha esse risco, mas o segredo fica decifrável pelo banco. Recomendação: **(b)**, com o segredo cifrado pela chave-mestra e decifrado só dentro da função.
+2. **Senha vazada:** consultar o HIBP por k-anonymity (só 5 caracteres do hash saem do servidor) é um serviço externo novo. Recomendação: sim, com fallback para uma lista local das 100 mil senhas mais comuns.
+3. **E-mail transacional** (recuperação, convite, alerta de login novo): Resend, Amazon SES ou SMTP próprio? Recomendação: Resend (grátis no início); em dev, Mailpit no compose.
+4. **CAPTCHA** no login/recuperação após falhas: Turnstile? Recomendação: Turnstile, só depois da 3ª falha.
+5. **Alerta de login novo** por e-mail (dispositivo/IP novo) e de fator MFA cadastrado/removido: ligar já? Recomendação: sim.
+6. **ADMIN_EMPRESA vê auditoria da própria empresa?** Recomendação: sim, via `auditoria/visualizar`.
+7. **Quantos códigos de recuperação?** Recomendação: 10, de 10 caracteres, gerar de novo invalida os anteriores.
