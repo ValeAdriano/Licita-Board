@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "description": "App do VV Licitações: iOS, Android e Web (Expo, ADR-016).",
-  "main": "expo-router/entry",
+  "main": "index.ts",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -23,6 +23,7 @@
     "expo-constants": "~58.0.14",
     "expo-linking": "~58.0.15",
     "expo-router": "~58.0.29",
+    "expo-secure-store": "~58.0.2",
     "expo-status-bar": "~58.0.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -34,6 +35,7 @@
   "devDependencies": {
     "@testing-library/react-native": "^14.1.0",
     "@types/jest": "^30.0.0",
+    "@types/node": "^26.6.6",
     "@types/react": "~19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-expo": "^58.0.4",
