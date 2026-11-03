@@ -25,13 +25,13 @@ select ok(not has_function_privilege('vv_api', 'core.registrar_kek(integer,text)
 select throws_ok($$ select core.conferir_kek(null) $$, '28000', null, 'KEK nula é recusada');
 
 -- KEK inventada (o que um SQLi teria) não serve nem para o primeiro cadastro.
-select tests.autenticar_como('mfa_b', 'aal1', 's1');
+select tests.autenticar_como('mfa_b', 'aal1', 3600, 's1');
 select throws_ok($$ select core.cadastrar_totp((select segredo from t_mfa), 'kek-inventada-pelo-atacante-0123456789') $$,
   '28000', 'chave-mestra inválida', 'KEK que não bate com o verificador é recusada no cadastro');
 select tests.sair();
 
 -- Cadastro e confirmação ---------------------------------------------------------------------
-select tests.autenticar_como('mfa_a', 'aal1', 's1');
+select tests.autenticar_como('mfa_a', 'aal1', 3600, 's1');
 select ok(not core.tem_mfa(), 'usuário começa sem MFA');
 select lives_ok($$ select core.cadastrar_totp((select segredo from t_mfa), (select kek from t_mfa)) $$,
   'sessão aal1 sem fator cadastra o primeiro TOTP');
@@ -48,14 +48,14 @@ select ok((select count(*) > 0 from audit.audit_log where table_name = 'fatores_
             and new_data ->> 'segredo_cifrado' = '[redigido]'), 'cadastro de fator é auditado, sem o segredo');
 
 -- Login seguinte: replay ---------------------------------------------------------------------
-select tests.autenticar_como('mfa_a', 'aal1', 's2');
+select tests.autenticar_como('mfa_a', 'aal1', 3600, 's2');
 select ok(not core.verificar_totp((select anterior from t_mfa), (select kek from t_mfa)),
   'o mesmo código não serve duas vezes (replay)');
 select ok(core.verificar_totp((select atual from t_mfa), (select kek from t_mfa)), 'código seguinte é aceito');
 select tests.sair();
 
 -- Sessão aal1 ou aal2 antiga não troca o autenticador ---------------------------------------
-select tests.autenticar_como('mfa_a', 'aal1', 's3');
+select tests.autenticar_como('mfa_a', 'aal1', 3600, 's3');
 select throws_ok($$ select core.cadastrar_totp((select segredo from t_mfa), (select kek from t_mfa)) $$,
   '42501', null, 'com fator verificado, trocar o autenticador exige MFA recente');
 select throws_ok($$ select core.trocar_senha('$argon2id$v=19$x') $$, '42501', null,
@@ -69,10 +69,10 @@ select is(core.usuario_atual(), null, 'o 5º código errado encerra a sessão');
 select tests.sair();
 
 -- Limite por usuário: novas sessões não renovam o crédito ----------------------------------
-select tests.autenticar_como('mfa_a', 'aal1', 's4');
+select tests.autenticar_como('mfa_a', 'aal1', 3600, 's4');
 select core.verificar_totp('000000', (select kek from t_mfa)) from generate_series(1, 4);
 select tests.sair();
-select tests.autenticar_como('mfa_a', 'aal1', 's5');
+select tests.autenticar_como('mfa_a', 'aal1', 3600, 's5');
 select core.verificar_totp('000000', (select kek from t_mfa));
 select tests.sair();
 select ok((select mfa_bloqueado_ate > now() from core.usuarios where id = tests.usuario_id('mfa_a')),
@@ -107,7 +107,7 @@ select lives_ok($$ select core.gerar_codigos_recuperacao(array(
   'gera os 10 códigos com MFA recente');
 select tests.sair();
 
-select tests.autenticar_como('mfa_a', 'aal1', 's7');
+select tests.autenticar_como('mfa_a', 'aal1', 3600, 's7');
 select ok(core.usar_codigo_recuperacao('rec-recuperacao-00000003'), 'código de recuperação vale (sem diferenciar maiúsculas)');
 select ok(not core.usar_codigo_recuperacao('REC-RECUPERACAO-00000003'), 'código usado não vale de novo');
 select tests.sair();

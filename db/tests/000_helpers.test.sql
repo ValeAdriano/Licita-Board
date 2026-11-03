@@ -7,12 +7,12 @@ do $$ begin
 end $$;
 create schema if not exists tap;
 create extension if not exists pgtap with schema tap;
-grant usage on schema tap to vv_api;
+grant usage on schema tap to vv_api, vv_worker;
 create schema if not exists tests;
 revoke all on schema tests from public;
 grant usage on schema tests to vv_api;
 
--- Cria (ou reaproveita) um usuário fictício <ident>@teste.local.
+-- Cria (ou reaproveita) um usuário fictício <ident>@teste.local, com e-mail já verificado.
 create or replace function tests.criar_usuario(p_ident text, p_superadmin boolean default false)
 returns uuid
 language plpgsql
@@ -22,8 +22,8 @@ as $$
 declare
   v_id uuid;
 begin
-  insert into core.usuarios (email, nome, superadmin)
-  values (p_ident || '@teste.local', 'Teste ' || p_ident, p_superadmin)
+  insert into core.usuarios (email, nome, superadmin, email_verificado_em)
+  values (p_ident || '@teste.local', 'Teste ' || p_ident, p_superadmin, now())
   on conflict (email) do update set superadmin = excluded.superadmin
   returning id into v_id;
   return v_id;
@@ -158,18 +158,38 @@ end;
 $$;
 
 -- Simula uma requisição da API: sessão viva + contexto pelo token + papel vv_api.
+--   p_mfa_ha_seg:  há quantos segundos foi a última verificação TOTP desta sessão (aal2). Cada valor
+--                  diferente simula uma nova verificação MFA (o step-up gera um token por verificação).
+--   p_fator_idade: idade do fator TOTP verificado do usuário (step-up exige ≥ 24 h).
 -- Security invoker (SET ROLE não é permitido em security definer): chamar como superusuário.
+drop function if exists tests.autenticar_como(text, text, text);
 create or replace function tests.autenticar_como(
   p_ident text,
   p_aal text default 'aal2',
-  p_sessao text default 'sessao-teste'
+  p_mfa_ha_seg int default 3600,
+  p_sessao text default 'sessao-teste',
+  p_fator_idade interval default interval '30 days'
 )
 returns void
 language plpgsql
 set search_path = ''
 as $$
+declare
+  v_usuario uuid := tests.usuario_id(p_ident);
 begin
-  perform core.definir_contexto(tests.garantir_sessao(p_ident, p_aal, p_sessao));
+  if p_aal = 'aal2' then
+    update core.fatores_mfa set verificado_em = now() - p_fator_idade
+     where usuario_id = v_usuario and verificado_em is not null;
+    if not found then
+      insert into core.fatores_mfa (usuario_id, segredo_cifrado, versao_kek, verificado_em)
+      values (v_usuario, extensions.pgp_sym_encrypt_bytea(convert_to('segredo-de-teste-' || p_ident, 'UTF8'), tests.kek()),
+              1, now() - p_fator_idade);
+    end if;
+  end if;
+  perform tests.garantir_sessao(p_ident, p_aal, p_sessao, p_mfa_ha_seg);
+  update core.sessoes set mfa_metodo = case when p_aal = 'aal2' then 'totp' end
+   where token_hash = core.hash_token(tests.token(p_ident, p_sessao));
+  perform core.definir_contexto(tests.token(p_ident, p_sessao));
   perform set_config('role', 'vv_api', true);
 end;
 $$;
@@ -196,7 +216,7 @@ $$;
 -- SUPERADMIN) só rodam como superusuário.
 revoke all on all functions in schema tests from public;
 grant execute on function tests.usuario_id(text), tests.empresa_id(text), tests.vinculo_id(text, text),
-  tests.autenticar_como(text, text, text), tests.sessao_id(text, text), tests.token(text, text),
+  tests.autenticar_como(text, text, int, text, interval), tests.sessao_id(text, text), tests.token(text, text),
   tests.sair() to vv_api;
 
 -- KEK fictícia do banco de teste (em produção: db/scripts/registrar-kek.sh, como vv_owner).

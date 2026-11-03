@@ -12,15 +12,15 @@ create temp table t_seg as
 grant select on t_seg to vv_api;
 
 -- Pendente da sessão 1; a sessão 2 cadastra o próprio e não apaga o da 1.
-select tests.autenticar_como('end_a', 'aal1', 's1');
+select tests.autenticar_como('end_a', 'aal1', 3600, 's1');
 select isnt(core.cadastrar_totp((select s from t_seg), tests.kek()), null, 'cadastrar devolve o vencimento');
 select tests.sair();
-select tests.autenticar_como('end_a', 'aal1', 's2');
+select tests.autenticar_como('end_a', 'aal1', 3600, 's2');
 select core.cadastrar_totp(convert_to('outro-segredo-da-sessao-dois-20b', 'UTF8'), tests.kek());
 select ok(not core.confirmar_totp((select atual from t_seg), tests.kek()),
   'a sessão 2 não confirma o pendente da sessão 1');
 select tests.sair();
-select tests.autenticar_como('end_a', 'aal1', 's1');
+select tests.autenticar_como('end_a', 'aal1', 3600, 's1');
 select ok(core.confirmar_totp((select atual from t_seg), tests.kek()), 'o dono confirma o próprio pendente');
 select tests.sair();
 select ok((select sessao_id is null from core.fatores_mfa where usuario_id = tests.usuario_id('end_a') and verificado_em is not null),
@@ -30,7 +30,7 @@ select is((select count(*)::int from core.fatores_mfa where usuario_id = tests.u
 
 -- Atacante com a senha: pendente criado ANTES de o dono ter MFA não troca o autenticador depois.
 select tests.criar_usuario('end_c');
-select tests.autenticar_como('end_c', 'aal1', 'atacante');
+select tests.autenticar_como('end_c', 'aal1', 3600, 'atacante');
 select core.cadastrar_totp(convert_to('segredo-do-atacante-com-20-bytes', 'UTF8'), tests.kek());
 select tests.sair();
 create temp table t_atk as
@@ -39,14 +39,14 @@ grant select on t_atk to vv_api;
 -- o dono cadastra e confirma o dele (marcado direto como verificado para o cenário)
 insert into core.fatores_mfa (usuario_id, segredo_cifrado, versao_kek, verificado_em)
 values (tests.usuario_id('end_c'), extensions.pgp_sym_encrypt_bytea(convert_to('segredo-do-dono-com-mais-de-20-b', 'UTF8'), tests.kek()), 1, now());
-select tests.autenticar_como('end_c', 'aal1', 'atacante');
+select tests.autenticar_como('end_c', 'aal1', 3600, 'atacante');
 select throws_ok($$ select core.confirmar_totp((select c from t_atk), tests.kek()) $$, '42501', null,
   'pendente antigo do atacante não substitui o autenticador do dono sem MFA recente');
 select tests.sair();
 
 -- Limite de 5 cadastros em 15 min por usuário.
 select tests.criar_usuario('end_b');
-select tests.autenticar_como('end_b', 'aal1', 's1');
+select tests.autenticar_como('end_b', 'aal1', 3600, 's1');
 select core.cadastrar_totp((select s from t_seg), tests.kek()) from generate_series(1, 5);
 select throws_ok($$ select core.cadastrar_totp((select s from t_seg), tests.kek()) $$, '54000', null,
   'o 6º cadastro em 15 min é recusado');
@@ -72,7 +72,7 @@ select ok((select revogada_em is not null from core.sessoes where id = tests.ses
 -- Bloqueio duro: 50 erros consecutivos (abaixo do limite por janela) bloqueiam de vez.
 update core.usuarios set falhas_mfa_consecutivas = 49, falhas_mfa = 0, ultima_falha_mfa_em = null
  where id = tests.usuario_id('end_a');
-select tests.autenticar_como('end_a', 'aal1', 's4');
+select tests.autenticar_como('end_a', 'aal1', 3600, 's4');
 select core.verificar_totp('000000', tests.kek());
 select tests.sair();
 select is((select mfa_bloqueado_ate from core.usuarios where id = tests.usuario_id('end_a')), 'infinity'::timestamptz,
