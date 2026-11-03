@@ -4,7 +4,7 @@ begin;
 create schema if not exists tap;
 create extension if not exists pgtap with schema tap;
 set local search_path = tap;
-select plan(18);
+select plan(19);
 
 -- Relações -------------------------------------------------------------------------------------
 
@@ -95,10 +95,10 @@ select is_empty($$
   select p.oid::regprocedure::text
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('core', 'pub', 'priv', 'ops', 'audit')
-    and p.prosrc ~ 'app\.(usuario_id|sessao_id|aal|tx|req_tx|ip|user_agent)'
-    and p.oid::regprocedure::text not in ('core.contexto_valido()', 'core.usuario_atual()',
-      'core.sessao_atual()', 'core.aal_atual()', 'core.definir_contexto(uuid,uuid,text)',
-      'core.definir_requisicao(inet,text)', 'core.ip_atual()', 'core.user_agent_atual()')
+    and p.prosrc ~ 'app\.(sessao_hash|sessao_token|usuario_id|sessao_id|aal|tx|req_tx|ip|user_agent)'
+    and p.oid::regprocedure::text not in ('core.contexto_valido()', 'core.sessao_valida()',
+      'core.definir_contexto(text)', 'core.rotacionar_sessao(text,text)', 'core.definir_requisicao(inet,text)', 'core.ip_atual()',
+      'core.user_agent_atual()')
 $$, 'só as funções de contexto leem ou gravam app.*');
 
 -- Donos ----------------------------------------------------------------------------------------
@@ -149,6 +149,13 @@ $$, 'vv_api/vv_worker não criam objetos nem são donos de nada; vv_api sem TEMP
 select ok(
   (select not rolbypassrls from pg_roles where rolname = 'vv_api'),
   'vv_api não ignora RLS'
+);
+
+select ok(
+  (select count(*) = 2 from pg_db_role_setting, unnest(setconfig) c
+    where setrole = 'vv_api'::regrole
+      and c in ('log_parameter_max_length=0', 'log_parameter_max_length_on_error=0')),
+  'parâmetros de vv_api (KEK, códigos, tokens) não vão para o log do Postgres'
 );
 
 select is_empty($$

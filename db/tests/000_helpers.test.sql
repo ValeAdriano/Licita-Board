@@ -116,15 +116,48 @@ begin
 end;
 $$;
 
-create or replace function tests.sessao_id(p_ident text, p_sessao text default 'sessao-teste')
-returns uuid
+-- Token fictício e determinístico da sessão de teste de um usuário.
+create or replace function tests.token(p_ident text, p_sessao text default 'sessao-teste')
+returns text
 language sql
 immutable
 as $$
-  select md5(p_ident || '|sessao|' || p_sessao)::uuid;
+  select 'token-teste|' || p_ident || '|' || p_sessao;
 $$;
 
--- Simula uma requisição da API: contexto do usuário na transação + papel vv_api.
+create or replace function tests.sessao_id(p_ident text, p_sessao text default 'sessao-teste')
+returns uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select id from core.sessoes where token_hash = core.hash_token(tests.token(p_ident, p_sessao));
+$$;
+
+-- Garante uma sessão viva com o aal pedido (MFA há p_mfa_ha_seg segundos) e devolve o token.
+create or replace function tests.garantir_sessao(
+  p_ident text, p_aal text default 'aal2', p_sessao text default 'sessao-teste', p_mfa_ha_seg int default 3600
+)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_token text := tests.token(p_ident, p_sessao);
+begin
+  insert into core.sessoes (usuario_id, token_hash, aal, mfa_em, plataforma)
+  values (tests.usuario_id(p_ident), core.hash_token(v_token), p_aal,
+          case when p_aal = 'aal2' then now() - make_interval(secs => p_mfa_ha_seg) end, 'web')
+  on conflict (token_hash) do update
+    set aal = excluded.aal, mfa_em = excluded.mfa_em, revogada_em = null,
+        ultimo_uso_em = now(), expira_em = now() + interval '12 hours';
+  return v_token;
+end;
+$$;
+
+-- Simula uma requisição da API: sessão viva + contexto pelo token + papel vv_api.
 -- Security invoker (SET ROLE não é permitido em security definer): chamar como superusuário.
 create or replace function tests.autenticar_como(
   p_ident text,
@@ -136,7 +169,7 @@ language plpgsql
 set search_path = ''
 as $$
 begin
-  perform core.definir_contexto(tests.usuario_id(p_ident), tests.sessao_id(p_ident, p_sessao), p_aal);
+  perform core.definir_contexto(tests.garantir_sessao(p_ident, p_aal, p_sessao));
   perform set_config('role', 'vv_api', true);
 end;
 $$;
@@ -148,7 +181,8 @@ set search_path = ''
 as $$
 begin
   reset role;
-  perform set_config('app.usuario_id', '', true),
+  perform set_config('app.sessao_hash', '', true),
+          set_config('app.usuario_id', '', true),
           set_config('app.sessao_id', '', true),
           set_config('app.aal', '', true),
           set_config('app.tx', '', true),
@@ -162,7 +196,21 @@ $$;
 -- SUPERADMIN) só rodam como superusuário.
 revoke all on all functions in schema tests from public;
 grant execute on function tests.usuario_id(text), tests.empresa_id(text), tests.vinculo_id(text, text),
-  tests.autenticar_como(text, text, text), tests.sessao_id(text, text), tests.sair() to vv_api;
+  tests.autenticar_como(text, text, text), tests.sessao_id(text, text), tests.token(text, text),
+  tests.sair() to vv_api;
+
+-- KEK fictícia do banco de teste (em produção: db/scripts/registrar-kek.sh, como vv_owner).
+create or replace function tests.kek()
+returns text
+language sql
+immutable
+as $$
+  select 'kek-de-teste-nao-usar-em-producao-0123456789'
+$$;
+grant execute on function tests.kek() to vv_api;
+insert into core.chaves_mestras (versao, verificador)
+values (1, extensions.pgp_sym_encrypt('vv-kek-ok', tests.kek(), 'cipher-algo=aes256'))
+on conflict (versao) do nothing;
 
 set search_path = tap;
 select plan(1);

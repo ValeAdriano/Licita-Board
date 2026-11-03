@@ -238,8 +238,8 @@ select is_empty($$ select 1 from core.empresas $$, 'revogação vale na consulta
 -- =============================================================== inativos e arquivados
 select tests.sair();
 update core.usuarios set ativo = false where id = tests.usuario_id('usuario_b');
-select tests.autenticar_como('usuario_b');
-select is_empty($$ select 1 from core.empresas $$, 'usuário inativo não lê nada');
+select throws_ok($$ select tests.autenticar_como('usuario_b') $$, '28000', null,
+  'usuário inativo não abre contexto (sessão recusada)');
 
 select tests.sair();
 update core.empresas set deleted_at = now() where id = tests.empresa_id('A');

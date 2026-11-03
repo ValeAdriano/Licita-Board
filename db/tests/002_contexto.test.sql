@@ -1,38 +1,54 @@
--- Contexto do usuário (ADR-013): só vale dentro da transação que chamou core.definir_contexto.
+-- Contexto do usuário (ADR-013, PR 2a): só vale com o token de uma sessão viva, na transação que
+-- chamou core.definir_contexto. Forjar app.* não serve, nem dentro da transação.
 begin;
-create schema if not exists tap;
-create extension if not exists pgtap with schema tap;
 set local search_path = tap;
-select plan(11);
+select plan(17);
 
--- O comportamento não depende do papel; os grants de vv_api são conferidos no fim.
+select tests.criar_usuario('ctx_a');
+select tests.criar_usuario('ctx_b');
 
 select is(core.usuario_atual(), null, 'sem contexto, usuário é nulo');
 select is(core.aal_atual(), 'aal0', 'sem contexto, aal é aal0');
 
--- Forjar direto (sem a marca da transação) não vale.
-select set_config('app.usuario_id', '0190f7a8-0000-7000-8000-000000000001', true);
-select set_config('app.aal', 'aal2', true);
-select is(core.usuario_atual(), null, 'app.usuario_id forjado sem definir_contexto é ignorado');
-select is(core.aal_atual(), 'aal0', 'app.aal forjado sem definir_contexto é ignorado');
+-- Forjar app.* com a marca da transação certa (o que um SQLi conseguiria) não vale sem token.
+select set_config('app.usuario_id', tests.usuario_id('ctx_a')::text, true),
+       set_config('app.aal', 'aal2', true),
+       set_config('app.tx', extract(epoch from now())::text, true);
+select is(core.usuario_atual(), null, 'app.usuario_id forjado com marca válida é ignorado');
+select is(core.aal_atual(), 'aal0', 'app.aal forjado com marca válida é ignorado');
+select set_config('app.sessao_hash', encode(core.hash_token('token-inventado'), 'hex'), true);
+select is(core.usuario_atual(), null, 'hash de token inventado não vale');
 
--- Marca com valor de outra transação também não vale.
-select set_config('app.tx', '1', true);
-select is(core.usuario_atual(), null, 'app.tx de outra transação é ignorado');
+select throws_ok($$ select core.definir_contexto('token-inventado') $$, '28000', 'sessão inválida',
+  'definir_contexto recusa token sem sessão');
 
-select core.definir_contexto('0190f7a8-0000-7000-8000-000000000002', '0190f7a8-0000-7000-8000-0000000000aa', 'aal2');
-select is(core.usuario_atual(), '0190f7a8-0000-7000-8000-000000000002'::uuid, 'definir_contexto define o usuário');
-select is(core.sessao_atual(), '0190f7a8-0000-7000-8000-0000000000aa'::uuid, 'definir_contexto define a sessão');
-select is(core.aal_atual(), 'aal2', 'definir_contexto define o aal');
+select tests.garantir_sessao('ctx_b', 'aal2');
+select core.definir_contexto(tests.token('ctx_b'));
+select is(core.usuario_atual(), tests.usuario_id('ctx_b'), 'token válido define o usuário');
+select is(core.sessao_atual(), tests.sessao_id('ctx_b'), 'token válido define a sessão');
+select is(core.aal_atual(), 'aal2', 'aal vem da sessão no banco');
 
-select throws_ok(
-  $$ select core.definir_contexto('0190f7a8-0000-7000-8000-000000000002', null, 'superadmin') $$,
-  '22023', 'aal inválido', 'aal fora de aal1/aal2 é recusado'
-);
+-- Sessão revogada, expirada, inativa ou de usuário bloqueado/inativo deixa de valer na hora.
+update core.sessoes set revogada_em = now() where id = tests.sessao_id('ctx_b');
+select is(core.usuario_atual(), null, 'sessão revogada perde o contexto na consulta seguinte');
+select tests.garantir_sessao('ctx_b', 'aal1');
+update core.sessoes set ultimo_uso_em = now() - interval '31 minutes' where id = tests.sessao_id('ctx_b');
+select throws_ok($$ select core.definir_contexto(tests.token('ctx_b')) $$, '28000', null,
+  'sessão parada há mais de 30 min é recusada');
+select tests.garantir_sessao('ctx_b', 'aal1');
+update core.sessoes set expira_em = now() - interval '1 second' where id = tests.sessao_id('ctx_b');
+select throws_ok($$ select core.definir_contexto(tests.token('ctx_b')) $$, '28000', null,
+  'sessão além das 12 h é recusada');
+select tests.garantir_sessao('ctx_b', 'aal1');
+update core.usuarios set bloqueado_ate = now() + interval '5 minutes' where id = tests.usuario_id('ctx_b');
+select lives_ok($$ select core.definir_contexto(tests.token('ctx_b')) $$,
+  'bloqueio por falhas de login não derruba a sessão já aberta');
 
-select ok(has_function_privilege('vv_api', 'core.definir_contexto(uuid, uuid, text)', 'execute'),
-  'vv_api pode definir o contexto');
-select ok(not has_function_privilege('vv_worker', 'core.definir_contexto(uuid, uuid, text)', 'execute'),
+select ok(not has_table_privilege('vv_api', 'core.sessoes', 'select'), 'vv_api não lê core.sessoes');
+select ok(current_setting('app.sessao_hash', true) !~ 'token-teste', 'o token cru não fica no contexto');
+select ok(has_function_privilege('vv_api', 'core.definir_contexto(text)', 'execute'),
+  'vv_api define o contexto pelo token');
+select ok(not has_function_privilege('vv_worker', 'core.definir_contexto(text)', 'execute'),
   'vv_worker não define contexto de usuário');
 
 select * from finish();
