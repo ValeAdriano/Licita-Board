@@ -30,3 +30,11 @@ def test_fora_de_dev_com_fila_exige_smtp_seguro_e_link_https() -> None:
         **base, smtp_starttls=True, smtp_usuario="resend", app_url="https://app.vv.test"
     )
     assert ok.app_url.startswith("https://")
+
+
+def test_vapid_exige_contato_mailto_ou_https_e_nunca_aparece_no_repr() -> None:
+    with pytest.raises(ValidationError):
+        Settings(vapid_private_key="segredo-vapid", vapid_contato="ti@vv.test")  # type: ignore[arg-type]
+    ok = Settings(vapid_private_key="segredo-vapid", vapid_contato="mailto:ti@vv.test")  # type: ignore[arg-type]
+    assert ok.vapid_private_key.get_secret_value() == "segredo-vapid"
+    assert "segredo-vapid" not in repr(ok)

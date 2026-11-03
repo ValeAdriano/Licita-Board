@@ -45,6 +45,8 @@ services:
       PORT: "3000"
       DATABASE_URL: postgres://vv_api:${VV_API_PASSWORD}@postgres:5432/vv?sslmode=disable
       VV_KEK: ${VV_KEK:?rode scripts/dev-env.sh}
+      # Chave PÚBLICA do Web Push (ADR-018); vazia = push desligado.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
     ports: ["127.0.0.1:3000:3000"]
     depends_on:
       postgres: { condition: service_healthy }
@@ -59,6 +61,9 @@ services:
       VV_SMTP_HOST: mailpit
       VV_SMTP_PORT: "1025"
       VV_APP_URL: http://localhost:5173
+      # Chave PRIVADA do Web Push: só o worker a conhece. Vazia = push desligado.
+      VV_VAPID_PRIVATE_KEY: ${VV_VAPID_PRIVATE_KEY:-}
+      VV_VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"]
       interval: 10s

@@ -44,6 +44,7 @@ _EVENTOS = {
     "autenticador_cadastrado": "um autenticador foi cadastrado na sua conta",
     "autenticador_removido": "o autenticador da sua conta foi removido",
     "login_novo": "houve um acesso à sua conta a partir de um endereço novo",
+    "dispositivo_push_cadastrado": "um dispositivo foi cadastrado para receber alertas da conta",
 }
 
 

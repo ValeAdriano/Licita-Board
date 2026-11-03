@@ -10,6 +10,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 from worker.email import Enviador, mensagem_alerta, mensagem_recuperacao
+from worker.push import REDE, TTL_SEGUNDOS, EnviadorPush, Inscricao, carga_generica
 from worker.settings import Settings
 
 log = logging.getLogger("worker.fila")
@@ -21,15 +22,93 @@ Job = dict[str, Any]
 Handler = Callable[[psycopg.Connection[Any], Job], None]
 
 
+class PushTransitorio(Exception):  # noqa: N818 - falha temporária, o job volta com backoff
+    """Algum dispositivo falhou por motivo passageiro (rede, 429, 5xx)."""
+
+
+class PushConfiguracao(Exception):  # noqa: N818 - chave VAPID recusada pelo serviço de push
+    """401/403 do serviço de push: configuração (par de chaves), não dispositivo ruim."""
+
+
 class Handlers:
     """Um método por tipo de job. Payload só traz IDs; dado sensível nunca entra no log."""
 
-    def __init__(self, settings: Settings, enviador: Enviador) -> None:
+    def __init__(
+        self, settings: Settings, enviador: Enviador, push: EnviadorPush | None = None
+    ) -> None:
         self._s = settings
         self._enviador = enviador
+        self._push = push
 
     def tipos(self) -> dict[str, Handler]:
-        return {"email_recuperacao": self.email_recuperacao, "email_alerta": self.email_alerta}
+        tipos: dict[str, Handler] = {
+            "email_recuperacao": self.email_recuperacao,
+            "email_alerta": self.email_alerta,
+        }
+        # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
+        if self._push is not None:
+            tipos["push_notificacao"] = self.push_notificacao
+        return tipos
+
+    def push_notificacao(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        assert self._push is not None  # noqa: S101 - só registrado com push ligado
+        notificacao_id = str(job["payload"]["notificacao_id"])
+        with conn.cursor(row_factory=dict_row) as cur:
+            # Só notificação recente (ligar o push depois não dispara aviso de coisa velha) e só
+            # quem ainda não recebeu este job (reenvio após falha de outro dispositivo não duplica).
+            cur.execute(
+                "select d.id, d.endpoint, d.p256dh, d.auth from core.notificacoes n "
+                "join core.usuarios u on u.id = n.usuario_id and u.ativo and u.deleted_at is null "
+                "join core.dispositivos_push d "
+                "on d.usuario_id = n.usuario_id and d.revogado_em is null "
+                "and (d.ultimo_envio_em is null or d.ultimo_envio_em < %s) "
+                "where n.id = %s and n.created_at > now() - make_interval(secs => %s)",
+                (job["created_at"], notificacao_id, TTL_SEGUNDOS),
+            )
+            dispositivos = cur.fetchall()
+        carga = carga_generica(notificacao_id)
+        transitorios = 0
+        configuracao = 0
+        for d in dispositivos:
+            inscricao = Inscricao(str(d["id"]), d["endpoint"], d["p256dh"], d["auth"])
+            status = self._push.enviar(inscricao, carga)
+            if 200 <= status < 300:
+                conn.execute(
+                    "update core.dispositivos_push set ultimo_envio_em = now(), falhas = 0 "
+                    "where id = %s",
+                    (d["id"],),
+                )
+            elif status in (404, 410):  # inscrição expirou ou o usuário a removeu no navegador
+                conn.execute(
+                    "update core.dispositivos_push set revogado_em = now() where id = %s",
+                    (d["id"],),
+                )
+            elif status in (REDE, 429) or status >= 500:
+                # Falha do serviço de push, da rede ou do nosso servidor: NÃO conta contra o
+                # dispositivo (instabilidade não pode revogar todo mundo); o job volta com backoff.
+                transitorios += 1
+            elif status in (401, 403):
+                # Chave VAPID que o serviço de push não aceita (par errado, chave trocada): erro de
+                # configuração, não do dispositivo. Nada é revogado; o job volta e, esgotado, falha.
+                configuracao += 1
+            else:
+                # Resposta definitiva de recusa (inscrição inválida): 5 seguidas revogam.
+                conn.execute(
+                    "update core.dispositivos_push set falhas = falhas + 1, "
+                    "revogado_em = case when falhas + 1 >= 5 then now() end where id = %s",
+                    (d["id"],),
+                )
+            conn.commit()
+            log.info(
+                "push processado", extra={"ctx": {"dispositivo": str(d["id"]), "status": status}}
+            )
+        if configuracao:
+            log.error(
+                "push recusado pela chave VAPID", extra={"ctx": {"dispositivos": configuracao}}
+            )
+            raise PushConfiguracao(configuracao)
+        if transitorios:
+            raise PushTransitorio(transitorios)
 
     def email_recuperacao(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # O token nasce aqui e só o hash vai para o banco; o link usa o fragmento (#), que não vai
@@ -90,10 +169,15 @@ def processar_lote(conn: psycopg.Connection[Any], handlers: dict[str, Handler]) 
     return len(jobs)
 
 
-def consumir(settings: Settings, enviador: Enviador, parar: threading.Event) -> None:
+def consumir(
+    settings: Settings,
+    enviador: Enviador,
+    parar: threading.Event,
+    push: EnviadorPush | None = None,
+) -> None:
     """Laço do consumidor: LISTEN ops_jobs com polling de reserva a cada 30 s."""
     global ultimo_ciclo  # noqa: PLW0603 - heartbeat lido pelo /health
-    handlers = Handlers(settings, enviador).tipos()
+    handlers = Handlers(settings, enviador, push).tipos()
     while not parar.is_set():
         try:
             with psycopg.connect(settings.database_url.get_secret_value()) as conn:

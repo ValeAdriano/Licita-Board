@@ -15,3 +15,9 @@ def test_alerta_junta_eventos_e_ignora_desconhecidos() -> None:
     assert m is not None
     assert "removido" in m.texto and "cadastrado" in m.texto
     assert mensagem_alerta("ana@teste.local", ["inventado"]) is None
+
+
+def test_alerta_de_novo_dispositivo_de_push_tem_texto_proprio() -> None:
+    m = mensagem_alerta("ana@teste.local", ["dispositivo_push_cadastrado"])
+    assert m is not None
+    assert "dispositivo" in m.texto and "alertas" in m.texto

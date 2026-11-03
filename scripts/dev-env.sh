@@ -11,4 +11,10 @@ umask 077
     echo "$v=$(openssl rand -hex 24)"
   done
 } > .env
+# Par VAPID do Web Push (ADR-018). Precisa do uv; sem ele o push fica desligado (chaves vazias).
+if command -v uv >/dev/null 2>&1; then
+  (cd apps/worker && uv run --quiet python scripts/gerar_vapid.py) >> .env \
+    || echo "aviso: não foi possível gerar as chaves VAPID; o push fica desligado." >&2
+fi
 echo ".env criado."
+

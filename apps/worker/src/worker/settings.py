@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     smtp_senha: SecretStr = SecretStr("")
     smtp_starttls: bool = False
     email_remetente: str = "VV Licitações <nao-responda@vv.local>"
+    # Web Push (ADR-018): chave privada VAPID (base64url, `uv run python scripts/gerar_vapid.py`) e
+    # contato (mailto: ou https:) que o serviço de push usa para falar com quem opera o servidor.
+    # Sem a chave, o push fica desligado e os jobs `push_notificacao` aguardam na fila.
+    vapid_private_key: SecretStr = SecretStr("")
+    vapid_contato: str = "mailto:ti@vv.local"
+    # Chave pública VAPID que a API publica: o worker confere que ela é a do par da privada (par
+    # trocado = o serviço de push recusa tudo com 401/403). Opcional.
+    vapid_public_key: str = ""
     # URL pública do app, base dos links enviados por e-mail.
     app_url: str = "http://localhost:5173"
 
@@ -47,4 +55,8 @@ class Settings(BaseSettings):
                 raise ValueError("fora de dev, SMTP exige STARTTLS e usuário")
             if not self.app_url.startswith("https://"):
                 raise ValueError("fora de dev, VV_APP_URL precisa ser https")
+        if self.vapid_private_key.get_secret_value() and not self.vapid_contato.startswith(
+            ("mailto:", "https://")
+        ):
+            raise ValueError("VV_VAPID_CONTATO precisa começar com mailto: ou https://")
         return self

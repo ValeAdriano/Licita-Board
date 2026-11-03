@@ -10,6 +10,7 @@ from worker import fila
 from worker.email import EnviadorSmtp
 from worker.fila import consumir
 from worker.logging import configure_logging
+from worker.push import EnviadorWebPush
 from worker.settings import Settings
 
 settings = Settings()
@@ -21,8 +22,9 @@ async def ciclo(_app: FastAPI) -> AsyncIterator[None]:
     # O consumidor da fila roda numa thread ao lado do health check (VV_FILA_ATIVA).
     parar = threading.Event()
     if settings.fila_ativa:
+        push = EnviadorWebPush(settings) if settings.vapid_private_key.get_secret_value() else None
         t = threading.Thread(
-            target=consumir, args=(settings, EnviadorSmtp(settings), parar), daemon=True
+            target=consumir, args=(settings, EnviadorSmtp(settings), parar, push), daemon=True
         )
         t.start()
     yield
