@@ -96,7 +96,7 @@ Todo endpoint autenticado passa por `SessaoGuard` (cookie `__Host-sessao` ou `Au
 | Auth público | `POST /auth/login`, `POST /auth/recuperar`, `POST /auth/redefinir` |
 | Sessão | `POST /auth/mfa/verificar`, `POST /auth/mfa/recuperacao` (código de uso único), `POST /auth/logout`, `POST /auth/logout-todas`, `GET /auth/sessoes`, `DELETE /auth/sessoes/:id`, `POST /auth/senha` (trocar logado, exige a atual) |
 | MFA | `POST /auth/mfa/cadastrar` (exige a senha atual; URI otpauth uma vez), `POST /auth/mfa/confirmar`, `POST /auth/mfa/verificar`, `POST /auth/mfa/recuperacao`, `POST /auth/mfa/codigos` (10 novos, uma vez, MFA recente), `POST /auth/mfa/resetar/:usuario` (SUPERADMIN) |
-| Step-up | `POST /auth/step-up` (TOTP novo → token de 5 min do escopo) |
+| Step-up | `POST /auth/mfa/step-up` (TOTP novo → token de 5 min do escopo, uso único, preso à sessão) |
 | Conta | `GET /me` (perfil, vínculos, permissões por empresa), `PATCH /me` (nome, telefone, OAB) |
 | Acesso | `GET/POST /empresas`, `GET/PATCH /empresas/:id`; `GET /empresas/:id/usuarios`; `PUT /vinculos/:id` (salvar_vinculo com step-up); convites (`POST`, `DELETE`, `GET /me/convites`, `POST /me/convites/:id/aceitar`) |
 | Exclusão | `POST /exclusoes` (solicitar), `POST /exclusoes/:id/decidir` |
@@ -128,7 +128,7 @@ Parâmetros de segurança (ADR-012): Argon2id m=19 MiB, t=2, p=1; atraso progres
 2. ✅ `feat/fase-01-identidade` (lembrar: `senha_hash` sem grant de SELECT para `vv_api` e redigida/fora da auditoria): colunas de identidade em usuarios, sessoes, fatores_mfa, codigos, tentativas, tokens; `definir_contexto(token)`, `criar_sessao`, `confirmar_mfa`; pgTAP.
 3. ✅ `feat/fase-01-api-auth` (recuperação por e-mail, HIBP e CAPTCHA ficam no 3b): módulo auth (login, logout, sessões, recuperação, troca de senha), `SessaoGuard`, CSRF, `comContexto` (chama `definir_contexto` + `definir_requisicao`), e-mail via fila; e2e de ataque (força bruta, fixação de sessão, CSRF, enumeração de e-mail, `X-Forwarded-For` forjado pelo cliente: só vale o valor escrito pelo Caddy; IP inválido vira nulo, não derruba a requisição).
 4. ✅ `feat/fase-01-api-mfa`: cadastro (com senha atual, pendente preso à sessão) e confirmação TOTP, verificação, códigos de recuperação, reset por SUPERADMIN, rotação do token na elevação; e2e (replay, força bruta, sessões). O step-up (fator ≥ 24 h) foi para o PR 5, junto do port de `step_up_tokens`.
-5. `feat/fase-01-port-stepup-exclusao`: step_up_tokens, aprovacoes_exclusao, salvar_vinculo, convites, notificacoes no banco + endpoints + e2e A x B.
+5. ✅ `feat/fase-01-port-stepup-exclusao`: step_up_tokens, aprovacoes_exclusao, salvar_vinculo, convites, notificacoes no banco + endpoints + e2e A x B.
 6. `feat/fase-01-app-auth`: login, MFA, recuperação, sessão no SecureStore/cookie, logout por inatividade.
 7. `feat/fase-01-app-shell`: shell, seletor de empresa, notificações, conta (sessões, autenticador, códigos).
 8. `feat/fase-01-app-matriz`: matriz de permissões e convites.

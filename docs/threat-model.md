@@ -28,7 +28,7 @@ Preços, custos e margens; propostas e peças jurídicas; documentos de habilita
 | Vínculo usuário × empresa × papel, permissões por módulo × ação, negar por padrão | `020_core_isolamento`: operador de A não lê B; vínculo inativo não lê nada | 01 | implementado |
 | Permissões consultadas na hora (não no JWT): revogação imediata | `020_core_isolamento`: revogação vale na consulta seguinte | 01 | implementado |
 | Worker valida `empresa_id` do job no banco | pytest: job com recurso de outra empresa é rejeitado | 03+ | planejado |
-| Alteração de permissão exige step-up e é auditada | `040_step_up`: sem token, token usado, expirado, de outro escopo ou de outra sessão → falha; uso auditado | 01 | implementado |
+| Alteração de permissão exige step-up e é auditada | `db/tests/070_step_up`: sem token, token usado, expirado, de outro escopo ou de outra sessão → falha; uso auditado | 01 | implementado |
 
 ## T3 · Edital ou anexo malicioso, ou com instruções para manipular a IA
 
@@ -82,7 +82,7 @@ Revisão 2 (auth própria, ADR-012/013). Os controles da revisão 1 sobre Supaba
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
-| Guard exige aal2 por padrão para quem tem ou precisa de MFA; só `@PermiteAal1()` (consultar sessão, sair, MFA) passa | e2e perfil interno | 01 | implementado |
+| Guard exige aal2 por padrão para quem tem ou precisa de MFA; só `@PermiteAal1()` (consultar sessão, sair, cadastrar/verificar MFA, código de recuperação) passa; `/me` e `/me/convites` exigem aal2 | e2e perfil interno; e2e `rotas` (lista fechada) | 01 | implementado |
 | `trocar_senha` e troca de autenticador exigem aal2 / MFA recente no banco | `050_mfa` | 01 | implementado |
 
 ## T5.9 · Login CSRF (nova)
@@ -116,7 +116,7 @@ Revisão 2 (auth própria, ADR-012/013). Os controles da revisão 1 sobre Supaba
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
-| Soft delete; exclusão definitiva só SUPERADMIN com dupla aprovação | `050_exclusao_dupla_aprovacao`: ADMIN não solicita, solicitante não aprova, step-up dos dois lados | 01 | implementado |
+| Soft delete; exclusão definitiva só SUPERADMIN com dupla aprovação | `db/tests/080_exclusao_dupla_aprovacao`: ADMIN não solicita, solicitante não aprova, step-up dos dois lados | 01 | implementado |
 | Auditoria imutável (insert-only) com antes/depois | `030_audit_log`: UPDATE/DELETE/TRUNCATE falham até para o dono | 01 | implementado |
 | Prazos em código puro com casos do jurídico; data interna D-2; override auditado | pytest com 30+ casos do jurídico VV | 05 | planejado |
 | Alertas D-5/D-3/D-1/dia com escalonamento | pytest com relógio simulado | 05 | planejado |
@@ -151,7 +151,7 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | --- | --- | --- | --- |
 | `core.usuarios.superadmin`/`ativo` sem grant de UPDATE para `authenticated` (grant por coluna) | `020_core_isolamento`: usuário não se promove a SUPERADMIN | 01 | implementado |
 | Vínculo/permissão só por quem tem `administrar_permissoes` na mesma empresa (`with check`) | `020_core_isolamento`: A não se vincula a B nem move vínculo | 01 | implementado |
-| Alteração de permissão exige step-up | `040_step_up` | 01 | implementado |
+| Alteração de permissão exige step-up | `db/tests/070_step_up` | 01 | implementado |
 
 ## T5.12 · Sequestro do cadastro do primeiro autenticador (nova)
 
@@ -177,13 +177,40 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | Erros consecutivos (zerados só por acerto) bloqueiam o MFA sem prazo na 50ª falha; desbloqueio só por reset de SUPERADMIN | `060_mfa_endurecimento` | 01 | implementado |
 | Senha certa não soma erros (falha cobrada antes do Argon2 é estornada); pendente de outra sessão não troca o autenticador sem MFA recente na confirmação | `060_mfa_endurecimento`; e2e | 01 | implementado |
 
+## T2.4b · Convite pendente preserva permissão que o autor perdeu (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Teto conferido também no aceite e na listagem (`autor_cobre_convite`); `salvar_vinculo` revoga convites que passaram a exceder o autor | `db/tests/100_convites` | 01 | implementado |
+| Reativar vínculo aplica o teto sobre o conjunto inteiro de permissões | `db/tests/110_salvar_vinculo` | 01 | implementado |
+
+## T1.1 · Mensagem de constraint como oráculo entre empresas (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Só a mensagem de `raise` de função nossa chega ao cliente; constraint/índice → "Dados inválidos." / 409 genérico | e2e `acesso` | 01 | implementado |
+| Toda rota com `:empresa` tem `@Permissao` (guard confere no banco; 404 sem revelar existência) | e2e `rotas` (varre as rotas registradas) | 01 | implementado |
+
+## T5.1b · Step-up sem vínculo com o alvo da operação (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Token preso ao escopo, à sessão e ao usuário, 5 min, uso único; alvo e empresa gravados no uso | `db/tests/070_step_up` | 01 | implementado |
+| Amarrar o alvo na emissão (ao menos para `exclusao_definitiva`) | — | 01 | aceito por ora (risco: 5 min, mesma sessão aal2 com MFA recente) |
+
+## T3.1c · Nome de empresa definido por cliente no convite (nova)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| App mostra nome da empresa sempre como texto e junto do CNPJ no aceite do convite | teste de componente | 01 | planejado (telas do app) |
+
 ## T5.1 · Sessão aal2 roubada usada para operação crítica (nova, Fase 01)
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
-| Step-up exige TOTP verificado há ≤ 2 min com fator cadastrado há ≥ 24 h | `040_step_up`: fator de 1 h não serve | 01 | implementado |
-| Uma verificação MFA = um token; token preso à sessão viva, uso único, 5 min | `040_step_up`: segundo token, logout, outra sessão, expirado | 01 | implementado |
-| Exclusão definitiva exige dois SUPERADMIN ativos, cada um com step-up | `050_exclusao_dupla_aprovacao` | 01 | implementado |
+| Step-up exige TOTP verificado há ≤ 2 min com fator cadastrado há ≥ 24 h | `db/tests/070_step_up`: fator de 1 h não serve | 01 | implementado |
+| Uma verificação MFA = um token; token preso à sessão viva, uso único, 5 min | `db/tests/070_step_up`: segundo token, logout, outra sessão, expirado | 01 | implementado |
+| Exclusão definitiva exige dois SUPERADMIN ativos, cada um com step-up | `db/tests/080_exclusao_dupla_aprovacao` | 01 | implementado |
 | Notificação de cadastro/remoção de fator MFA (revisão 2: e-mail pela fila do worker) | e2e | 01 | planejado (PR 3b) |
 
 ## T5.2 · Logout que falha aberto (nova, Fase 01 · revisão de segurança do front)
@@ -221,39 +248,39 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
-| Notificação só é criada pelo sistema; usuário não insere pela API | `070_notificacoes` | 01 | implementado |
-| `link` aceita só caminho interno do app (sem domínio) | `070_notificacoes` | 01 | implementado |
-| Cada usuário só vê e marca as próprias | `070_notificacoes` | 01 | implementado |
+| Notificação só é criada pelo sistema; usuário não insere pela API | `db/tests/090_notificacoes` | 01 | implementado |
+| `link` aceita só caminho interno do app (sem domínio) | `db/tests/090_notificacoes` | 01 | implementado |
+| Cada usuário só vê e marca as próprias | `db/tests/090_notificacoes` | 01 | implementado |
 
 ## T2.2 · Tomada de convite por troca ou reuso de e-mail (nova, Fase 01)
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
-| Convite preso à conta (`usuario_id`), ligado na criação do convite ou da conta, nunca por troca de e-mail | `080_convites`: quem troca o e-mail não vê nem aceita | 01 | implementado |
-| Aceite exige e-mail confirmado | `080_convites` | 01 | implementado |
-| Produção: "Confirm email" e "Secure email change" ligados no Auth | checklist de configuração do projeto | 01 | planejado |
+| Convite preso à conta (`usuario_id`), nunca ligado por troca de e-mail nem pela simples criação da conta | `db/tests/100_convites`: quem troca o e-mail não vê nem aceita; criar a conta não liga | 01 | implementado |
+| Posse do e-mail provada pelo link de redefinição (`email_verificado_em`); só então convites pendentes se ligam; convidar, ver e aceitar exigem e-mail verificado | `db/tests/100_convites` | 01 | implementado |
+| Convite para conta inativa/não verificada fica órfão e bloqueia novo convite do mesmo e-mail por até 7 dias (falha fechada; revogar libera) | — | 01 | aceito |
 
 ## T2.3 · Convite órfão mantém acesso de quem foi removido (nova)
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
-| Aceite e listagem exigem que o autor ainda administre a empresa; `salvar_vinculo` revoga convites de quem deixou de administrar | `080_convites`: convite de admin desativado não aparece nem é aceito | 01 | implementado |
+| Aceite e listagem exigem que o autor ainda administre a empresa; `salvar_vinculo` revoga convites de quem deixou de administrar | `db/tests/100_convites`: convite de admin desativado não aparece nem é aceito | 01 | implementado |
 
 ## T2.4 · `administrar_permissoes` como superpermissão (nova)
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
-| Teto de concessão: só se concede o que o autor tem; ninguém amplia o próprio vínculo (SUPERADMIN fora do teto) | `080_convites`, `090_salvar_vinculo` | 01 | implementado |
+| Teto de concessão: só se concede o que o autor tem; ninguém amplia o próprio vínculo (SUPERADMIN fora do teto) | `db/tests/100_convites`, `db/tests/110_salvar_vinculo` | 01 | implementado |
 
 ## T3.1 (ampliação) · Texto controlado por empresa em notificação de outro usuário
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
-| Notificação de convite com título fixo; limite de 30 convites por empresa por dia | `080_convites` | 01 | implementado |
+| Notificação de convite com título fixo; limite de 30 convites por empresa por dia | `db/tests/100_convites` | 01 | implementado |
 
 ## T4 (ampliação) · Dado pessoal em tabelas novas com auditoria
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
-| E-mail de convidado redigido na auditoria; step-up registra id do convite, não o e-mail | `080_convites` | 01 | implementado |
+| E-mail de convidado redigido na auditoria; step-up registra id do convite, não o e-mail | `db/tests/100_convites` | 01 | implementado |
 | Checklist de migration exige listar colunas com dado pessoal a redigir | `docs/agents/checklists/revisao-migration.md` | 01 | implementado |

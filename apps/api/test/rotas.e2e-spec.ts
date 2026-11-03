@@ -49,6 +49,23 @@ describe('cobertura de rotas', () => {
     expect(new Set(liberadas)).toEqual(PERMITE_AAL1);
   });
 
+  it('toda rota com :empresa confere a permissão no guard (404 para quem não tem vínculo)', async () => {
+    const email = await criarUsuario('sem-vinculo');
+    const login = await request(servidor(app)).post('/auth/login').set('X-Forwarded-For', ipNovo())
+      .send({ email, senha: SENHA, plataforma: 'ios' }).expect(200);
+    const token = (login.body as { token: string }).token;
+    const comEmpresa = rotasRegistradas().filter((r) => r.includes(':empresa'));
+    expect(comEmpresa.length).toBeGreaterThan(3);
+    const vazaram: string[] = [];
+    for (const rota of comEmpresa) {
+      const [metodo = 'GET', caminho = '/'] = rota.split(' ');
+      const r = await request(servidor(app))[metodo.toLowerCase() as 'get'](caminho.replace(/:[a-zA-Z]+/g, crypto.randomUUID()))
+        .set('Authorization', `Bearer ${token}`).send({});
+      if (r.status !== 404) vazaram.push(`${rota} → ${String(r.status)}`);
+    }
+    expect(vazaram).toEqual([]);
+  });
+
   it('toda rota não pública responde 401 sem sessão', async () => {
     const express = (app as NestExpressApplication).getHttpAdapter().getInstance() as { router: { stack: Camada[] } };
     // Ignora o curinga {/*splat} que o Nest registra para os middlewares (não é rota de controller).

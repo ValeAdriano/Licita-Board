@@ -44,7 +44,8 @@ export async function criarUsuario(prefixo: string, opcoes: { interno?: boolean 
   const email = `${prefixo}-${crypto.randomUUID().slice(0, 8)}@teste.local`;
   const hash = await hashSenha(SENHA);
   const r = await admin.query<{ id: string }>(
-    'insert into core.usuarios (email, nome, senha_hash) values ($1, $2, $3) returning id', [email, prefixo, hash]);
+    'insert into core.usuarios (email, nome, senha_hash, email_verificado_em) values ($1, $2, $3, now()) returning id',
+    [email, prefixo, hash]);
   if (opcoes.interno) {
     const cnpj = await admin.query<{ id: string }>(
       `insert into core.empresas (razao_social, cnpj) values ($1, $2) returning id`,
@@ -98,4 +99,32 @@ export function totpDaUri(uri: string, deslocamento = 0): string {
   const o = (h[19] ?? 0) & 15;
   const bin = (((h[o] ?? 0) & 127) << 24) | ((h[o + 1] ?? 0) << 16) | ((h[o + 2] ?? 0) << 8) | (h[o + 3] ?? 0);
   return String(bin % 1_000_000).padStart(6, '0');
+}
+
+// Empresa fictícia com CNPJ válido; devolve o id.
+export async function criarEmpresa(nome: string): Promise<string> {
+  const r = await admin.query<{ id: string }>(
+    'insert into core.empresas (razao_social, cnpj) values ($1, $2) returning id', [nome, cnpjFicticio()]);
+  return r.rows[0]?.id ?? '';
+}
+
+// Vincula o usuário à empresa com todas as permissões (ou só as dadas, 'modulo:acao').
+export async function vincular(email: string, empresa: string, papel = 'ADMIN_EMPRESA', permissoes?: string[]): Promise<string> {
+  const v = await admin.query<{ id: string }>(
+    `insert into core.vinculos (usuario_id, empresa_id, papel)
+     select id, $2, $3 from core.usuarios where email = $1 returning id`, [email, empresa, papel]);
+  const vinculo = v.rows[0]?.id ?? '';
+  if (permissoes) {
+    await admin.query(
+      `insert into core.permissoes (vinculo_id, empresa_id, modulo, acao)
+       select $1, $2, split_part(x, ':', 1), split_part(x, ':', 2) from unnest($3::text[]) x`, [vinculo, empresa, permissoes]);
+  } else {
+    await admin.query(
+      `insert into core.permissoes (vinculo_id, empresa_id, modulo, acao)
+       select $1, $2, m.slug, a from core.modulos m,
+              unnest(array['visualizar','cadastrar','editar','arquivar','substituir_arquivos','gerar_documentos',
+                           'ver_custos_margens','elaborar_peca','aprovar_peca','aprovar','exportar',
+                           'administrar_permissoes']) a`, [vinculo, empresa]);
+  }
+  return vinculo;
 }
