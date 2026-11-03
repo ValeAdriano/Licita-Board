@@ -54,6 +54,18 @@ class CoverageTest(unittest.TestCase):
         self.assertNotIn("priv.temp", r.stderr)
         self.assertNotIn("priv.velha", r.stderr)
 
+    def test_db_dbmate_conta_so_o_up(self) -> None:
+        (self.root / "db/migrations").mkdir(parents=True)
+        (self.root / "db/migrations/1_a.sql").write_text(
+            "-- migrate:up\ncreate table priv.produtos (id uuid);\n-- migrate:down\ndrop table priv.produtos;\n"
+        )
+        r = self.run_check()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("db/tests/isolamento/priv_produtos.test.sql", r.stderr)
+        (self.root / "db/tests/isolamento").mkdir(parents=True)
+        (self.root / "db/tests/isolamento/priv_produtos.test.sql").write_text("select 1;")
+        self.assertEqual(self.run_check().returncode, 0)
+
     def test_comentario_nao_conta(self) -> None:
         self.migration("1_a.sql", "-- create table priv.fantasma (id uuid);\n/* create table priv.outra () */")
         self.assertEqual(self.run_check().returncode, 0)
