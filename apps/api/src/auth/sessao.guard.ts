@@ -4,6 +4,7 @@ import {
   type ExecutionContext,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   SetMetadata,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -20,6 +21,20 @@ const PERMITE_AAL1 = 'vv:permite-aal1';
 // Rota liberada a quem ainda não passou do segundo fator (consultar a sessão, sair, cadastrar ou
 // verificar o MFA). Para quem tem ou precisa de MFA, todo o resto exige aal2 (T5.8).
 export const PermiteAal1 = () => SetMetadata(PERMITE_AAL1, true);
+
+const PERMISSAO = 'vv:permissao';
+interface RequisitoPermissao {
+  modulo: string;
+  acao: string;
+  param: string;
+}
+// Primeira camada do isolamento (ADR-013): a empresa vem do parâmetro da rota e o guard confere
+// core.has_permission no banco antes do handler. Sem permissão (ou empresa de outro cliente) = 404,
+// sem revelar se a empresa existe. A RLS confere de novo em cada consulta (segunda camada).
+export const Permissao = (modulo: string, acao: string, param = 'empresa') =>
+  SetMetadata(PERMISSAO, { modulo, acao, param } satisfies RequisitoPermissao);
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const METODOS_SEGUROS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -56,16 +71,27 @@ export class SessaoGuard implements CanActivate {
       }
     }
 
+    const requisito = this.reflector.getAllAndOverride<RequisitoPermissao | undefined>(PERMISSAO, [
+      ctx.getHandler(),
+      ctx.getClass(),
+    ]);
+    const params = req.params as Record<string, string | undefined>;
+    const empresa = requisito ? params[requisito.param] : undefined;
+    if (requisito && (!empresa || !UUID.test(empresa))) throw new NotFoundException();
+
     const sessao = await this.contexto.comContexto(dadosDe(req, lido.token), async (tx) => {
-      const r = await sql<{ usuario: string; aal: 'aal1' | 'aal2'; precisa_mfa: boolean }>`
+      const r = await sql<{ usuario: string; aal: 'aal1' | 'aal2'; precisa_mfa: boolean; permitido: boolean }>`
         select core.usuario_atual() as usuario, core.aal_atual() as aal,
-               core.tem_mfa() or core.mfa_obrigatorio() as precisa_mfa`.execute(tx);
+               core.tem_mfa() or core.mfa_obrigatorio() as precisa_mfa,
+               ${requisito ? sql`core.has_permission(${empresa}::uuid, ${requisito.modulo}, ${requisito.acao})` : sql`true`} as permitido`
+        .execute(tx);
       return r.rows[0];
     });
     if (!sessao) throw new UnauthorizedException();
     if (sessao.aal !== 'aal2' && sessao.precisa_mfa && !this.reflector.get<boolean | undefined>(PERMITE_AAL1, ctx.getHandler())) {
       throw new ForbiddenException('MFA');
     }
+    if (!sessao.permitido) throw new NotFoundException();
     req.sessao = { token: lido.token, origem: lido.origem, usuarioId: sessao.usuario, aal: sessao.aal };
     return true;
   }

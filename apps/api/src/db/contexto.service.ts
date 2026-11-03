@@ -1,5 +1,8 @@
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
+  NotFoundException,
   HttpException,
   HttpStatus,
   Inject,
@@ -32,8 +35,16 @@ export class ContextoService {
       if (codigoPg(e) === '28000') throw new UnauthorizedException();
       // Regra do banco recusou por falta de MFA recente/permissão (ex.: trocar autenticador).
       if (codigoPg(e) === '42501') throw new ForbiddenException();
-      // Limite de uso imposto pelo banco (ex.: cadastros de autenticador).
+      // Limite de uso imposto pelo banco (ex.: cadastros de autenticador, convites por dia).
       if (codigoPg(e) === '54000') throw new HttpException('Muitas tentativas. Tente mais tarde.', HttpStatus.TOO_MANY_REQUESTS);
+      // Regras de negócio: só a mensagem de um raise nosso chega ao cliente. Erro de constraint ou
+      // índice vira resposta genérica (nome de tabela/constraint não vira oráculo entre empresas).
+      if (['22023', '23514', '23505', '23503'].includes(codigoPg(e) ?? '')) {
+        if (deRaise(e)) throw new BadRequestException(mensagemPg(e));
+        if (codigoPg(e) === '23505') throw new ConflictException('Registro já existe.');
+        throw new BadRequestException('Dados inválidos.');
+      }
+      if (codigoPg(e) === 'P0002') throw new NotFoundException();
       throw e;
     }
   }
@@ -49,6 +60,16 @@ export class ContextoService {
       throw e;
     }
   }
+}
+
+// O erro veio de um raise exception de função nossa (não de constraint/índice).
+export function deRaise(e: unknown): boolean {
+  return typeof e === 'object' && e !== null && 'routine' in e && e.routine === 'exec_stmt_raise';
+}
+
+// Mensagem do raise do banco (nunca o DETAIL, que pode trazer a linha com dado pessoal).
+export function mensagemPg(e: unknown): string {
+  return e instanceof Error ? e.message.slice(0, 200) : 'Operação recusada.';
 }
 
 export function codigoPg(e: unknown): string | undefined {

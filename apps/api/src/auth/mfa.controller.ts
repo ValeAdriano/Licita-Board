@@ -30,6 +30,10 @@ const recuperacaoSchema = z.object({
   codigo: z.string().max(64).transform(normalizarCodigoRecuperacao).pipe(z.string().length(20)),
 });
 const cadastroSchema = z.object({ senha: z.string().min(1).max(1024) });
+const stepUpSchema = z.object({
+  codigo: z.string().trim().regex(/^\d{6}$/),
+  escopo: z.enum(['alterar_permissoes', 'exclusao_definitiva', 'preco_abaixo_minimo', 'proposta_final', 'aprovar_peca']),
+});
 
 // MFA (ADR-012, spec fase-01 decisões 1 e 7): o segredo e os códigos são conferidos no banco com a
 // KEK; a API só gera o segredo/códigos e os mostra uma vez. Erro de código responde 400 e é gravado
@@ -130,6 +134,26 @@ export class MfaController {
     await this.contexto.comContexto(dadosDe(req, s.token), (tx) =>
       sql`select core.gerar_codigos_recuperacao(${codigos}::text[])`.execute(tx));
     return { codigos };
+  }
+
+  // Step-up (spec §6 regra 10): TOTP novo agora + fator com ≥ 24 h → token de 5 min, uso único,
+  // preso a esta sessão, para a operação crítica do escopo. Rotaciona o token da sessão.
+  @Post('step-up')
+  @HttpCode(200)
+  async stepUp(@Req() req: RequisicaoVV, @Res({ passthrough: true }) res: Response, @Body() corpo: unknown) {
+    this.limitar(req);
+    const { codigo, escopo } = validar(stepUpSchema, corpo);
+    const s = sessaoDe(req);
+    const token = novoToken();
+    const stepUp = await this.contexto.comContexto(dadosDe(req, s.token), async (tx) => {
+      const v = await sql<{ ok: boolean }>`select core.verificar_totp(${codigo}, ${this.config.VV_KEK}) as ok`.execute(tx);
+      if (v.rows[0]?.ok !== true) return null;
+      await sql`select core.rotacionar_sessao(${s.token}, ${token})`.execute(tx);
+      const r = await sql<{ id: string }>`select core.iniciar_step_up(${escopo}) as id`.execute(tx);
+      return r.rows[0]?.id ?? null;
+    });
+    if (!stepUp) throw new BadRequestException('Código inválido.');
+    return { stepUp, ...emitirTokenRotacionado(res, s, token) };
   }
 
   private async elevar(
