@@ -112,6 +112,17 @@ jobs:
           npm audit --audit-level=high --omit=dev
       - name: Imagem da API
         run: docker build -t vv-api ./apps/api
+      - uses: astral-sh/setup-uv@v6
+      - name: Integração do worker com a fila (ops.jobs) no banco de teste
+        working-directory: apps/worker
+        run: |
+          P="$(openssl rand -hex 16)"
+          echo "::add-mask::$P"
+          psql -X -q -c "alter role vv_worker password '$P'"
+          uv sync --locked
+          VV_DATABASE_URL_TEST="postgresql://vv_worker:$P@127.0.0.1:5432/vv_test" \
+          VV_ADMIN_URL_TEST="postgresql://postgres:$PGPASSWORD@127.0.0.1:5432/vv_test" \
+            uv run pytest tests/test_fila.py
 
   app:
     name: "App Expo (lint, typecheck, testes, export web, audit)"

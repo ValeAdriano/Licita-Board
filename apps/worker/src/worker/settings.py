@@ -1,7 +1,7 @@
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import SecretStr, field_validator
+from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +18,17 @@ class Settings(BaseSettings):
     database_url: SecretStr = SecretStr("")
     log_level: str = "INFO"
     healthcheck_url: str = ""
+    # Fila (ADR-014): o consumidor só roda com fila_ativa (compose de dev/prod); testes não.
+    fila_ativa: bool = False
+    # E-mail transacional por SMTP (Mailpit em dev; Resend/SES via SMTP em prod, spec decisão 3).
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025
+    smtp_usuario: str = ""
+    smtp_senha: SecretStr = SecretStr("")
+    smtp_starttls: bool = False
+    email_remetente: str = "VV Licitações <nao-responda@vv.local>"
+    # URL pública do app, base dos links enviados por e-mail.
+    app_url: str = "http://localhost:8081"
 
     @field_validator("database_url")
     @classmethod
@@ -27,3 +38,13 @@ class Settings(BaseSettings):
             # Sem repetir a URL: ela carrega a senha.
             raise ValueError("VV_DATABASE_URL precisa usar o papel vv_worker")
         return v
+
+    @model_validator(mode="after")
+    def _seguro_fora_de_dev(self) -> "Settings":
+        # O token de recuperação viaja por e-mail: fora de dev, SMTP com TLS e login; link https.
+        if self.env != "dev" and self.fila_ativa:
+            if not (self.smtp_starttls and self.smtp_usuario):
+                raise ValueError("fora de dev, SMTP exige STARTTLS e usuário")
+            if not self.app_url.startswith("https://"):
+                raise ValueError("fora de dev, VV_APP_URL precisa ser https")
+        return self

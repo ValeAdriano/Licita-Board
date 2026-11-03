@@ -20,3 +20,13 @@ def test_recusa_outro_papel_sem_vazar_senha(papel: str) -> None:
 def test_url_nunca_aparece_no_repr() -> None:
     s = Settings(database_url="postgresql://vv_worker:senha-secreta@db/vv")  # type: ignore[arg-type]
     assert "senha-secreta" not in repr(s)
+
+
+def test_fora_de_dev_com_fila_exige_smtp_seguro_e_link_https() -> None:
+    base = {"env": "prod", "fila_ativa": True}
+    with pytest.raises(ValidationError):
+        Settings(**base)  # type: ignore[arg-type]
+    ok = Settings(  # type: ignore[arg-type]
+        **base, smtp_starttls=True, smtp_usuario="resend", app_url="https://app.vv.test"
+    )
+    assert ok.app_url.startswith("https://")
