@@ -1,6 +1,6 @@
 # ADR-011 · Stack: Docker Compose, Postgres 17, API NestJS, app Expo, worker Python, VPS
 
-- **Status:** Proposto
+- **Status:** Aceito (2026-11-02)
 - **Data:** 2026-11-02
 - **Decisor:** Adriano Vale
 - **Requisito relacionado:** Prompt Mestre, "Padrão técnico" (arquitetura sugerida), 0.1, 1.4

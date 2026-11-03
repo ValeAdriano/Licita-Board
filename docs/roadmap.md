@@ -3,7 +3,7 @@
 Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada fase.
 
 **Fase atual:** 00 · Fundação técnica — **recomeçando na stack nova** (revisão 2 do plano, 2026-11-02: Docker + Postgres + API NestJS + app Expo + worker Python; ADR-011 a 017).
-**Próximo passo:** Adriano aprovar o plano revisado e as ADRs 011 a 017; instalar Docker; em paralelo, agentes montam o esqueleto da Fase 00 (`compose.yml`, `db/`, `apps/api`, `apps/app`).
+**Próximo passo:** plano revisado e ADRs 011 a 017 aceitos (2026-11-02). Esqueleto da Fase 00 no main (`db/`, `apps/api`, `apps/app`, CI). Falta: worker no compose, guardas Semgrep/hook da stack nova, spec da Fase 01 reescrita; Adriano instalar Docker e escolher VPS/S3.
 
 > O trabalho da Fase 01 na revisão 1 (Supabase: migrations, RLS, pgTAP, telas Vite) fica congelado em `supabase/` e `apps/web` e será portado na Fase 01 nova.
 

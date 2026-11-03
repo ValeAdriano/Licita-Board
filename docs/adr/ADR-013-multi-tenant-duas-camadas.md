@@ -1,6 +1,6 @@
 # ADR-013 · Multi-tenant em duas camadas: guard NestJS + RLS por contexto de transação
 
-- **Status:** Proposto
+- **Status:** Aceito (2026-11-02)
 - **Data:** 2026-11-02
 - **Decisor:** Adriano Vale
 - **Requisito relacionado:** Prompt Mestre 1.2, 1.3, 1.4 (Autorização e isolamento), "Separação de dados"

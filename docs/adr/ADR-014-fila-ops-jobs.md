@@ -1,6 +1,6 @@
 # ADR-014 · Fila `ops.jobs` com SKIP LOCKED e agendador no worker
 
-- **Status:** Proposto
+- **Status:** Aceito (2026-11-02)
 - **Data:** 2026-11-02
 - **Decisor:** Adriano Vale
 - **Requisito relacionado:** Prompt Mestre 4.1, 0.5 ("agendador: filas e workers persistentes, com monitoramento")

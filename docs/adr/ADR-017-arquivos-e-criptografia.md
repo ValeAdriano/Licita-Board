@@ -1,6 +1,6 @@
 # ADR-017 · Arquivos em S3 compatível e criptografia de campo em envelope
 
-- **Status:** Proposto
+- **Status:** Aceito (2026-11-02)
 - **Data:** 2026-11-02
 - **Decisor:** Adriano Vale
 - **Requisito relacionado:** Prompt Mestre 1.4 (Dados sensíveis, Arquivos), "Padrão técnico" (S3 criptografado, KMS)

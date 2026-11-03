@@ -1,6 +1,6 @@
 # ADR-015 · Ambientes: Docker Compose em desenvolvimento, homologação e produção
 
-- **Status:** Proposto
+- **Status:** Aceito (2026-11-02)
 - **Data:** 2026-11-02
 - **Decisor:** Adriano Vale
 - **Requisito relacionado:** Prompt Mestre 0.2, 0.5 (backup e restauração)

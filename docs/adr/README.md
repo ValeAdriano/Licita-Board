@@ -16,10 +16,10 @@ Só o Adriano muda status para **Aceito**. Agentes tratam ADR `Proposto` como in
 | [008](ADR-008-busca.md) | Busca: full-text português + `pgvector` | Proposto |
 | [009](ADR-009-ambientes.md) | Ambientes: dev local + prod; homologação no 1º cliente | Substituído por 015 |
 | [010](ADR-010-pwa.md) | PWA + Web Push VAPID | Substituído por 016 |
-| [011](ADR-011-stack-docker-node-expo.md) | Stack: Docker Compose, Postgres 17, NestJS, Expo, worker Python, VPS | Proposto |
-| [012](ADR-012-autenticacao-propria.md) | Autenticação própria: Argon2id, sessão opaca, TOTP, step-up | Proposto |
-| [013](ADR-013-multi-tenant-duas-camadas.md) | Multi-tenant em duas camadas: guard NestJS + RLS por contexto | Proposto |
-| [014](ADR-014-fila-ops-jobs.md) | Fila `ops.jobs` (SKIP LOCKED) + agendador no worker | Proposto |
-| [015](ADR-015-ambientes-docker.md) | Ambientes: Docker Compose em dev, homologação e produção | Proposto |
-| [016](ADR-016-app-expo.md) | App: Expo para iOS, Android e Web; push nativo + Web Push | Proposto |
-| [017](ADR-017-arquivos-e-criptografia.md) | Arquivos em S3 compatível + criptografia de campo em envelope | Proposto |
+| [011](ADR-011-stack-docker-node-expo.md) | Stack: Docker Compose, Postgres 17, NestJS, Expo, worker Python, VPS | Aceito |
+| [012](ADR-012-autenticacao-propria.md) | Autenticação própria: Argon2id, sessão opaca, TOTP, step-up | Aceito |
+| [013](ADR-013-multi-tenant-duas-camadas.md) | Multi-tenant em duas camadas: guard NestJS + RLS por contexto | Aceito |
+| [014](ADR-014-fila-ops-jobs.md) | Fila `ops.jobs` (SKIP LOCKED) + agendador no worker | Aceito |
+| [015](ADR-015-ambientes-docker.md) | Ambientes: Docker Compose em dev, homologação e produção | Aceito |
+| [016](ADR-016-app-expo.md) | App: Expo para iOS, Android e Web; push nativo + Web Push | Aceito |
+| [017](ADR-017-arquivos-e-criptografia.md) | Arquivos em S3 compatível + criptografia de campo em envelope | Aceito |

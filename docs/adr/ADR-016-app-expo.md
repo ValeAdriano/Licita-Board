@@ -1,6 +1,6 @@
 # ADR-016 · App: Expo (React Native) para iOS, Android e Web, com push nativo e Web Push
 
-- **Status:** Proposto
+- **Status:** Aceito (2026-11-02)
 - **Data:** 2026-11-02
 - **Decisor:** Adriano Vale
 - **Requisito relacionado:** Plano (mobile-first), Prompt Mestre 3.3, 5.6 (alertas)

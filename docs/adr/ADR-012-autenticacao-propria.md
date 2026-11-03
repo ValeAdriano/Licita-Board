@@ -1,6 +1,6 @@
 # ADR-012 · Autenticação própria na API: Argon2id, sessão opaca, TOTP e step-up
 
-- **Status:** Proposto
+- **Status:** Aceito (2026-11-02)
 - **Data:** 2026-11-02
 - **Decisor:** Adriano Vale
 - **Requisito relacionado:** Prompt Mestre 1.4 (Autenticação, Operações críticas)
