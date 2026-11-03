@@ -1,6 +1,6 @@
 # AGENTS.md · VV Licitações
 
-Instruções para **qualquer agente de IA** (Claude Code, Codex, Paseo, Cursor, Copilot, Gemini) e para humanos que trabalham neste repositório. Este arquivo é a fonte única das regras; `CLAUDE.md` só acrescenta o que é específico do Claude Code.
+Instruções para **qualquer agente de IA** (Claude Code, Antigravity, Codex, Paseo, Cursor, Copilot, Gemini) e para humanos que trabalham neste repositório. Este arquivo é a fonte única das regras; `CLAUDE.md` (Claude Code) e `.agents/rules/` (Antigravity) só acrescentam o que é específico de cada ferramenta.
 
 ## 1. O projeto em 5 linhas
 
@@ -79,6 +79,7 @@ docs/agents/         fluxo, prompts, checklists e glossário para agentes
 scripts/             guardas do CI (cobertura de isolamento, migrations)
 .semgrep/            regras SAST próprias do projeto
 .claude/             configuração do Claude Code (comandos, subagentes, hooks)
+.agents/rules/       regras do Antigravity (sempre ativas)
 ```
 
 ## 6. Comandos
@@ -136,6 +137,7 @@ Antes de abrir PR, rode os checks do(s) pacote(s) que você tocou. Não diga "te
 - [ ] Ameaça nova? `docs/threat-model.md` atualizado.
 - [ ] Decisão de arquitetura nova? ADR criado.
 - [ ] PR descreve o que foi **testado**, o que foi **implementado sem teste** e o que **ficou de fora** (mesma linguagem do relatório de fase).
+- [ ] **Documentação atualizada na mesma entrega** (spec §7, `em-andamento.md`, roadmap e o que mais mudou): ver [`docs/agents/documentacao-viva.md`](docs/agents/documentacao-viva.md).
 
 Checklist completo: [`docs/agents/checklists/definition-of-done.md`](docs/agents/checklists/definition-of-done.md).
 

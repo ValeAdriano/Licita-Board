@@ -6,17 +6,17 @@
 - [ ] Um assunto; < 500 linhas alteradas (sem contar lockfiles e tipos gerados).
 - [ ] Checks locais do pacote rodados e verdes (colar resultado na descrição).
 - [ ] Testes cobrem sucesso, erro e permissão negada.
-- [ ] Nenhum segredo, dado real, `float` para dinheiro, service role no front, `dangerouslySetInnerHTML`.
+- [ ] Nenhum segredo, dado real, `float` para dinheiro, credencial de worker/owner/S3 no app ou na API, `dangerouslySetInnerHTML`.
 - [ ] Dependência nova registrada (nome, versão, licença, motivo).
-- [ ] Docs atualizadas: spec (se divergiu, com aprovação), ADR (decisão nova), modelo de ameaças (ameaça nova), `AGENTS.md` local (regra nova).
+- [ ] Docs atualizadas na mesma entrega, conforme [`documentacao-viva.md`](../documentacao-viva.md): spec §7, `em-andamento.md`, roadmap, ADR (decisão nova), modelo de ameaças (ameaça nova), `AGENTS.md` local (regra nova).
 - [ ] Descrição separa: testado / implementado sem teste / fora do escopo.
 
 ## PR com banco
 
 - [ ] Checklist [`revisao-migration.md`](revisao-migration.md) completo.
 - [ ] Teste A x B para cada tabela nova de `priv`; `check_isolation_coverage.py` verde.
-- [ ] `supabase test db` verde (local ou CI).
-- [ ] Tipos regenerados em `packages/shared`.
+- [ ] `db/scripts/test-local.sh` verde (up, rollback de todas, up, pgTAP), local ou no CI.
+- [ ] Endpoint novo com e2e A x B em `apps/api/test/`.
 
 ## PR com regra (prazos, preços, unidades)
 
