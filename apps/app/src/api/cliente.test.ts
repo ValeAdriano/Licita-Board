@@ -59,12 +59,21 @@ describe('chamar', () => {
     expect(aoPerderSessao).toHaveBeenCalledTimes(1);
     await expect(chamar('POST', '/auth/login', {}, { fetcher: jest.fn().mockResolvedValue(resposta(401, {})) })).rejects.toMatchObject({ status: 401 });
     expect(aoPerderSessao).toHaveBeenCalledTimes(1); // login recusado não é sessão perdida
-    expect(aoUsar).not.toHaveBeenCalled();
+    // 401 de requisição enviada antes de uma rotação do token não derruba a sessão nova.
+    let responder401: (r: Response) => void = () => {};
+    const antiga = chamar('GET', '/notificacoes', undefined, {
+      fetcher: jest.fn(() => new Promise<Response>((ok) => (responder401 = ok))),
+    });
+    await chamar('POST', '/auth/mfa/verificar', { codigo: '123456' }, { fetcher: jest.fn().mockResolvedValue(resposta(200, {})) });
+    responder401(resposta(401, {}));
+    await expect(antiga).rejects.toMatchObject({ status: 401 });
+    expect(aoPerderSessao).toHaveBeenCalledTimes(1);
+    expect(aoUsar).toHaveBeenCalledTimes(1); // só a verificação que deu certo
     await chamar('POST', '/x', undefined, { fetcher: jest.fn().mockResolvedValue(resposta(204, null)) });
-    expect(aoUsar).toHaveBeenCalledTimes(1);
+    expect(aoUsar).toHaveBeenCalledTimes(2);
     const fundo = jest.fn().mockResolvedValue(resposta(200, []));
     await chamar('GET', '/notificacoes', undefined, { fetcher: fundo, fundo: true });
-    expect(aoUsar).toHaveBeenCalledTimes(1); // polling não conta como uso
+    expect(aoUsar).toHaveBeenCalledTimes(2); // polling não conta como uso
     expect((fundo.mock.calls[0] as [string, RequestInit])[1].headers).toMatchObject({ 'X-VV-Fundo': '1' });
   });
 });

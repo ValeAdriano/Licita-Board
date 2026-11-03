@@ -130,7 +130,7 @@ Parâmetros de segurança (ADR-012): Argon2id m=19 MiB, t=2, p=1; atraso progres
 4. ✅ `feat/fase-01-api-mfa`: cadastro (com senha atual, pendente preso à sessão) e confirmação TOTP, verificação, códigos de recuperação, reset por SUPERADMIN, rotação do token na elevação; e2e (replay, força bruta, sessões). O step-up (fator ≥ 24 h) foi para o PR 5, junto do port de `step_up_tokens`.
 5. ✅ `feat/fase-01-port-stepup-exclusao`: step_up_tokens, aprovacoes_exclusao, salvar_vinculo, convites, notificacoes no banco + endpoints + e2e A x B.
 6. ✅ `feat/fase-01-app-auth`: login, MFA (verificar, cadastrar com exibição única dos códigos, código de recuperação), recuperação, sessão no SecureStore/cookie, logout por inatividade; testado no web contra a API local. Pendentes: Turnstile no nativo (WebView), QR code do TOTP, universal/app links para o link de redefinição abrir o app nativo.
-7. `feat/fase-01-app-shell`: shell, seletor de empresa, notificações, conta (sessões, autenticador, códigos).
+7. ✅ `feat/fase-01-app-shell`: shell (abas no celular, menu lateral no web largo), seletor de empresa, notificações (polling de fundo que não renova a inatividade: `core.definir_contexto(token, renovar)` + `X-VV-Fundo`), conta (dados, senha, sessões, autenticador: ativar, trocar, gerar códigos); testado no web contra a API local.
 8. `feat/fase-01-app-matriz`: matriz de permissões e convites.
 9. `feat/fase-01-push`: dispositivos e envio pelo worker.
 10. `chore/fase-01-backup`: WAL + base semanal cifrados para bucket externo, restauração documentada.

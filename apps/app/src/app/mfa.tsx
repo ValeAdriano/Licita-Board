@@ -5,6 +5,7 @@ import { chamar, ErroApi } from '../api/cliente';
 import { segredoDaUri } from '../auth/links';
 import { mensagemSair, useSessao, type Elevacao } from '../auth/sessao';
 import { Botao, Campo, Mensagem, Tela } from '../ui/formulario';
+import { SemCaptura } from '../ui/SemCaptura';
 
 // Segundo fator (RF-01.10). Primeiro acesso de perfil interno: cadastra o autenticador (com a senha
 // de novo), confirma o código e mostra os 10 códigos de recuperação uma única vez.
@@ -61,6 +62,7 @@ export default function Mfa() {
   if (codigos) {
     return (
       <Tela titulo="Códigos de recuperação">
+        <SemCaptura />
         <Text>Guarde em lugar seguro antes de sair desta tela. Cada código vale uma vez, se você perder o autenticador. Eles não serão mostrados de novo.</Text>
         <View style={estilos.codigos}>
           {codigos.map((c) => (
@@ -99,8 +101,9 @@ export default function Mfa() {
         <>
           {uri ? (
             <>
+              <SemCaptura />
               <Text>No app autenticador, adicione uma conta digitando esta chave:</Text>
-              <Text selectable style={estilos.mono}>{segredoDaUri(uri)}</Text>
+              <Text style={estilos.mono}>{segredoDaUri(uri)}</Text>
               {Platform.OS !== 'web' ? <Botao secundario texto="Abrir no autenticador" onPress={() => void Linking.openURL(uri)} /> : null}
             </>
           ) : null}

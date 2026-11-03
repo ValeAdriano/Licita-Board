@@ -23,9 +23,16 @@ const MENSAGENS: Record<number, string> = {
 type Credenciais = { token: string | null; csrf: string | null };
 const credenciais: Credenciais = { token: null, csrf: null };
 let aoPerderSessao: () => void = () => {};
+// Rotação do token (elevação a aal2, troca de senha): uma requisição enviada com o token anterior
+// pode voltar 401 sem que a sessão tenha acabado. Só derruba a sessão o 401 de uma requisição feita
+// com o token atual e sem rotação em andamento (senão o token NOVO seria apagado).
+let geracao = 0;
+let rotacoesEmVoo = 0;
+const ROTACIONAM = new Set(['/auth/senha', '/auth/mfa/confirmar', '/auth/mfa/verificar', '/auth/mfa/recuperacao', '/auth/mfa/step-up']);
 let aoUsar: () => void = () => {};
 
 export function definirCredenciais(c: Partial<Credenciais>): void {
+  if ('token' in c) geracao += 1;
   Object.assign(credenciais, c);
 }
 
@@ -63,6 +70,9 @@ export async function chamar<T>(
   } else if (credenciais.token) {
     headers.Authorization = `Bearer ${credenciais.token}`;
   }
+  const geracaoNoEnvio = geracao;
+  const rotaciona = ROTACIONAM.has(caminho);
+  if (rotaciona) rotacoesEmVoo += 1;
   let res: Response;
   try {
     res = await fetcher(`${API_URL}${caminho}`, {
@@ -74,10 +84,16 @@ export async function chamar<T>(
     });
   } catch {
     throw new ErroApi(0, MENSAGENS[0] ?? '');
+  } finally {
+    if (rotaciona) {
+      rotacoesEmVoo -= 1;
+      geracao += 1; // no web o cookie pode ter mudado mesmo sem token no corpo
+    }
   }
   const dados: unknown = res.status === 204 ? null : await res.json().catch(() => null);
   if (!res.ok) {
-    if (res.status === 401 && caminho !== '/auth/login') aoPerderSessao();
+    const atual = geracaoNoEnvio === geracao && rotacoesEmVoo === 0;
+    if (res.status === 401 && caminho !== '/auth/login' && atual) aoPerderSessao();
     throw new ErroApi(res.status, mensagemDe(res.status, dados));
   }
   if (!fundo) aoUsar();

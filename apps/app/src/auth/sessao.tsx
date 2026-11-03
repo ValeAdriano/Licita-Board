@@ -24,6 +24,8 @@ interface Sessao {
   entrar(email: string, senha: string, captcha?: string): Promise<void>;
   cadastrarTotp(senha: string): Promise<{ uri: string }>;
   elevar(tipo: Elevacao, codigo: string): Promise<void>;
+  // Troca logada: a API encerra as outras sessões e troca o token desta (o nativo regrava).
+  trocarSenha(atual: string, nova: string): Promise<void>;
   concluirMfa(): void;
   // Lança ErroApi se o servidor não encerrou a sessão (a tela avisa e oferece tentar de novo).
   sair(): Promise<void>;
@@ -40,6 +42,14 @@ export function useSessao(): Sessao {
 }
 
 const plataforma = Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : 'web';
+
+// Token rotacionado: vale já em memória; se o SecureStore falhar, a sessão segue até fechar o app
+// (a operação no servidor já aconteceu, não vira erro na tela).
+function aplicarRotacao(r: { token?: string }): void {
+  if (!r.token) return;
+  definirCredenciais({ token: r.token });
+  void gravarToken(r.token).catch(() => {});
+}
 
 type Inicio = { fase: 'anonimo' | 'sem_conexao' } | { fase: 'sessao'; mfa: EstadoMfa };
 
@@ -138,11 +148,10 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       cadastrarTotp: (senha) => chamar<{ uri: string }>('POST', '/auth/mfa/cadastrar', { senha }),
       // Elevação a aal2 troca o token (sem fixação de sessão): o nativo regrava o novo.
       async elevar(tipo, codigo) {
-        const r = await chamar<{ token?: string }>('POST', `/auth/mfa/${tipo}`, { codigo });
-        if (r.token) {
-          await gravarToken(r.token);
-          definirCredenciais({ token: r.token });
-        }
+        aplicarRotacao(await chamar<{ token?: string }>('POST', `/auth/mfa/${tipo}`, { codigo }));
+      },
+      async trocarSenha(atual, nova) {
+        aplicarRotacao(await chamar<{ token?: string }>('POST', '/auth/senha', { atual, nova }));
       },
       concluirMfa: () => aplicar('nao_requerido'),
       sair,

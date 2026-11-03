@@ -31,7 +31,7 @@ function Rotas() {
     <View style={{ flex: 1 }} onTouchStart={registrarAtividade}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Protected guard={fase === 'ativa'}>
-          <Stack.Screen name="(app)/index" />
+          <Stack.Screen name="(app)" />
         </Stack.Protected>
         <Stack.Protected guard={fase === 'mfa'}>
           <Stack.Screen name="mfa" />
