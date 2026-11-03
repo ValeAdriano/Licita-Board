@@ -21,6 +21,15 @@ from pathlib import PurePosixPath
 PROJECT_DIR = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
 
 SECRET_IN_FRONT = re.compile(r"service[_-]?role|sb_secret_|SUPABASE_JWT_SECRET", re.IGNORECASE)
+# App (bundle público): nenhuma credencial de banco, S3 ou chave-mestra (AGENTS.md §3.11, ADR-017).
+SECRET_IN_APP = re.compile(
+    r"service[_-]?role|sb_secret_|vv_(worker|owner|api)\b|VV_\w*PASSWORD|POSTGRES_PASSWORD|DATABASE_URL"
+    r"|S3_SECRET|SECRET_ACCESS_KEY|CHAVE_MESTRA|\bKEK\b",
+    re.IGNORECASE,
+)
+# API: só usa vv_api (ADR-013); credenciais do worker/owner nunca entram.
+SECRET_IN_API = re.compile(r"vv_(worker|owner)\b|VV_(WORKER|OWNER)_PASSWORD|POSTGRES_PASSWORD", re.IGNORECASE)
+MIGRATION_DIRS = ("supabase/migrations/", "db/migrations/")
 FLOAT_MONEY = re.compile(r"\bfloat\s*\(|:\s*float\b|->\s*float\b")
 RLS_OFF = re.compile(r"disable\s+row\s+level\s+security|using\s*\(\s*true\s*\)", re.IGNORECASE)
 
@@ -36,6 +45,10 @@ DESTRUCTIVE_BASH = [
     (re.compile(r"\btruncate\b", re.IGNORECASE), "TRUNCATE"),
     (re.compile(r"rm\s+-[a-z]*r[a-z]*f?\s+(/|~|\$HOME|\.\.?/?)(\s|$)"), "rm -rf em diretório raiz"),
     (re.compile(r"(vercel|railway)\b.*(--prod\b|\bup\b|\bdeploy\b)"), "deploy manual (deve ser via pipeline)"),
+    (re.compile(r"docker\s+compose\b.*\bdown\b.*(-v\b|--volumes\b)"), "docker compose down com volumes (apaga o banco)"),
+    (re.compile(r"docker\s+(volume\s+(rm|prune)|system\s+prune)\b"), "remoção de volumes Docker"),
+    (re.compile(r"\bdbmate\b.*\bdrop\b"), "dbmate drop (apaga o banco)"),
+    (re.compile(r"compose\.prod\.yml|ssh\s+\S*(vps|prod)"), "comando em produção (deve ser via pipeline)"),
 ]
 
 
@@ -98,7 +111,14 @@ def check_file(tool_input: dict[str, object]) -> None:
     if path.startswith("apps/web/") and SECRET_IN_FRONT.search(text):
         block(f"service role / chave secreta em código do front ({path}).")
 
-    if path.startswith("supabase/migrations/") and path.endswith(".sql"):
+    if path.startswith(("apps/app/", "packages/shared/")) and SECRET_IN_APP.search(text):
+        block(f"credencial de banco/S3/chave-mestra no app, que vai para o bundle público ({path}).")
+
+    is_test = re.search(r"(\.spec\.ts|\.e2e-spec\.ts)$", path) or path.startswith("apps/api/test/")
+    if path.startswith("apps/api/") and not is_test and SECRET_IN_API.search(text):
+        block(f"credencial de vv_worker/vv_owner na API, que só usa vv_api ({path}).")
+
+    if path.startswith(MIGRATION_DIRS) and path.endswith(".sql"):
         if tracked_in_main(path):
             block(f"migration já aplicada no main é imutável ({path}). Crie uma nova migration.")
         if RLS_OFF.search(text):

@@ -12,6 +12,48 @@ rules:
       include: [apps/web/, packages/shared/]
       exclude: ["*.md"]
 
+  - id: vv-credencial-no-app
+    message: >-
+      Credencial de banco, S3 ou chave-mestra no app (AGENTS.md §3.11, ADR-017). Tudo em apps/app vai
+      para o bundle público; o app fala só com a API (EXPO_PUBLIC_API_URL).
+    severity: ERROR
+    languages: [generic]
+    pattern-regex: (?i)(service[_-]?role|sb_secret_|vv_(worker|owner|api)\b|VV_\w*PASSWORD|POSTGRES_PASSWORD|DATABASE_URL|S3_SECRET|SECRET_ACCESS_KEY|CHAVE_MESTRA|\bKEK\b)
+    paths:
+      include: [apps/app/, packages/shared/]
+      exclude: ["*.md", "package-lock.json"]
+
+  - id: vv-api-so-vv-api
+    message: >-
+      Credencial de vv_worker/vv_owner na API (ADR-013). A API conecta só como vv_api, sem BYPASSRLS.
+    severity: ERROR
+    languages: [generic]
+    pattern-regex: (?i)(vv_(worker|owner)\b|VV_(WORKER|OWNER)_PASSWORD|POSTGRES_PASSWORD)
+    paths:
+      include: [apps/api/]
+      exclude: ["*.md", "*.spec.ts", "apps/api/test/", "package-lock.json"]
+
+  - id: vv-api-db-direto
+    message: >-
+      Injeção direta do Kysely (DB) fora de src/db (ADR-013). Consulta de usuário passa por
+      comContexto, para a RLS receber o usuário da sessão. Exceção registrada: src/health.
+    severity: ERROR
+    languages: [generic]
+    pattern-regex: \@Inject\(\s*DB\s*\)
+    paths:
+      include: [apps/api/src/]
+      exclude: [apps/api/src/db/, apps/api/src/health/]
+
+  - id: vv-sessao-fora-do-secure-store
+    message: >-
+      AsyncStorage/localStorage no app (ADR-012). Token de sessão só no expo-secure-store (nativo) ou
+      em cookie HttpOnly (web). Se for preferência sem dado sensível, justifique no PR.
+    severity: WARNING
+    languages: [generic]
+    pattern-regex: (AsyncStorage|localStorage|sessionStorage)
+    paths:
+      include: [apps/app/src/]
+
   - id: vv-no-dangerously-set-inner-html
     message: >-
       dangerouslySetInnerHTML proibido (ADR-002, T3/T5). Texto de edital é exibido como texto.
@@ -19,7 +61,7 @@ rules:
     languages: [generic]
     pattern-regex: dangerouslySetInnerHTML
     paths:
-      include: [apps/web/]
+      include: [apps/web/, apps/app/]
       exclude: ["*.md"]
 
   - id: vv-no-float-em-rules
@@ -42,7 +84,7 @@ rules:
     languages: [generic]
     pattern-regex: (?i)(parseFloat|Number)\(\s*[\w.]*(valor|preco|custo|margem|total|unitario)
     paths:
-      include: [apps/web/]
+      include: [apps/web/, apps/app/, apps/api/]
       exclude: ["*.md"]
 
   - id: vv-rls-desligado
@@ -53,7 +95,7 @@ rules:
     languages: [generic]
     pattern-regex: (?i)(disable\s+row\s+level\s+security|using\s*\(\s*true\s*\))
     paths:
-      include: [supabase/migrations/]
+      include: [supabase/migrations/, db/migrations/]
 
   - id: vv-sdk-llm-fora-de-llm
     message: >-

@@ -40,6 +40,27 @@ class GuardTest(unittest.TestCase):
         self.assertBlocked(run("Write", {"file_path": path("apps/web/src/x.ts"), "content": "const k = SUPABASE_SERVICE_ROLE_KEY"}))
         self.assertBlocked(run("Edit", {"file_path": path("apps/web/src/x.ts"), "old_string": "a", "new_string": "sb_secret_abc"}))
 
+    def test_credencial_no_app_bloqueada(self) -> None:
+        for conteudo in ("const u = process.env.DATABASE_URL", "vv_worker", "VV_OWNER_PASSWORD", "S3_SECRET_KEY"):
+            self.assertBlocked(run("Write", {"file_path": path("apps/app/src/x.ts"), "content": conteudo}))
+        self.assertAllowed(run("Write", {"file_path": path("apps/app/src/x.ts"), "content": "process.env.EXPO_PUBLIC_API_URL"}))
+
+    def test_api_so_usa_vv_api(self) -> None:
+        self.assertBlocked(run("Write", {"file_path": path("apps/api/src/db/x.ts"), "content": "postgres://vv_worker:x@db/vv"}))
+        self.assertAllowed(run("Write", {"file_path": path("apps/api/src/db/x.ts"), "content": "DATABASE_URL vv_api"}))
+        self.assertAllowed(run("Write", {"file_path": path("apps/api/src/config.spec.ts"), "content": "'vv_worker'"}))
+
+    def test_migration_db_rls_off_e_imutavel(self) -> None:
+        mig = path("db/migrations/29990101000000_x.sql")
+        self.assertBlocked(run("Write", {"file_path": mig, "content": "alter table priv.x disable row level security;"}))
+        self.assertAllowed(run("Write", {"file_path": mig, "content": "alter table priv.x enable row level security;"}))
+        self.assertBlocked(run("Edit", {"file_path": path("db/migrations/20261103010000_fundacao.sql"), "old_string": "a", "new_string": "b"}))
+
+    def test_destrutivos_docker_pedem_confirmacao(self) -> None:
+        for cmd in ("docker compose down -v", "docker volume rm vv_pgdata", "npx dbmate drop", "docker compose -f infra/compose.prod.yml up -d"):
+            self.assertAsks(run("Bash", {"command": cmd}))
+        self.assertAllowed(run("Bash", {"command": "docker compose up -d --build"}))
+
     def test_service_role_no_worker_permitido(self) -> None:
         self.assertAllowed(run("Write", {"file_path": path("apps/worker/src/worker/settings.py"), "content": "supabase_service_role_key"}))
 

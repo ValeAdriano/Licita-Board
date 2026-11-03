@@ -34,7 +34,7 @@ Os comandos são finos: cada um aponta para um prompt neutro em `docs/agents/pro
 
 ### Hooks (`.claude/hooks/guard.py`)
 
-Bloqueiam antes de executar: service role / chave secreta em `apps/web` (a atualizar para `apps/app` e `apps/api` na Fase 00), edição de `.env` reais, edição de migration já commitada no `main`, `float` em `rules/`, e comandos destrutivos (`git push --force`, `supabase db reset --linked`, `drop database`, `rm -rf /`...). Se um hook bloquear, **não contorne**: explique ao Adriano e peça orientação.
+Bloqueiam antes de executar: credencial de banco/S3/chave-mestra em `apps/app` (e service role em `apps/web`), credencial de `vv_worker`/`vv_owner` em `apps/api`, edição de `.env` reais, edição de migration já commitada no `main` (`db/` e `supabase/`), RLS desligado, `float` em `rules/`. Pedem confirmação em comandos destrutivos (`git push --force`, `docker compose down -v`, `docker volume rm`, `dbmate drop`, comandos de produção, `drop database`, `rm -rf /`...). Se um hook bloquear, **não contorne**: explique ao Adriano e peça orientação.
 
 ### Supabase (revisão 1, descontinuado)
 
