@@ -47,5 +47,18 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
 
+  # Sem porta publicada: o worker não expõe nada fora da rede do compose (ADR-014).
+  worker:
+    build: ./apps/worker
+    environment:
+      VV_ENV: dev
+      VV_DATABASE_URL: postgresql://vv_worker:${VV_WORKER_PASSWORD}@postgres:5432/vv
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"]
+      interval: 10s
+      retries: 5
+    depends_on:
+      postgres: { condition: service_healthy }
+
 volumes:
   pgdata:

@@ -86,7 +86,7 @@ scripts/             guardas do CI (cobertura de isolamento, migrations)
 ```bash
 # Stack inteira (precisa de Docker)
 scripts/dev-env.sh                     # gera .env de dev com senhas aleatórias (uma vez)
-docker compose up -d --build           # postgres + api (worker, minio, mailpit entram na Fase 00)
+docker compose up -d --build           # postgres, api e worker (minio e mailpit entram com o primeiro uso)
 docker compose run --rm dbmate up      # aplica db/migrations (new <nome>, rollback, status)
 PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # pgTAP num banco descartável
 

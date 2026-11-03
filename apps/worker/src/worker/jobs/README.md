@@ -1,6 +1,6 @@
 # jobs/
 
-Um módulo por tipo de job da fila `pgmq` (ex.: `pncp_sync.py`, `extract_pdf.py`, `render_docx.py`).
+Um módulo por tipo de job da fila `ops.jobs` (ADR-014) (ex.: `pncp_sync.py`, `extract_pdf.py`, `render_docx.py`).
 
 Regras:
 - Job idempotente: recebe `idempotency_key` e não duplica efeito se rodar duas vezes.

@@ -4,11 +4,11 @@ Complementa o `AGENTS.md` da raiz. Vale para tudo em `apps/worker/`.
 
 ## Stack
 
-Python 3.12, `uv`, FastAPI (só `/health`), Pydantic v2, Ruff, mypy strict, pytest. Entram por fase: `pgmq` client (Fase 03/04), PyMuPDF + Tesseract (04), LiteLLM (06), `docxtpl` + LibreOffice (08), `num2words` (07). Toda dependência nova é registrada no PR.
+Python 3.12, `uv`, FastAPI (só `/health`), Pydantic v2, Ruff, mypy strict, pytest. Entram por fase: fila `ops.jobs` via `psycopg` (ADR-014, Fase 03/04), PyMuPDF + Tesseract (04), LiteLLM (06), `docxtpl` + LibreOffice (08), `num2words` (07). Toda dependência nova é registrada no PR.
 
 ## Regras
 
-- **O worker usa service role, então ele é a segunda camada de isolamento.** Todo job que toca dado privado recebe `empresa_id` e valida, antes de agir, que o recurso pertence àquela empresa. Nunca confie no payload sem checar no banco.
+- **O worker conecta como `vv_worker` (BYPASSRLS, ADR-013), então ele é a segunda camada de isolamento.** Todo job que toca dado privado recebe `empresa_id` e valida, antes de agir, que o recurso pertence àquela empresa. Nunca confie no payload sem checar no banco.
 - Jobs idempotentes: chave de idempotência por execução; rodar duas vezes não duplica efeito.
 - Falha nunca é silenciosa: registrar em `ops.execucoes` com status e erro; agendador manda heartbeat.
 - `rules/` é código puro: sem I/O, sem banco, sem IA, sem `datetime.now()` implícito (relógio entra por parâmetro para testes). 80% de cobertura mínima; `precos.py` 100%.
