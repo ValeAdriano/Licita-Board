@@ -1,0 +1,51 @@
+# Stack de DESENVOLVIMENTO (ADR-015). Produção usa infra/compose.prod.yml.
+# Primeiro uso: scripts/dev-env.sh (gera .env com senhas aleatórias) e depois `docker compose up -d --build`.
+name: vv-licitacoes
+
+services:
+  postgres:
+    build:
+      context: ./db
+      args: { COM_PGTAP: "1" }
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?rode scripts/dev-env.sh}
+      VV_OWNER_PASSWORD: ${VV_OWNER_PASSWORD:?rode scripts/dev-env.sh}
+      VV_API_PASSWORD: ${VV_API_PASSWORD:?rode scripts/dev-env.sh}
+      VV_WORKER_PASSWORD: ${VV_WORKER_PASSWORD:?rode scripts/dev-env.sh}
+      VV_DB: vv
+    ports: ["127.0.0.1:5433:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/tests:/db/tests:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vv"]
+      interval: 5s
+      retries: 20
+
+  # Migrations: `docker compose run --rm dbmate up` (ou `new <nome>`, `rollback`, `status`).
+  dbmate:
+    image: node:26-bookworm-slim
+    profiles: [tools]
+    entrypoint: ["npx", "--yes", "dbmate@2.37.0"]
+    environment:
+      DATABASE_URL: postgres://vv_owner:${VV_OWNER_PASSWORD}@postgres:5432/vv?sslmode=disable
+      DBMATE_MIGRATIONS_DIR: /db/migrations
+      DBMATE_MIGRATIONS_TABLE: dbmate.schema_migrations
+      DBMATE_NO_DUMP_SCHEMA: "true"
+    volumes: ["./db:/db"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    build: ./apps/api
+    environment:
+      NODE_ENV: development
+      VV_ENV: dev
+      PORT: "3000"
+      DATABASE_URL: postgres://vv_api:${VV_API_PASSWORD}@postgres:5432/vv?sslmode=disable
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+volumes:
+  pgdata:

@@ -68,6 +68,50 @@ jobs:
       - run: npm run build
       - run: npm audit --audit-level=high --omit=dev
 
+  api:
+    name: "API + banco (stack nova: lint, typecheck, testes, pgTAP, e2e, imagens)"
+    runs-on: ubuntu-latest
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: postgres
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - name: Postgres da imagem db/Dockerfile (com pgTAP)
+        run: |
+          docker build --build-arg COM_PGTAP=1 -t vv-db ./db
+          export PGPASSWORD="$(openssl rand -hex 16)"
+          echo "::add-mask::$PGPASSWORD"
+          echo "PGPASSWORD=$PGPASSWORD" >> "$GITHUB_ENV"
+          docker run -d --name vv-db -p 5432:5432 -e POSTGRES_PASSWORD="$PGPASSWORD" \
+            -e VV_OWNER_PASSWORD="$(openssl rand -hex 16)" -e VV_API_PASSWORD="$(openssl rand -hex 16)" \
+            -e VV_WORKER_PASSWORD="$(openssl rand -hex 16)" vv-db
+          for i in $(seq 1 30); do pg_isready -q && break; sleep 1; done
+      - name: Migrations (dbmate up, rollback, up) + pgTAP (db/tests)
+        run: db/scripts/test-local.sh
+      - name: Senha de vv_api para o e2e da API
+        run: |
+          P="$(openssl rand -hex 16)"
+          echo "::add-mask::$P"
+          psql -X -q -c "alter role vv_api password '$P'"
+          echo "DATABASE_URL_TEST=postgres://vv_api:$P@127.0.0.1:5432/vv_test" >> "$GITHUB_ENV"
+      - working-directory: apps/api
+        run: |
+          npm ci
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run test:e2e
+          npm run build
+          npm audit --audit-level=high --omit=dev
+      - name: Imagem da API
+        run: docker build -t vv-api ./apps/api
+
   worker:
     name: "Worker (ruff, mypy, pytest, pip-audit)"
     runs-on: ubuntu-latest
@@ -112,7 +156,7 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [guardas, web, worker, banco]
+    needs: [guardas, web, api, worker, banco]
     runs-on: ubuntu-latest
     steps:
       - name: Todos os jobs passaram

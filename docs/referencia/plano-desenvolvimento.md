@@ -16,7 +16,7 @@ O MVP operacional (Ondas 1 e 2) substitui a planilha de agenda e o controle de c
 | Equipe | Adriano solo + agentes de IA (Claude Code, Codex, Paseo) | Incrementos pequenos (< 500 linhas), spec por fase como prompt dos agentes, CI rígido como rede de segurança |
 | Prazo | Sem data fixa | Estimativas em horas; ordem guiada por valor, não por calendário |
 | Front | **Expo (React Native + TS) com Expo Router e react-native-web**: um código para iOS, Android e Web | Mobile-first de verdade; o web build substitui o PWA; lojas exigem contas Apple/Google |
-| Backend | **API NestJS (Node 22 LTS, TS)** + **worker Python 3.12** | A API autentica, autoriza e expõe os endpoints; o worker consome a fila (PNCP, PDF/OCR, IA, DOCX, antivírus) e nunca expõe endpoint de negócio |
+| Backend | **API NestJS (Node 26 LTS, TS)** + **worker Python 3.12** | A API autentica, autoriza e expõe os endpoints; o worker consome a fila (PNCP, PDF/OCR, IA, DOCX, antivírus) e nunca expõe endpoint de negócio |
 | Banco | **PostgreSQL 17 em Docker**, migrations em **SQL puro (dbmate)**, consultas com **Kysely** | O schema, a RLS e os testes pgTAP da Fase 01 são reaproveitados, trocando `auth.*` por contexto da API |
 | Isolamento | Duas camadas: guard NestJS em todo endpoint **e** RLS no Postgres | Atende o Prompt 1.4 à risca; teste A x B por endpoint (API) e por tabela (pgTAP) |
 | Auth | **Própria na API**: Argon2id, sessão opaca (cookie HttpOnly no web, token no SecureStore no nativo), TOTP, step-up | Fecha os dois desvios da revisão 1 (bcrypt 10 e JWT no client) |
@@ -93,7 +93,7 @@ O repositório é um monorepo só, e o banco é a fonte da verdade: migrations S
 ```text
 licita-board/
 ├── apps/
-│   ├── api/                 # NestJS + Kysely (Node 22)
+│   ├── api/                 # NestJS + Kysely (Node 26)
 │   │   ├── src/modules/     # 1 módulo por domínio (auth, empresas, documentos, agenda...)
 │   │   ├── src/common/      # guards (sessão, permissão, step-up), contexto de banco, filtros
 │   │   └── test/            # e2e com Postgres real; A x B por endpoint
@@ -167,14 +167,11 @@ O banco separa dados públicos compartilháveis (editais, órgãos, itens, base 
 A API conecta como `vv_api` e, a cada requisição autenticada, abre uma transação com o contexto da sessão. Toda policy privada chama uma única função, para que o teste de isolamento cubra a regra inteira:
 
 ```sql
--- contexto definido pela API no início da transação (set_config(..., true) = só nesta transação)
-select set_config('app.usuario_id', $1, true),
-       set_config('app.sessao_id',  $2, true),
-       set_config('app.aal',        $3, true);
+-- contexto definido pela API no início da transação: set_config local + marca da transação,
+-- de modo que valor de sessão, "options=" na URL ou contexto esquecido no pool não valem
+select core.definir_contexto($1 /* usuario */, $2 /* sessao */, $3 /* 'aal1' | 'aal2' */);
 
-create function core.usuario_atual() returns uuid language sql stable as $$
-  select nullif(current_setting('app.usuario_id', true), '')::uuid
-$$;
+-- policies e funções leem o contexto só por core.usuario_atual(), sessao_atual() e aal_atual()
 
 create function core.has_permission(p_empresa uuid, p_modulo text, p_acao text)
 returns boolean language sql stable security definer set search_path = '' as $$
@@ -193,8 +190,8 @@ create policy sel on priv.documentos for select to vv_api
 ```
 
 - **Negar por padrão:** RLS ligado em toda tabela; sem policy, ninguém lê. `vv_api` só tem os grants explícitos de cada migration.
-- **MFA no banco:** perfis internos exigem `current_setting('app.aal') = 'aal2'` dentro de `has_permission`. A API só grava `aal2` depois do TOTP.
-- **Contexto vazado entre requisições:** impossível por construção, porque `set_config(..., true)` vale só para a transação. Um teste e2e confere que uma conexão devolvida ao pool não carrega usuário.
+- **MFA no banco:** perfis internos exigem `core.aal_atual() = 'aal2'` dentro de `has_permission`. Na Fase 01 o contexto passa a ser conferido contra `core.sessoes` (ADR-013), e a sessão só sobe para `aal2` por função do banco depois do TOTP.
+- **Contexto vazado entre requisições:** as funções de contexto só aceitam valores gravados por `core.definir_contexto` na própria transação (`db/tests/002_contexto.test.sql`), e um e2e confere que uma conexão devolvida ao pool não carrega usuário.
 - **Permissões no token:** não. Consultar a tabela é barato e a revogação vale na hora.
 - **Teste A x B:** o pgTAP cria duas empresas e dois usuários e tenta SELECT/UPDATE/DELETE cruzado em toda tabela de `priv`. O e2e da API faz o mesmo em todo endpoint (403/404). O CI falha se existir tabela em `priv` ou rota sem teste correspondente.
 

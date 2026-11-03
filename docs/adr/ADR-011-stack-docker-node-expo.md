@@ -24,7 +24,7 @@ A revisão 1 (ADR-001) usava Supabase, Vite SPA e Vercel. Ela deixava dois desvi
 **B.**
 
 - **Banco:** PostgreSQL 17 em imagem própria (`db/Dockerfile`: oficial + pgTAP + pgvector). Migrations em SQL puro com **dbmate** (binário único, `-- migrate:up` / `-- migrate:down`). Consultas da API com **Kysely**, tipos gerados por `kysely-codegen`.
-- **API:** **NestJS** (Node 22 LTS, TypeScript estrito), Zod nas bordas, pino para logs JSON.
+- **API:** **NestJS** (Node 26 LTS, TypeScript estrito), Zod nas bordas, pino para logs JSON.
 - **App:** **Expo** (React Native + TS) com Expo Router e react-native-web: um código para iOS, Android e Web (ADR-016).
 - **Worker:** Python 3.12 (o atual), consumindo `ops.jobs` (ADR-014).
 - **Arquivos:** S3 compatível, MinIO no Docker local (ADR-017).

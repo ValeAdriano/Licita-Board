@@ -5,7 +5,7 @@ Instruções para **qualquer agente de IA** (Claude Code, Codex, Paseo, Cursor, 
 ## 1. O projeto em 5 linhas
 
 - Plataforma multiempresa para administrar licitações públicas: empresas, certidões, agenda e prazos jurídicos, captura de editais (PNCP), análise técnica com IA, preços, propostas, peças jurídicas, contratos.
-- Stack (ADR-011, revisão 2 do plano): **app Expo (React Native + TS)** para iOS, Android e Web em `apps/app` · **API NestJS** (Node 22) em `apps/api` · **PostgreSQL 17** com RLS, migrations SQL (dbmate) em `db/` · **worker Python 3.12** em `apps/worker` · tudo em **Docker Compose**.
+- Stack (ADR-011, revisão 2 do plano): **app Expo (React Native + TS)** para iOS, Android e Web em `apps/app` · **API NestJS** (Node 26) em `apps/api` · **PostgreSQL 17** com RLS, migrations SQL (dbmate) em `db/` · **worker Python 3.12** em `apps/worker` · tudo em **Docker Compose**.
 - O app fala só com a API. A API confere sessão e permissão no guard e consulta o banco como `vv_api` com o contexto do usuário, filtrado por RLS (duas camadas, ADR-013). O worker consome `ops.jobs` como `vv_worker` e nunca expõe endpoint de negócio.
 - `supabase/` e `apps/web` são da revisão 1 e estão **congelados**: servem de referência para o port e saem no PR que entrega o equivalente. Não escreva código novo neles.
 - Equipe: Adriano (dono, revisor único) + agentes. Por isso PRs pequenos, specs explícitas e CI rígido.
@@ -65,7 +65,7 @@ Detalhes, exemplos e como dividir uma fase em PRs: [`docs/agents/fluxo.md`](docs
 
 ```text
 apps/app/            Expo (React Native + TS), iOS/Android/Web
-apps/api/            NestJS + Kysely (Node 22)
+apps/api/            NestJS + Kysely (Node 26)
 apps/worker/         Python 3.12 + jobs. Regras locais: apps/worker/AGENTS.md
 db/                  migrations SQL (dbmate), seed fictício, pgTAP, Dockerfile do Postgres
 infra/               compose de produção, Caddy, backup
@@ -85,11 +85,10 @@ scripts/             guardas do CI (cobertura de isolamento, migrations)
 
 ```bash
 # Stack inteira (precisa de Docker)
-cp .env.example .env                   # valores fictícios de dev
-docker compose up -d --build           # postgres, minio, mailpit, api, worker
-docker compose run --rm dbmate up      # aplica db/migrations
-docker compose run --rm dbmate new <nome>   # cria migration vazia com timestamp
-docker compose exec postgres pg_prove -U postgres -d vv /db/tests/*.test.sql   # pgTAP
+scripts/dev-env.sh                     # gera .env de dev com senhas aleatórias (uma vez)
+docker compose up -d --build           # postgres + api (worker, minio, mailpit entram na Fase 00)
+docker compose run --rm dbmate up      # aplica db/migrations (new <nome>, rollback, status)
+PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # pgTAP num banco descartável
 
 # API (apps/api)
 npm ci --prefix apps/api
