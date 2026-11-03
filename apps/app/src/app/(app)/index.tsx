@@ -1,5 +1,6 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { modulosDe, useAcesso } from '../../features/acesso/contexto';
+import { ConvitesRecebidos } from '../../features/acesso/equipe/ConvitesRecebidos';
 
 // Início: a empresa selecionada e os módulos que o vínculo libera. Os módulos chegam nas próximas
 // fases; até lá aparecem como EM DESENVOLVIMENTO (regra 8 do AGENTS.md).
@@ -10,6 +11,7 @@ export default function Inicio() {
       <Text accessibilityRole="header" style={estilos.titulo}>
         {usuario ? `Olá, ${usuario.nome}` : 'VV Licitações'}
       </Text>
+      <ConvitesRecebidos />
       {empresa ? (
         <>
           <Text style={estilos.sub}>

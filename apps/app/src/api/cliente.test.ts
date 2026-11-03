@@ -12,6 +12,15 @@ afterEach(() => {
 });
 
 describe('chamar', () => {
+  it('403 "MFA" avisa que a sessão precisa do segundo fator (e outro 403 não)', async () => {
+    const aoExigirMfa = jest.fn();
+    observarCliente({ aoPerderSessao: jest.fn(), aoUsar: jest.fn(), aoExigirMfa });
+    await expect(chamar('GET', '/me', undefined, { fetcher: jest.fn().mockResolvedValue(resposta(403, { message: 'MFA' })) })).rejects.toMatchObject({ status: 403 });
+    expect(aoExigirMfa).toHaveBeenCalledTimes(1);
+    await expect(chamar('GET', '/x', undefined, { fetcher: jest.fn().mockResolvedValue(resposta(403, { message: 'Forbidden' })) })).rejects.toMatchObject({ status: 403 });
+    expect(aoExigirMfa).toHaveBeenCalledTimes(1);
+  });
+
   it('nativo manda o token como Bearer e não usa cookie', async () => {
     Platform.OS = 'ios';
     definirCredenciais({ token: 'tok', csrf: 'nao-usado' });

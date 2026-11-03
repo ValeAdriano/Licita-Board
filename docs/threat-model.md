@@ -204,7 +204,7 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
-| App mostra nome da empresa sempre como texto e junto do CNPJ no aceite do convite | teste de componente | 01 | planejado (telas do app) |
+| App mostra nome da empresa sempre como texto, junto do CNPJ, de quem convidou e das permissões, e só aceita depois de um passo de revisão; `core.meus_convites()` devolve CNPJ e autor | `equipe.test.tsx` (ConvitesRecebidos); `db/tests/100_convites`; e2e `acesso` | 01 | implementado |
 
 ## T5.17 · Sessão no app: inatividade, logout e rotas (nova, PR 6)
 
@@ -221,7 +221,37 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | Falha de verificação cobrada e não estornada quando outra regra recusa depois (MFA não recente, limite de cadastros): pré-condição conferida antes de contar a falha e estorno em transação própria | e2e `mfa` (sem MFA recente: 403 e `falhas_mfa` = 0) | 01 | implementado |
 | Rotação do token × requisição em voo: 401 de requisição feita com o token anterior (ou durante a rotação) não derruba a sessão nova | `cliente.test.ts` | 01 | implementado |
 | User agent é texto do cliente e aparece na lista de sessões (engenharia social com sessão roubada): reduzir a navegador/SO | — | 01 | planejado |
-| Empresa escolhida é só filtro de tela; ao chegarem os módulos, montar a árvore por empresa (`key`) e avisar quando a seleção cair por vínculo revogado | — | 02 | planejado |
+| Empresa escolhida é só filtro de tela; a tela de Equipe é montada por empresa (`key`); avisar quando a seleção cair por vínculo revogado fica para quando os módulos chegarem | `equipe.tsx` | 01/02 | parcial |
+| 403 "MFA" (perfil passou a exigir segundo fator, ex.: convite interno aceito) faz o app reler `/auth/sessao` (uma vez, em fundo) e levar ao MFA | `cliente.test.ts`, `sessao.test.tsx` | 01 | implementado |
+
+## T5.20 · Replay de TOTP pelo cliente conta erro de MFA (nova, PR 8)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Confirmação de step-up envia um código por vez (Enter duplo não repete), nunca reenvia o último código usado e mostra "aguarde o próximo" | `equipe.test.tsx` (Enter duplo, reuso) | 01 | implementado |
+| Erro depois do step-up consumido avisa que o código já foi usado | `equipe.test.tsx` | 01 | implementado |
+| Reaproveitar o step-up (5 min) quando só o PUT falhou, sem nova verificação | — | 01 | planejado |
+
+## T5.1c · Operação crítica depois de "Cancelar" (nova, PR 8)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| Cancelar vale também durante a conferência do código: a operação crítica não segue | `equipe.test.tsx` (cancelar em voo) | 01 | implementado |
+
+## T2.5 · Concessão ou convite sem resumo na confirmação (nova, PR 8)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| A confirmação mostra o que será gravado (quem, papel, +/− permissões) antes do código; convite começa sem permissões (a sugestão do papel é ampla e só entra por escolha) | `equipe.test.tsx` | 01 | implementado |
+| Matriz trava o que quem concede não tem (teto); a decisão é do banco | `equipe.test.tsx`; `db/tests/110_salvar_vinculo` | 01 | implementado |
+| Mensagem própria para o teto excedido (hoje o 403 chega genérico) | — | 01 | planejado |
+
+## T2.6 · Edição de vínculo sobre dado desatualizado desfaz revogação (nova, PR 8)
+
+| Controle | Teste | Fase | Status |
+| --- | --- | --- | --- |
+| `PUT /vinculos/:id` substitui o conjunto: dois administradores editando juntos desfazem a revogação um do outro (só devolve o que o autor pode dar). Versão (`updated_at`) na função para rejeitar edição velha | — | 01 | planejado |
+| Editar a matriz exige ver as permissões (`permissoes:visualizar`), senão a tela salvaria por cima do que não vê | `equipe.tsx` | 01 | implementado na tela; no banco: planejado |
 
 ## T5.18 · Script de terceiro na origem do app web (nova, PR 6)
 

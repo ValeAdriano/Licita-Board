@@ -8,6 +8,7 @@ import { apagarToken, gravarToken, lerToken } from './armazenamento';
 export type EstadoMfa = 'verificar' | 'cadastrar' | 'nao_requerido';
 export type Fase = 'carregando' | 'sem_conexao' | 'anonimo' | 'mfa' | 'ativa';
 export type Elevacao = 'verificar' | 'confirmar' | 'recuperacao';
+export type EscopoStepUp = 'alterar_permissoes' | 'exclusao_definitiva' | 'preco_abaixo_minimo' | 'proposta_final' | 'aprovar_peca';
 
 export const INATIVIDADE_MS = 30 * 60 * 1000;
 
@@ -24,6 +25,9 @@ interface Sessao {
   entrar(email: string, senha: string, captcha?: string): Promise<void>;
   cadastrarTotp(senha: string): Promise<{ uri: string }>;
   elevar(tipo: Elevacao, codigo: string): Promise<void>;
+  // Step-up (spec §6 regra 10): código novo do autenticador → credencial de uso único (5 min) para
+  // uma operação crítica do escopo. Rotaciona o token da sessão.
+  stepUp(escopo: EscopoStepUp, codigo: string): Promise<string>;
   // Troca logada: a API encerra as outras sessões e troca o token desta (o nativo regrava).
   trocarSenha(atual: string, nova: string): Promise<void>;
   concluirMfa(): void;
@@ -71,6 +75,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const [fase, setFase] = useState<Fase>('carregando');
   const [mfa, setMfa] = useState<EstadoMfa>('nao_requerido');
   const ultima = useRef(0); // gravado ao entrar e a cada uso
+  const relendo = useRef(false);
 
   const esquecer = useCallback(async () => {
     limparCredenciais();
@@ -99,9 +104,23 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       aoUsar: () => {
         ultima.current = Date.now();
       },
+      // Várias chamadas em paralelo podem receber o 403 "MFA": uma releitura basta. Sem rede, o
+      // estado fica como está; o relógio de inatividade só avança se a API confirmar que falta MFA.
+      aoExigirMfa: () => {
+        if (relendo.current) return;
+        relendo.current = true;
+        void chamar<RespostaSessao>('GET', '/auth/sessao', undefined, { fundo: true })
+          .then((s) => {
+            if (s.mfa !== 'nao_requerido') aplicar(s.mfa);
+          })
+          .catch(() => {})
+          .finally(() => {
+            relendo.current = false;
+          });
+      },
     });
     void lerSessaoGuardada().then(iniciar);
-  }, [iniciar, esquecer]);
+  }, [iniciar, esquecer, aplicar]);
 
   const sair = useCallback(async () => {
     try {
@@ -149,6 +168,11 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       // Elevação a aal2 troca o token (sem fixação de sessão): o nativo regrava o novo.
       async elevar(tipo, codigo) {
         aplicarRotacao(await chamar<{ token?: string }>('POST', `/auth/mfa/${tipo}`, { codigo }));
+      },
+      async stepUp(escopo, codigo) {
+        const r = await chamar<{ stepUp: string; token?: string }>('POST', '/auth/mfa/step-up', { codigo, escopo });
+        aplicarRotacao(r);
+        return r.stepUp;
       },
       async trocarSenha(atual, nova) {
         aplicarRotacao(await chamar<{ token?: string }>('POST', '/auth/senha', { atual, nova }));

@@ -14,7 +14,7 @@ const icone = (nome: NomeIcone) =>
 // Shell (RF-01.14): abas embaixo no celular, menu lateral no web largo; empresa no cabeçalho.
 function Abas() {
   const { width } = useWindowDimensions();
-  const { naoLidas } = useAcesso();
+  const { naoLidas, pode } = useAcesso();
   const largo = width >= 768;
   return (
     <Tabs
@@ -32,6 +32,10 @@ function Abas() {
           tabBarIcon: icone('notifications-outline'),
           tabBarBadge: naoLidas > 0 ? naoLidas : undefined,
         }}
+      />
+      <Tabs.Screen
+        name="equipe"
+        options={{ title: 'Equipe', tabBarIcon: icone('people-outline'), href: pode('usuarios', 'visualizar') ? undefined : null }}
       />
       <Tabs.Screen name="conta" options={{ title: 'Conta', tabBarIcon: icone('person-circle-outline') }} />
     </Tabs>

@@ -35,6 +35,8 @@ interface Acesso {
   vinculos: Vinculo[];
   empresa: Vinculo | null;
   escolherEmpresa(id: string): void;
+  // Só para mostrar ou esconder tela: quem decide é a API (guard + RLS).
+  pode(modulo: string, acao: string): boolean;
   notificacoes: Notificacao[];
   naoLidas: number;
   marcarLida(id: string): Promise<void>;
@@ -105,6 +107,7 @@ export function AcessoProvider({ children }: { children: ReactNode }) {
       vinculos,
       empresa,
       escolherEmpresa: setEscolhida,
+      pode: (modulo, acao) => Boolean(usuario?.superadmin) || Boolean(empresa?.permissoes.includes(`${modulo}:${acao}`)),
       notificacoes,
       naoLidas: notificacoes.filter((n) => !n.lidaEm).length,
       marcarLida,

@@ -131,7 +131,7 @@ Parâmetros de segurança (ADR-012): Argon2id m=19 MiB, t=2, p=1; atraso progres
 5. ✅ `feat/fase-01-port-stepup-exclusao`: step_up_tokens, aprovacoes_exclusao, salvar_vinculo, convites, notificacoes no banco + endpoints + e2e A x B.
 6. ✅ `feat/fase-01-app-auth`: login, MFA (verificar, cadastrar com exibição única dos códigos, código de recuperação), recuperação, sessão no SecureStore/cookie, logout por inatividade; testado no web contra a API local. Pendentes: Turnstile no nativo (WebView), QR code do TOTP, universal/app links para o link de redefinição abrir o app nativo.
 7. ✅ `feat/fase-01-app-shell`: shell (abas no celular, menu lateral no web largo), seletor de empresa, notificações (polling de fundo que não renova a inatividade: `core.definir_contexto(token, renovar)` + `X-VV-Fundo`), conta (dados, senha, sessões, autenticador: ativar, trocar, gerar códigos); testado no web contra a API local.
-8. `feat/fase-01-app-matriz`: matriz de permissões e convites.
+8. ✅ `feat/fase-01-app-matriz`: aba Equipe (só com `usuarios:visualizar`): usuários da empresa, matriz módulo × 12 ações com sugestão por papel, convidar (7 dias), revogar, convites recebidos e aceitar; salvar e convidar passam por step-up `alterar_permissoes`; `GET /modulos` (catálogo). Pendente: tela de auditoria da empresa (`auditoria/visualizar`), exclusão definitiva com dupla aprovação (SUPERADMIN) e criação de empresa no app; testado no web contra a API local.
 9. `feat/fase-01-push`: dispositivos e envio pelo worker.
 10. `chore/fase-01-backup`: WAL + base semanal cifrados para bucket externo, restauração documentada.
 11. `docs/relatorio-fase-01` e remoção de `supabase/` e `apps/web`.

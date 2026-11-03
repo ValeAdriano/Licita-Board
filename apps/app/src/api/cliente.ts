@@ -30,6 +30,9 @@ let geracao = 0;
 let rotacoesEmVoo = 0;
 const ROTACIONAM = new Set(['/auth/senha', '/auth/mfa/confirmar', '/auth/mfa/verificar', '/auth/mfa/recuperacao', '/auth/mfa/step-up']);
 let aoUsar: () => void = () => {};
+// A API respondeu 403 "MFA": o perfil da conta passou a exigir segundo fator (ex.: convite interno
+// aceito) e a sessão ainda é só da senha. O app relê o estado da sessão e leva ao MFA.
+let aoExigirMfa: () => void = () => {};
 
 export function definirCredenciais(c: Partial<Credenciais>): void {
   if ('token' in c) geracao += 1;
@@ -41,9 +44,10 @@ export function limparCredenciais(): void {
   credenciais.csrf = null;
 }
 
-export function observarCliente(o: { aoPerderSessao: () => void; aoUsar: () => void }): void {
+export function observarCliente(o: { aoPerderSessao: () => void; aoUsar: () => void; aoExigirMfa?: () => void }): void {
   aoPerderSessao = o.aoPerderSessao;
   aoUsar = o.aoUsar;
+  aoExigirMfa = o.aoExigirMfa ?? (() => {});
 }
 
 function mensagemDe(status: number, corpo: unknown): string {
@@ -94,6 +98,7 @@ export async function chamar<T>(
   if (!res.ok) {
     const atual = geracaoNoEnvio === geracao && rotacoesEmVoo === 0;
     if (res.status === 401 && caminho !== '/auth/login' && atual) aoPerderSessao();
+    if (res.status === 403 && (dados as { message?: unknown } | null)?.message === 'MFA' && atual) aoExigirMfa();
     throw new ErroApi(res.status, mensagemDe(res.status, dados));
   }
   if (!fundo) aoUsar();

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as SecureStore from 'expo-secure-store';
 import { Text } from 'react-native';
+import { chamar } from '../api/cliente';
 import { SessaoProvider, useSessao } from './sessao';
 
 jest.mock('expo-secure-store', () => {
@@ -28,6 +29,10 @@ function Sonda() {
       <Text onPress={s.recarregar}>recarregar</Text>
     </>
   );
+}
+
+function Chamador() {
+  return <Text onPress={() => void chamar('GET', '/me').catch(() => {})}>chamar-me</Text>;
 }
 
 const fetchMock = jest.fn();
@@ -71,6 +76,19 @@ describe('SessaoProvider (nativo)', () => {
     await render(<SessaoProvider><Sonda /></SessaoProvider>);
     await waitFor(() => expect(screen.getByText('fase:anonimo')).toBeTruthy());
     expect(await SecureStore.getItemAsync('vv.sessao')).toBeNull();
+  });
+
+  it('perfil que passa a exigir MFA (403 "MFA") leva da fase ativa para a verificação', async () => {
+    await SecureStore.setItemAsync('vv.sessao', 'tok-vivo');
+    fetchMock.mockResolvedValueOnce(resposta(200, { aal: 'aal1', mfa: 'nao_requerido' }));
+    await render(<SessaoProvider><Sonda /><Chamador /></SessaoProvider>);
+    await waitFor(() => expect(screen.getByText('fase:ativa')).toBeTruthy());
+
+    fetchMock
+      .mockResolvedValueOnce(resposta(403, { message: 'MFA' }))
+      .mockResolvedValueOnce(resposta(200, { aal: 'aal1', mfa: 'cadastrar' }));
+    await fireEvent.press(screen.getByText('chamar-me'));
+    await waitFor(() => expect(screen.getByText('fase:mfa')).toBeTruthy());
   });
 
   it('sem rede no início guarda o token e oferece tentar de novo', async () => {
