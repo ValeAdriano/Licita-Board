@@ -2,7 +2,7 @@
 -- só a CONTA ligada ao convite aceita (troca de e-mail não dá acesso); convite órfão não vale.
 begin;
 set local search_path = tap;
-select plan(35);
+select plan(36);
 
 select tests.criar_empresas_ab();
 select tests.criar_usuario('novo');          -- conta existe, sem vínculo
@@ -132,6 +132,10 @@ insert into core.usuarios (email, nome) values ('nao_verificado@teste.local', 'N
 select tests.autenticar_como('novo', 'aal1');
 select results_eq($$ select empresa, papel from core.meus_convites() $$, $$ values ('Empresa Teste A'::text, 'OPERADOR'::text) $$,
   'convidado vê o convite');
+select results_eq(
+  $$ select cnpj, convidado_por from core.meus_convites() $$,
+  $$ values ('11222333000181'::text, 'Teste usuario_a'::text) $$,
+  'convidado vê o CNPJ da empresa e quem convidou (T3.1c)');
 select lives_ok($$ select core.aceitar_convite((select id from tk where nome = 'convite')) $$, 'convidado aceita');
 select throws_ok($$ select core.aceitar_convite((select id from tk where nome = 'convite')) $$, '42501', null,
   'convite não é aceito duas vezes');

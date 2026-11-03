@@ -79,11 +79,13 @@ export function valorCookie(lista: string[], nome: string): string | undefined {
   return c?.split(';')[0]?.slice(nome.length + 1);
 }
 
-// IP fictício (faixas de documentação) por teste: o limite de 10 tentativas/min por IP é real.
-let ultimoIp = 0;
+// IP fictício (faixa de testes 198.18.0.0/15) por requisição: o limite de 10 tentativas/min por IP é
+// real e vive no banco, compartilhado entre os arquivos de teste que rodam em paralelo. Cada arquivo
+// parte de um ponto aleatório, para os contadores não colidirem.
+let ultimoIp = Math.floor(Math.random() * 60000);
 export function ipNovo(): string {
-  ultimoIp++;
-  return `198.51.${String(100 + Math.floor(ultimoIp / 250))}.${String(1 + (ultimoIp % 250))}`;
+  ultimoIp = (ultimoIp + 1) % 65536;
+  return `198.18.${String(ultimoIp >> 8)}.${String((ultimoIp & 255) || 1)}`;
 }
 
 // TOTP (RFC 6238) calculado como um app autenticador, a partir da URI otpauth do cadastro.

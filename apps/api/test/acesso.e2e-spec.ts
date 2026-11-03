@@ -70,6 +70,14 @@ describe('acesso', () => {
     expect((lista.body as { id: string }[]).map((e) => e.id)).toEqual([empA]);
   });
 
+  it('catálogo de módulos: exige sessão e lista os módulos em ordem', async () => {
+    await http().get('/modulos').expect(401);
+    const r = await http().get('/modulos').set(bearer(a.token)).expect(200);
+    const slugs = (r.body as { slug: string }[]).map((m) => m.slug);
+    expect(slugs.slice(0, 3)).toEqual(['empresas', 'usuarios', 'permissoes']);
+    expect(slugs).toContain('agenda');
+  });
+
   it('A x B: funções do banco recusam vínculo e convite de B mesmo com step-up de A', async () => {
     const su = await stepUp(a, 'alterar_permissoes');
     await http().put(`/vinculos/${vinculoB}`).set(bearer(a.token))
@@ -113,8 +121,14 @@ describe('acesso', () => {
     const login = await http().post('/auth/login').send({ email: emailNovo, senha: SENHA, plataforma: 'ios' }).expect(200);
     const t = bearer((login.body as { token: string }).token);
     const meus = await http().get('/me/convites').set(t).expect(200);
-    const convite = (meus.body as { id: string; empresa: string }[])[0];
+    const convite = (meus.body as { id: string; empresa: string; cnpj: string; convidado_por: string | null }[])[0];
     expect(convite?.empresa).toBe('Empresa e2e A');
+    // T3.1c: quem recebe vê o CNPJ e quem convidou antes de aceitar.
+    expect(convite?.cnpj).toMatch(/^[0-9A-Z]{12}[0-9]{2}$/);
+    expect(convite?.convidado_por).toBeTruthy();
+    // O conjunto de campos é fixo: coluna nova na função não vira resposta sem revisão.
+    expect(Object.keys(convite ?? {}).sort()).toEqual(
+      ['cnpj', 'convidado_em', 'convidado_por', 'empresa', 'expira_em', 'id', 'papel', 'permissoes']);
     await http().post(`/me/convites/${convite?.id ?? ''}/aceitar`).set(t).expect(201);
     const me = await http().get('/me').set(t).expect(200);
     expect((me.body as { vinculos: { empresaId: string }[] }).vinculos.map((v) => v.empresaId)).toEqual([empA]);

@@ -77,6 +77,12 @@ export class AcessoController {
     return {};
   }
 
+  // Catálogo de módulos (não é dado de empresa): alimenta as linhas da matriz de permissões.
+  @Get('modulos')
+  async modulos(@Req() req: RequisicaoVV) {
+    return this.q(req, async (tx) => (await sql`select slug, nome from core.modulos order by ordem`.execute(tx)).rows);
+  }
+
   @Get('empresas')
   async empresas(@Req() req: RequisicaoVV) {
     return this.q(req, async (tx) => (await sql`
@@ -164,7 +170,9 @@ export class AcessoController {
 
   @Get('me/convites')
   async meusConvites(@Req() req: RequisicaoVV) {
-    return this.q(req, async (tx) => (await sql`select * from core.meus_convites()`.execute(tx)).rows);
+    return this.q(req, async (tx) => (await sql`
+      select id, empresa, papel, permissoes, convidado_em, expira_em, cnpj, convidado_por
+        from core.meus_convites()`.execute(tx)).rows);
   }
 
   @Post('me/convites/:id/aceitar')
