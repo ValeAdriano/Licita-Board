@@ -3,6 +3,8 @@ import { useSessao, type Fase } from './auth/sessao'
 import { AMBIENTE } from './config'
 import Auditoria from './pages/Auditoria'
 import Cadastros from './pages/Cadastros'
+import PaginaEdital from './pages/Edital'
+import PaginaOportunidades from './pages/Oportunidades'
 import Conta from './pages/Conta'
 import Entrar from './pages/Entrar'
 import Equipe from './pages/Equipe'
@@ -53,6 +55,8 @@ export function Rotas() {
             <Route index element={<Inicio />} />
             <Route path="notificacoes" element={<Notificacoes />} />
             <Route path="cadastros" element={<Cadastros />} />
+            <Route path="oportunidades" element={<PaginaOportunidades />} />
+            <Route path="editais/:id" element={<PaginaEdital />} />
             <Route path="equipe" element={<Equipe />} />
             <Route path="auditoria" element={<Auditoria />} />
             <Route path="plataforma" element={<Plataforma />} />
