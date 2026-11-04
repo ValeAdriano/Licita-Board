@@ -33,7 +33,7 @@ const recuperacaoSchema = z.object({
 const cadastroSchema = z.object({ senha: z.string().min(1).max(1024) });
 const stepUpSchema = z.object({
   codigo: z.string().trim().regex(/^\d{6}$/),
-  escopo: z.enum(['alterar_permissoes', 'exclusao_definitiva', 'preco_abaixo_minimo', 'proposta_final', 'aprovar_peca', 'dados_bancarios']),
+  escopo: z.enum(['alterar_permissoes', 'exclusao_definitiva', 'preco_abaixo_minimo', 'proposta_final', 'aprovar_peca', 'dados_bancarios', 'dados_pessoais']),
 });
 
 // MFA (ADR-012, spec fase-01 decisões 1 e 7): o segredo e os códigos são conferidos no banco com a

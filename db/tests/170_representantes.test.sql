@@ -1,7 +1,7 @@
 -- Fase 02 · PR 4: representantes legais, procuradores e advogados (spec fase-02 §3.2; CA-1, CA-9).
 begin;
 set local search_path = tap;
-select plan(42);
+select plan(38);
 
 select tests.criar_empresas_ab();
 -- operador com cadastrar e visualizar (não edita nem arquiva); outro só visualiza; outro só arquiva.
@@ -87,9 +87,9 @@ select tests.sair();
 
 -- =============================================================== ações separadas: cadastrar, editar, arquivar
 select tests.autenticar_como('op_cad');
-select throws_ok(
-  $$ update core.representantes set cargo = 'X' where empresa_id = tests.empresa_id('A') $$,
-  '42501', null, 'quem só cadastra não edita');
+select results_eq(
+  $$ with u as (update core.representantes set cargo = 'X' where empresa_id = tests.empresa_id('A') returning 1) select count(*)::int from u $$,
+  $$ values (0) $$, 'quem só cadastra não edita');
 select lives_ok(
   $$ insert into core.representantes (empresa_id, tipo, nome, cpf_cifrado, cpf_mascara, cpf_hash)
      select tests.empresa_id('A'), 'PROCURADOR', 'Cadastrado pelo operador', e, '•••••••1212', repeat('1', 64) from env $$,
@@ -117,9 +117,9 @@ select lives_ok(
   'quem tem arquivar arquiva (soft delete)');
 select tests.sair();
 select tests.autenticar_como('usuario_a');
-select throws_ok(
+select lives_ok(
   $$ update core.representantes set deleted_at = null where nome = 'Caio Procurador' $$,
-  '42501', null, 'desarquivar também é arquivar: ADMIN tem todas as ações e passa');
+  'ADMIN (que tem arquivar) desarquiva');
 select tests.sair();
 
 -- =============================================================== CLIENTE
