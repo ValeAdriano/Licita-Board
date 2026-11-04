@@ -26,8 +26,8 @@ alter role vv_owner password '$VV_OWNER_PASSWORD';
 alter role vv_api password '$VV_API_PASSWORD';
 alter role vv_worker password '$VV_WORKER_PASSWORD';
 SQL
-# Marca o banco como DESENVOLVIMENTO: só assim core.cadastrar_conta_teste (tela "Criar conta de teste") funciona.
-docker compose exec -T postgres psql -U postgres -d postgres -q -c "alter database vv set vv.ambiente = 'dev'"
+# Abre o autocadastro (tela "Criar conta"): core.cadastrar_conta só funciona com vv.cadastro='aberto' no banco.
+docker compose exec -T postgres psql -U postgres -d postgres -q -c "alter database vv set vv.cadastro = 'aberto'" -c "alter database vv reset vv.ambiente"
 docker compose run --rm dbmate up
 # Verificador da chave-mestra: só no banco novo (com o banco já registrado, nada a fazer).
 if [ "$(docker compose exec -T postgres psql -U postgres -d vv -Atc 'select count(*) from core.chaves_mestras')" = 0 ]; then

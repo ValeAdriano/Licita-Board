@@ -4,6 +4,10 @@ export type Ambiente = 'dev' | 'homolog' | 'prod'
 const bruto = import.meta.env.VITE_VV_ENV
 export const AMBIENTE: Ambiente = bruto === 'prod' || bruto === 'homolog' ? bruto : 'dev'
 
+// Mostra a tela de cadastro (padrão: só em dev). Só esconde: quem decide é a API (CADASTRO_ABERTO) e o banco (vv.cadastro).
+const cadastro = import.meta.env.VITE_CADASTRO_ABERTO
+export const CADASTRO_ABERTO: boolean = cadastro ? cadastro === 'true' : AMBIENTE === 'dev'
+
 // Mesma origem por padrão: /api é o proxy do Vite em dev e o Caddy em produção (ADR-018).
 export const API_URL = (import.meta.env.VITE_API_URL ?? '/api').replace(/\/$/, '')
 

@@ -7,7 +7,7 @@
 // comando (fica no histórico do shell): leia do .env, como no AGENTS.md §6.
 //   set -a && . ./.env && set +a
 //   export DATABASE_URL="postgres://vv_owner:$VV_OWNER_PASSWORD@localhost:5433/vv"
-//   read -rs VV_NOVA_SENHA && export VV_NOVA_SENHA      # opcional; 12 a 128 caracteres
+//   read -rs VV_NOVA_SENHA && export VV_NOVA_SENHA      # opcional; 8 a 128 caracteres, com um especial
 //   node scripts/criar-usuario.mjs --email voce@empresa.com.br --nome "Seu Nome" --superadmin [--ficticio]
 //
 // Obrigatório: --superadmin e/ou --ficticio (a API cria os demais usuários, por convite; aqui o e-mail
@@ -80,8 +80,9 @@ async function principal() {
   }
 
   const geradaAgora = !process.env.VV_NOVA_SENHA;
-  const senha = process.env.VV_NOVA_SENHA ?? randomBytes(18).toString('base64url');
-  if (senha.length < 12 || senha.length > 128) throw new Error('A senha precisa ter de 12 a 128 caracteres.');
+  const senha = process.env.VV_NOVA_SENHA ?? `${randomBytes(18).toString('base64url')}!`;
+  if (senha.length < 8 || senha.length > 128) throw new Error('A senha precisa ter de 8 a 128 caracteres.');
+  if (!/[^\p{L}\p{N}]/u.test(senha)) throw new Error('A senha precisa de um caractere especial (como ! @ # $ % -).');
   if (new Set(senha).size < 6) throw new Error('Senha fraca demais: use ao menos 6 caracteres diferentes.');
   if (geradaAgora && !process.stdout.isTTY && !o.senhaNaSaida) {
     throw new Error('Sem terminal para mostrar a senha gerada: defina VV_NOVA_SENHA (ou use --senha-na-saida).');

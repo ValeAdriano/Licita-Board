@@ -14,10 +14,14 @@ describe('senha', () => {
     expect(await conferirSenha(null, 'uma-senha-longa-qualquer')).toBe(false);
   });
 
-  it('mínimo de 12 e máximo de 128 caracteres', () => {
-    expect(problemaNaSenha('a'.repeat(11))).toMatch(/pelo menos 12/);
-    expect(problemaNaSenha('a'.repeat(12))).toBeNull();
-    expect(problemaNaSenha('a'.repeat(128))).toBeNull();
-    expect(problemaNaSenha('a'.repeat(129))).toMatch(/no máximo 128/);
+  it('de 8 a 128 caracteres, com ao menos um especial', () => {
+    expect(problemaNaSenha('a!bcdef')).toMatch(/pelo menos 8/);
+    expect(problemaNaSenha('abcdefgh')).toMatch(/caractere especial/);
+    expect(problemaNaSenha('abcd1234')).toMatch(/caractere especial/);
+    expect(problemaNaSenha('abcdef!h')).toBeNull();
+    expect(problemaNaSenha('abc def1')).toBeNull(); // espaço conta como especial
+    expect(problemaNaSenha('senha-curta')).toBeNull();
+    expect(problemaNaSenha(`${'a'.repeat(127)}!`)).toBeNull();
+    expect(problemaNaSenha(`${'a'.repeat(128)}!`)).toMatch(/no máximo 128/);
   });
 });

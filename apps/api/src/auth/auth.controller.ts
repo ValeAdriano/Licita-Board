@@ -39,6 +39,7 @@ import {
   sessaoDe,
   validar,
 } from './requisicao.js';
+import { cnpjValido, normalizarCnpj } from '../acesso/documentos.js';
 import { Argon2Ocupado, conferirSenha, hashSenha, problemaNaSenha } from './senha.js';
 import { PermiteAal1, Publico } from './sessao.guard.js';
 
@@ -49,7 +50,10 @@ const loginSchema = z.object({
   captcha: z.string().max(4096).optional(),
 });
 const recuperarSchema = z.object({ email: z.email().max(254), captcha: z.string().max(4096).optional() }).strict();
-const cadastroTesteSchema = z.object({ nome: z.string().trim().min(2).max(120), email: z.email().max(254), senha: z.string() }).strict();
+const cadastroSchema = z.object({
+  nome: z.string().trim().min(2).max(120), email: z.email().max(254), senha: z.string(),
+  razaoSocial: z.string().trim().min(2).max(200), cnpj: z.string().trim().min(14).max(18),
+}).strict();
 const redefinirSchema = z.object({ token: z.string().min(43).max(128), senha: z.string() }).strict();
 const MSG_VAZADA = 'Esta senha aparece em vazamentos conhecidos. Escolha outra.';
 const logHibp = new Logger('hibp');
@@ -98,21 +102,23 @@ export class AuthController {
     return { mfa: r.mfa, token: r.token };
   }
 
-  // Conta de TESTE para usar o sistema à mão: só com VV_ENV=dev (fora disso a rota nem existe) e só se o
-  // banco também estiver marcado como dev (core.cadastrar_conta_teste recusa senão). Cria usuário comum
-  // (nunca SUPERADMIN) com uma empresa FICTÍCIA; o primeiro login obriga o cadastro do MFA.
+  // Autocadastro: a pessoa cria a conta e a empresa dela (ADMIN_EMPRESA, nunca SUPERADMIN). Só funciona com o
+  // cadastro aberto (CADASTRO_ABERTO, padrão ligado em dev) E o banco com vv.cadastro='aberto'; fora disso a
+  // rota responde 404. O primeiro login obriga o cadastro do MFA.
   @Publico()
-  @Post('cadastro-teste')
+  @Post('cadastro')
   @HttpCode(201)
-  async cadastroTeste(@Req() req: RequisicaoVV, @Body() corpo: unknown) {
-    if (this.config.VV_ENV !== 'dev') throw new NotFoundException();
+  async cadastro(@Req() req: RequisicaoVV, @Body() corpo: unknown) {
+    if (!(this.config.CADASTRO_ABERTO ?? this.config.VV_ENV === 'dev')) throw new NotFoundException();
     this.conferirOrigem(req);
-    const { nome, email, senha } = validar(cadastroTesteSchema, corpo);
+    const { nome, email, senha, razaoSocial, cnpj } = validar(cadastroSchema, corpo);
+    if (!cnpjValido(cnpj)) throw new BadRequestException('CNPJ inválido.');
     if (!this.limiteRecuperacao.permitir(ipDe(req))) {
       throw new HttpException('Muitas tentativas. Tente mais tarde.', HttpStatus.TOO_MANY_REQUESTS);
     }
     const problema = problemaNaSenha(senha);
     if (problema) throw new BadRequestException(problema);
+    if (await senhaVazada(senha, this.config.HIBP_URL, fetch, avisarHibp)) throw new BadRequestException(MSG_VAZADA);
     let hash: string;
     try {
       hash = await hashSenha(senha);
@@ -121,10 +127,11 @@ export class AuthController {
       throw e;
     }
     try {
-      await this.contexto.semSessao((tx) => sql`select core.cadastrar_conta_teste(${email}, ${nome}, ${hash})`.execute(tx));
+      await this.contexto.semSessao((tx) => sql`select core.cadastrar_conta(${email}, ${nome}, ${hash}, ${razaoSocial}, ${normalizarCnpj(cnpj)})`.execute(tx));
     } catch (e) {
       const cod = typeof e === 'object' && e !== null && 'code' in e ? (e as { code?: string }).code : undefined;
-      if (cod === '23505') throw new BadRequestException('Já existe uma conta com esse e-mail.');
+      const restricao = typeof e === 'object' && e !== null && 'constraint' in e ? String((e as { constraint?: string }).constraint) : '';
+      if (cod === '23505') throw new BadRequestException(restricao.includes('cnpj') ? 'Já existe uma empresa com esse CNPJ.' : 'Já existe uma conta com esse e-mail.');
       if (cod === '42501') throw new NotFoundException();
       throw e;
     }

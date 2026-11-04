@@ -26,8 +26,9 @@ describe('segredoDaUri', () => {
 })
 
 describe('problemaNaNovaSenha', () => {
-  it('exige 12 caracteres e confirmação igual', () => {
-    expect(problemaNaNovaSenha('curta', 'curta')).toMatch(/12 caracteres/)
+  it('exige 8 caracteres, um especial e confirmação igual', () => {
+    expect(problemaNaNovaSenha('c!rta', 'c!rta')).toMatch(/8 caracteres/)
+    expect(problemaNaNovaSenha('semespecial1', 'semespecial1')).toMatch(/especial/)
     expect(problemaNaNovaSenha('senha-longa-123', 'outra-senha-123')).toBe('As senhas não conferem.')
     expect(problemaNaNovaSenha('senha-longa-123', 'senha-longa-123')).toBeNull()
   })

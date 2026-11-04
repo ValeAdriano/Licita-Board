@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { useSessao, type Fase } from './auth/sessao'
-import { AMBIENTE } from './config'
+import { AMBIENTE, CADASTRO_ABERTO } from './config'
 import Auditoria from './pages/Auditoria'
 import Cadastrar from './pages/Cadastrar'
 import Cadastros from './pages/Cadastros'
@@ -69,7 +69,7 @@ export function Rotas() {
           <>
             <Route path="/entrar" element={<Entrar />} />
             <Route path="/recuperar" element={<Recuperar />} />
-            {AMBIENTE === 'dev' ? <Route path="/cadastrar" element={<Cadastrar />} /> : null}
+            {CADASTRO_ABERTO ? <Route path="/cadastrar" element={<Cadastrar />} /> : null}
             <Route path="/redefinir-senha" element={<RedefinirSenha />} />
           </>
         ) : null}

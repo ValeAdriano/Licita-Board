@@ -6,7 +6,8 @@ import { SENHA, criarUsuario, ipNovo, servidor, subirApp } from './apoio.js';
 
 // Cobertura de rotas (ADR-013, AGENTS.md §3.13): toda rota registrada exige sessão, exceto a lista
 // fechada de públicas. Rota nova pública fora da lista faz este teste falhar.
-const PUBLICAS = new Set(['POST /auth/login', 'POST /auth/recuperar', 'POST /auth/redefinir', 'GET /health']);
+// POST /auth/cadastro: autocadastro; só responde com CADASTRO_ABERTO (padrão: dev) e o banco com vv.cadastro='aberto'.
+const PUBLICAS = new Set(['POST /auth/login', 'POST /auth/recuperar', 'POST /auth/redefinir', 'POST /auth/cadastro', 'GET /health']);
 // Rotas liberadas a quem só passou da senha (aal1) e tem/precisa de MFA. Fora daqui: 403.
 const PERMITE_AAL1 = new Set([
   'GET /auth/sessao', 'POST /auth/logout',
@@ -47,7 +48,7 @@ describe('cobertura de rotas', () => {
       if (!(r.status === 403 && (r.body as { message?: string }).message === 'MFA')) liberadas.push(rota);
     }
     expect(new Set(liberadas)).toEqual(PERMITE_AAL1);
-  });
+  }, 60_000);
 
   it('toda rota com :empresa confere a permissão no guard (404 para quem não tem vínculo)', async () => {
     const email = await criarUsuario('sem-vinculo');

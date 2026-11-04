@@ -5,5 +5,6 @@
 interface ImportMetaEnv {
   readonly VITE_API_URL?: string
   readonly VITE_VV_ENV?: string
+  readonly VITE_CADASTRO_ABERTO?: string
   readonly VITE_TURNSTILE_SITEKEY?: string
 }

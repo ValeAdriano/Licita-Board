@@ -4,7 +4,7 @@ import argon2 from 'argon2';
 // antigos: argon2.needsRehash diz quando regravar no próximo login.
 const PARAMETROS = { type: argon2.argon2id, memoryCost: 19456, timeCost: 2, parallelism: 1 } as const;
 
-export const SENHA_MIN = 12;
+export const SENHA_MIN = 8;
 export const SENHA_MAX = 128;
 
 // Argon2 custa ~19 MiB e uma thread do libuv por chamada: no máximo 4 ao mesmo tempo; acima disso,
@@ -51,9 +51,13 @@ export function precisaRehash(hash: string): boolean {
   return argon2.needsRehash(hash, PARAMETROS);
 }
 
+// Política (decisão do Adriano, 2026-11-04): 8 a 128 caracteres e ao menos um especial (nem letra nem número).
+const TEM_ESPECIAL = /[^\p{L}\p{N}]/u;
+
 // Política mínima (Prompt 1.4). A consulta a senhas vazadas (HIBP, decisão 2) entra no PR 3b.
 export function problemaNaSenha(senha: string): string | null {
   if (senha.length < SENHA_MIN) return `A senha precisa de pelo menos ${String(SENHA_MIN)} caracteres.`;
   if (senha.length > SENHA_MAX) return `A senha pode ter no máximo ${String(SENHA_MAX)} caracteres.`;
+  if (!TEM_ESPECIAL.test(senha)) return 'A senha precisa de um caractere especial (como ! @ # $ % -).';
   return null;
 }

@@ -30,6 +30,8 @@ const esquema = z.object({
         }),
       'TRUST_PROXY precisa ser false, loopback ou lista de IP/CIDR',
     ),
+  // Autocadastro (POST /auth/cadastro). Vazio = só em VV_ENV=dev; o banco também precisa estar com vv.cadastro='aberto'.
+  CADASTRO_ABERTO: z.stringbool().optional(),
   // Atraso fixo na resposta de login recusado (ms): iguala senha errada e corrida perdida.
   LOGIN_ATRASO_MS: z.coerce.number().int().min(0).max(1000).default(250),
   // Senha vazada (HIBP, k-anonymity). Vazio = só a lista local (testes, sem rede).

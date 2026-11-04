@@ -2,7 +2,7 @@ import { useCallback, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { ErroApi } from '../api/cliente'
 import { precisaCaptcha, useSessao } from '../auth/sessao'
-import { AMBIENTE } from '../config'
+import { CADASTRO_ABERTO } from '../config'
 import { Aviso, Botao, Campo, Captcha, scriptTurnstileCarregado, TelaAcesso } from '../ui'
 
 export default function Entrar() {
@@ -52,9 +52,9 @@ export default function Entrar() {
       <Link to="/recuperar" className="text-sm text-tertiary [overflow-wrap:anywhere] text-center">
         Esqueci minha senha
       </Link>
-      {AMBIENTE === 'dev' ? (
+      {CADASTRO_ABERTO ? (
         <Link to="/cadastrar" className="text-center text-sm font-semibold text-brand-secondary">
-          Criar conta de teste
+          Criar conta
         </Link>
       ) : null}
     </TelaAcesso>

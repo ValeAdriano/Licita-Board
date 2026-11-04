@@ -15,10 +15,11 @@ export function segredoDaUri(uri: string): string {
   return m?.[1] ? (m[1].toUpperCase().match(/.{1,4}/g) ?? []).join(' ') : ''
 }
 
-export const MINIMO_SENHA = 12
+export const MINIMO_SENHA = 8
 
 export function problemaNaNovaSenha(senha: string, confirmacao: string): string | null {
   if (senha.length < MINIMO_SENHA) return `A senha precisa de pelo menos ${MINIMO_SENHA} caracteres.`
+  if (!/[^\p{L}\p{N}]/u.test(senha)) return 'A senha precisa de um caractere especial (como ! @ # $ % -).'
   if (senha !== confirmacao) return 'As senhas não conferem.'
   return null
 }

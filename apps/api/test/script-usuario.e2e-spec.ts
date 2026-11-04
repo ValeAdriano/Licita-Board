@@ -66,8 +66,9 @@ describe('scripts/criar-usuario.mjs', () => {
   });
 
   it('recusa senha curta ou fraca, e-mail inválido, uso sem --superadmin/--ficticio, --ficticio fora de dev e valor faltando', () => {
-    expect(rodar(['--email', 'x@teste.local', '--superadmin'], { VV_NOVA_SENHA: 'curta' }).stderr).toMatch(/12 a 128/);
-    expect(rodar(['--email', 'x@teste.local', '--superadmin'], { VV_NOVA_SENHA: 'aaaaaaaaaaaaaaaa' }).stderr).toMatch(/fraca/);
+    expect(rodar(['--email', 'x@teste.local', '--superadmin'], { VV_NOVA_SENHA: 'curta' }).stderr).toMatch(/8 a 128/);
+    expect(rodar(['--email', 'x@teste.local', '--superadmin'], { VV_NOVA_SENHA: 'aaaaaaaaaaaaaaa!' }).stderr).toMatch(/fraca/);
+    expect(rodar(['--email', 'x@teste.local', '--superadmin'], { VV_NOVA_SENHA: 'abcdefgh1234' }).stderr).toMatch(/caractere especial/);
     expect(rodar(['--email', 'sem-arroba', '--superadmin']).stderr).toMatch(/--email válido/);
     expect(rodar(['--email', 'x@teste.local']).stderr).toMatch(/--superadmin e\/ou --ficticio/);
     expect(rodar(['--email', 'x@teste.local', '--ficticio'], { VV_ENV: 'prod' }).stderr).toMatch(/VV_ENV=dev/);
