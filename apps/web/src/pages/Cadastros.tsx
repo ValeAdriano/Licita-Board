@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAcesso, type Vinculo } from '../features/acesso/contexto'
+import { Atestados } from '../features/acesso/cadastros/Atestados'
 import { Documentos } from '../features/acesso/cadastros/Documentos'
 import { Contas } from '../features/acesso/cadastros/Contas'
 import { EmpresaFicha } from '../features/acesso/cadastros/EmpresaFicha'
@@ -8,7 +9,7 @@ import { Produtos } from '../features/acesso/cadastros/Produtos'
 import { Representantes } from '../features/acesso/cadastros/Representantes'
 import { Botao } from '../ui'
 
-type Aba = 'empresa' | 'contas' | 'representantes' | 'documentos' | 'produtos' | 'palavras'
+type Aba = 'empresa' | 'contas' | 'representantes' | 'documentos' | 'atestados' | 'produtos' | 'palavras'
 
 // Cadastros da empresa selecionada (Fase 02): ficha, contas, representantes, produtos e palavras-chave.
 // O front só esconde o que a pessoa não pode usar; quem decide é a API (guard + RLS).
@@ -25,6 +26,7 @@ function CadastrosDaEmpresa({ empresa }: { empresa: Vinculo }) {
     { id: 'contas', rotulo: 'Contas e PIX', visivel: pode('empresas', 'visualizar') },
     { id: 'representantes', rotulo: 'Representantes', visivel: pode('representantes', 'visualizar') },
     { id: 'documentos', rotulo: 'Documentos', visivel: pode('documentos', 'visualizar') },
+    { id: 'atestados', rotulo: 'Atestados', visivel: pode('documentos', 'visualizar') },
     { id: 'produtos', rotulo: 'Produtos', visivel: pode('produtos', 'visualizar') },
     { id: 'palavras', rotulo: 'Palavras-chave', visivel: pode('produtos', 'visualizar') },
   ]
@@ -50,6 +52,7 @@ function CadastrosDaEmpresa({ empresa }: { empresa: Vinculo }) {
       {ativa === 'contas' ? <Contas empresaId={id} podeEditar={pode('empresas', 'editar')} /> : null}
       {ativa === 'representantes' ? <Representantes empresaId={id} pode={(a) => pode('representantes', a)} /> : null}
       {ativa === 'documentos' ? <Documentos empresaId={id} pode={(a) => pode('documentos', a)} /> : null}
+      {ativa === 'atestados' ? <Atestados empresaId={id} pode={(a) => pode('documentos', a)} /> : null}
       {ativa === 'produtos' ? <Produtos empresaId={id} pode={(a) => pode('produtos', a)} /> : null}
       {ativa === 'palavras' ? <PalavrasChave empresaId={id} pode={(a) => pode('produtos', a)} /> : null}
     </div>
