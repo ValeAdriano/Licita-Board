@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { chamar, ErroApi } from '../../../api/cliente'
 import { segredoDaUri } from '../../../auth/links'
 import { useSessao } from '../../../auth/sessao'
-import { Aviso, Botao, Campo } from '../../../ui'
+import { Aviso, Botao, Campo, CodigoQr } from '../../../ui'
 import { useAcesso, type Usuario } from '../contexto'
 import { Secao } from './Secao'
 import { useEnvio } from './useEnvio'
@@ -12,8 +12,8 @@ type Passo =
   | { tipo: 'inicio' }
   | { tipo: 'verificar'; acao: Acao } // código de agora: a API exige MFA dos últimos 5 min
   | { tipo: 'senha' }
-  | { tipo: 'novo'; segredo: string }
-  | { tipo: 'reverificar'; segredo: string } // passou de 5 min: código do autenticador ATUAL
+  | { tipo: 'novo'; segredo: string; uri?: string }
+  | { tipo: 'reverificar'; segredo: string; uri?: string } // passou de 5 min: código do autenticador ATUAL
   | { tipo: 'codigos'; codigos: string[] }
 
 const INICIO: Passo = { tipo: 'inicio' }
@@ -73,21 +73,21 @@ export function Autenticador({ usuario }: { usuario: Usuario }) {
       try {
         const r = await chamar<{ uri: string }>('POST', '/auth/mfa/cadastrar', { senha })
         setSenha('')
-        setPasso({ tipo: 'novo', segredo: segredoDaUri(r.uri) })
+        setPasso({ tipo: 'novo', segredo: segredoDaUri(r.uri), uri: r.uri })
       } catch (e) {
         if (temMfa && MFA_ANTIGO(e)) setPasso({ tipo: 'verificar', acao: 'trocar' })
         throw e
       }
     })
 
-  const confirmar = (segredo: string) =>
+  const confirmar = (segredo: string, uri?: string) =>
     enviar(async () => {
       try {
         await elevar('confirmar', codigo.trim())
       } catch (e) {
         if (temMfa && MFA_ANTIGO(e)) {
           setCodigo('')
-          setPasso({ tipo: 'reverificar', segredo })
+          setPasso({ tipo: 'reverificar', segredo, uri })
           return
         }
         throw e
@@ -100,11 +100,11 @@ export function Autenticador({ usuario }: { usuario: Usuario }) {
       return 'Autenticador trocado. O anterior deixou de valer.'
     })
 
-  const reverificar = (segredo: string) =>
+  const reverificar = (segredo: string, uri?: string) =>
     enviar(async () => {
       await elevar('verificar', codigo.trim())
       setCodigo('')
-      setPasso({ tipo: 'novo', segredo })
+      setPasso({ tipo: 'novo', segredo, uri })
     })
 
   const cancelar = () => {
@@ -155,8 +155,10 @@ export function Autenticador({ usuario }: { usuario: Usuario }) {
         </form>
       ) : null}
       {passo.tipo === 'novo' ? (
-        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void confirmar(passo.segredo) }}>
-          <p>No app autenticador, adicione uma conta digitando esta chave e confirme com o código gerado:</p>
+        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void confirmar(passo.segredo, passo.uri) }}>
+          <p>No app autenticador, escaneie o QR code abaixo e confirme com o código gerado:</p>
+          {passo.uri ? <CodigoQr valor={passo.uri} rotulo="QR code para cadastrar o novo autenticador" /> : null}
+          <p className="text-sm text-tertiary">Sem câmera? Adicione uma conta digitando esta chave:</p>
           <p className="font-mono tracking-wide" data-testid="segredo">{passo.segredo}</p>
           {campoCodigo('Código do novo autenticador')}
           <Botao type="submit" carregando={enviando}>
@@ -165,7 +167,7 @@ export function Autenticador({ usuario }: { usuario: Usuario }) {
         </form>
       ) : null}
       {passo.tipo === 'reverificar' ? (
-        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void reverificar(passo.segredo) }}>
+        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void reverificar(passo.segredo, passo.uri) }}>
           <p>Passaram mais de 5 minutos. Digite um código do autenticador ATUAL para continuar o cadastro.</p>
           {campoCodigo('Código do autenticador atual')}
           <Botao type="submit" carregando={enviando}>
