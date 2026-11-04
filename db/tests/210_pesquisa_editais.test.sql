@@ -2,7 +2,7 @@
 -- oportunidades e importações isoladas por empresa (A x B); triagem sem apagar; importação só de host permitido.
 begin;
 set local search_path = tap;
-select plan(23);
+select plan(25);
 
 select tests.criar_empresas_ab();
 select tests.criar_usuario('so_ver_a');
@@ -76,6 +76,12 @@ select throws_ok($$ select ops.solicitar_coleta_manual(tests.empresa_id('A'), 'p
 select lives_ok($$ select ops.solicitar_coleta_manual(tests.empresa_id('A'), 'pncp', current_date - 2, current_date, 'PR') $$, 'pesquisa manual é aceita');
 select is((select count(*)::int from ops.fontes), 0, 'quem não é SUPERADMIN não lê ops.fontes');
 select tests.sair();
+
+-- =============================================================== worker enfileira só jobs da pesquisa
+set local role vv_worker;
+select lives_ok($$ select ops.enfileirar_pesquisa('coletar_fonte', null, '{}', 'teste:coleta:1') $$, 'o worker enfileira job da pesquisa');
+select throws_ok($$ select ops.enfileirar_pesquisa('email_recuperacao', null, '{}', 'teste:forjado') $$, '42501', null, 'o worker não forja job de recuperação de senha');
+reset role;
 
 select * from finish();
 rollback;

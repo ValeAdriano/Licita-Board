@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     s3_secret_key: SecretStr = SecretStr("")
     clamav_host: str = ""
     clamav_porta: int = 3310
+    # Pesquisa de editais (Fase 04): ping de heartbeat (Healthchecks.io) a cada execução ok
+    # (a ausência em 30 min alerta por fora) e o contato que o robô informa no User-Agent.
+    pesquisa_heartbeat_url: str = ""
+    robo_contato: str = ""
     # URL pública do app, base dos links enviados por e-mail.
     app_url: str = "http://localhost:5173"
 

@@ -12,7 +12,8 @@ import psycopg
 from psycopg.rows import dict_row
 
 from worker.documentos import Antivirus, Armazenamento, processar_versao
-from worker.email import Enviador, mensagem_alerta, mensagem_recuperacao
+from worker.email import Enviador, mensagem_alerta, mensagem_operacional, mensagem_recuperacao
+from worker.pesquisa.agenda import agendar, vigiar
 from worker.push import REDE, TTL_SEGUNDOS, EnviadorPush, Inscricao, carga_generica
 from worker.settings import Settings
 
@@ -54,6 +55,7 @@ class Handlers:
         tipos: dict[str, Handler] = {
             "email_recuperacao": self.email_recuperacao,
             "email_alerta": self.email_alerta,
+            "email_operacional": self.email_operacional,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -145,6 +147,25 @@ class Handlers:
         link = f"{self._s.app_url.rstrip('/')}/redefinir-senha#token={token}"
         self._enviador.enviar(mensagem_recuperacao(dest["email"], link))
 
+    def email_operacional(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                "select email::text as email from core.usuarios "
+                "where id = %s and ativo and deleted_at is null and superadmin",
+                (job["payload"]["usuario_id"],),
+            )
+            dest = cur.fetchone()
+        if dest is None:
+            return
+        msg = mensagem_operacional(
+            dest["email"],
+            str(job["payload"].get("codigo", "")),
+            str(job["payload"].get("fonte", "")),
+            self._s.app_url,
+        )
+        if msg is not None:
+            self._enviador.enviar(msg)
+
     def email_alerta(self, conn: psycopg.Connection[Any], job: Job) -> None:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
@@ -228,6 +249,13 @@ def consumir(
                     ultimo_alerta = alertas_do_dia(
                         conn, dt.datetime.now(FUSO).date(), ultimo_alerta
                     )
+                    try:  # o agendador nunca derruba o consumo da fila
+                        agora = dt.datetime.now(dt.UTC)
+                        agendar(conn, agora)
+                        vigiar(conn, agora)
+                    except Exception as e:
+                        conn.rollback()
+                        log.error("agendador com erro", extra={"ctx": {"erro": type(e).__name__}})
                     if processar_lote(conn, handlers) == 0:
                         for _ in conn.notifies(timeout=30, stop_after=1):
                             pass

@@ -72,3 +72,22 @@ def mensagem_alerta(para: str, eventos: list[str]) -> Mensagem | None:
         "da sua empresa imediatamente.\n"
     )
     return Mensagem(para=para, assunto="Alerta de segurança · VV Licitações", texto=texto)
+
+
+_OPERACIONAL = {
+    "pesquisa_perdida": "a pesquisa de editais não executou no horário previsto",
+    "pesquisa_falhou": "uma execução da pesquisa de editais travou ou falhou",
+    "fonte_indisponivel": "uma fonte de editais ficou indisponível",
+}
+
+
+def mensagem_operacional(para: str, codigo: str, fonte: str, app_url: str) -> Mensagem | None:
+    """Aviso ao SUPERADMIN sem texto livre: código fixo e o slug da fonte."""
+    if codigo not in _OPERACIONAL:
+        return None
+    texto = (
+        f"Atenção: {_OPERACIONAL[codigo]} (fonte: {fonte}).\n\n"
+        f"Veja o painel de cobertura: {app_url.rstrip('/')}/plataforma/cobertura\n"
+        "Enquanto a fonte estiver com problema, oportunidades novas podem estar faltando.\n"
+    )
+    return Mensagem(para=para, assunto="Pesquisa de editais · atenção · VV Licitações", texto=texto)
