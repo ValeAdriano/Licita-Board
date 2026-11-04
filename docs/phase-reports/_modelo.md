@@ -36,9 +36,11 @@
 ## 5. Testes e resultados
 | Suíte | Comando | Resultado |
 | --- | --- | --- |
-| Web | `npm test` | |
+| Web | `npm test --prefix apps/web` | |
+| API (unitário) | `npm test --prefix apps/api` | |
+| API (e2e A x B) | `npm run test:e2e --prefix apps/api` | |
 | Worker | `uv run pytest --cov` | |
-| Banco | `npx supabase test db` | |
+| Banco | `db/scripts/test-local.sh` | |
 | Isolamento | `scripts/check_isolation_coverage.py` | |
 | SAST / segredos | Semgrep, Gitleaks | |
 

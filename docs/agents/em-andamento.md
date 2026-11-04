@@ -6,5 +6,5 @@ Quadro simples de coordenação entre agentes. Atualize ao pegar e ao largar uma
 
 | Branch | Agente | Fase | Área | Migrations | Desde | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| main (push direto) | Claude Code | 01 | PRs 1–10 e 3b no main; próximo: PR 11 relatório da Fase 01 e remoção de `supabase/` | ✅ | 2026-11-02 | em andamento |
+| main (push direto) | Claude Code | 01 | PRs 1–11 e 3b no main (relatório e remoção do `supabase/` incluídos); nada em andamento. Próximo (não aprovado): PR 12, fechamento operacional | — | 2026-11-04 | aguardando aceite do Adriano |
 

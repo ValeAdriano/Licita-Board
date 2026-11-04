@@ -7,7 +7,7 @@ Instruções para **qualquer agente de IA** (Claude Code, Antigravity, Codex, Pa
 - Plataforma multiempresa para administrar licitações públicas: empresas, certidões, agenda e prazos jurídicos, captura de editais (PNCP), análise técnica com IA, preços, propostas, peças jurídicas, contratos.
 - Stack (ADR-011 e ADR-018): **front React 19 + Vite + TS em PWA** em `apps/web` (design Apple: `src/ui`) · **API NestJS** (Node 26) em `apps/api` · **PostgreSQL 17** com RLS, migrations SQL (dbmate) em `db/` · **worker Python 3.12** em `apps/worker` · tudo em **Docker Compose**.
 - O front fala só com a API (mesma origem, `/api`; sessão só em cookie HttpOnly). A API confere sessão e permissão no guard e consulta o banco como `vv_api` com o contexto do usuário, filtrado por RLS (duas camadas, ADR-013). O worker consome `ops.jobs` como `vv_worker` e nunca expõe endpoint de negócio.
-- `supabase/` é da revisão 1 e está **congelado**: serve de referência e sai no PR de fechamento da Fase 01. Não escreva código novo nele. Apps nativos (iOS/Android) foram adiados (ADR-018).
+- O projeto saiu do Supabase (ADR-011): a pasta `supabase/` da revisão 1 foi removida ao fechar a Fase 01 e só existe no histórico do git (tag `revisao-1-supabase`). Apps nativos (iOS/Android) foram adiados (ADR-018).
 - Equipe: Adriano (dono, revisor único) + agentes. Por isso entregas pequenas, specs explícitas e CI rígido.
 - Erros que não podem acontecer: vazar dado entre empresas, calcular prazo jurídico errado, marcar ATENDE sem evidência, citar lei/acórdão inexistente.
 
@@ -70,7 +70,6 @@ apps/worker/         Python 3.12 + jobs. Regras locais: apps/worker/AGENTS.md
 db/                  migrations SQL (dbmate), seed fictício, pgTAP, Dockerfile do Postgres
 infra/               compose de produção, Caddy, backup
 compose.yml          stack de desenvolvimento (Docker Compose)
-supabase/, apps/web/ revisão 1, CONGELADOS (referência para o port)
 packages/shared/     tipos gerados do banco, enums, schemas Zod
 docs/adr/            decisões de arquitetura (ADR-NNN)
 docs/specs/          spec por fase = prompt dos agentes

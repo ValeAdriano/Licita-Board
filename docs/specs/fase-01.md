@@ -6,7 +6,7 @@
 - **Validação jurídica:** LGPD (contrato operador/controlador) — pendente
 - **Fontes:** Prompt Mestre Fase 01 (1.1–1.5); Plano (revisão 2), Fase 01 e "Modelo de dados núcleo e RLS"; ADR-012, ADR-013, ADR-015, ADR-016, ADR-017
 
-> A revisão 1 desta fase foi implementada sobre o Supabase (`supabase/migrations`, `apps/web`) e está congelada. As regras de negócio dela foram aprovadas na prática e **continuam valendo**; esta revisão muda só a infraestrutura: identidade e sessão passam a ser da API, e o contexto do usuário passa a ser conferido no banco.
+> A revisão 1 desta fase foi implementada sobre o Supabase (`supabase/migrations`, front Vite) e foi removida no PR 11 (fica na tag `revisao-1-supabase`). As regras de negócio dela foram aprovadas na prática e **continuam valendo**; esta revisão muda só a infraestrutura: identidade e sessão passam a ser da API, e o contexto do usuário passa a ser conferido no banco.
 
 ## 1. Escopo
 
@@ -38,7 +38,7 @@
 
 ## 3. O que vem da revisão 1 (port)
 
-As migrations `supabase/migrations/2026110112*–16*` e os testes `supabase/tests/*` são portados para `db/` com estas trocas mecânicas. Regras, colunas, constraints e testes de negócio ficam iguais.
+As migrations `supabase/migrations/2026110112*–16*` e os testes `supabase/tests/*` (removidos no PR 11; tag `revisao-1-supabase`) foram portados para `db/` com estas trocas mecânicas. Regras, colunas, constraints e testes de negócio ficam iguais.
 
 | Revisão 1 (Supabase) | Revisão 2 |
 | --- | --- |
@@ -135,7 +135,8 @@ Parâmetros de segurança (ADR-012): Argon2id m=19 MiB, t=2, p=1; atraso progres
 8b. ✅ `feat/fase-01-front-react` (ADR-018, pedido do Adriano em 2026-11-03): o app Expo (`apps/app`) foi trocado por um front React web em `apps/web` (Vite, PWA, React Router, design Apple em CSS com tokens: claro e escuro, alvos ≥ 44 px). Portados e testados no navegador contra a API local: login, MFA, recuperação e redefinição, shell (menu lateral no desktop, abas no celular), seletor de empresa, notificações, conta, equipe, matriz, convites e step-up. Sessão só em cookie HttpOnly (mesma origem, `/api`). O front da revisão 1 (Supabase) e o `apps/app` saíram do repositório. Pendentes: CSP e cabeçalhos no Caddy, ícones definitivos do PWA.
 9. ✅ `feat/fase-01-push`: Web Push (VAPID): `core.dispositivos_push` (endpoint e chaves nunca lidos pela API; lista fechada de hosts de push contra SSRF; até 10 por usuário), `GET /push/chave`, `POST/DELETE /dispositivos-push` (+ consulta e revogar por endpoint), trigger que enfileira `push_notificacao` por notificação, worker enviando por `pywebpush` um aviso genérico (sem conteúdo), `public/push.js` no service worker (clique abre sempre `/notificacoes`), seção "Alertas neste dispositivo" na Conta e cancelamento da inscrição no logout (T5.26). Testado: pgTAP, e2e A x B, worker (unidade e integração com o banco) e vitest; no navegador do painel só o estado "bloqueadas" (a inscrição real depende de FCM/Mozilla/Apple, não validada). Pendentes: validar em Chrome, Firefox e iPhone instalado; chaves VAPID de produção; limpeza de dispositivos revogados antigos.
 10. ✅ `chore/fase-01-backup`: pgBackRest (ADR-015): WAL contínuo (`archive_timeout=60`) + full semanal + diferencial diário cifrados (aes-256-cbc) para bucket S3 externo; `db/Dockerfile` com pgBackRest; `infra/backup/` (config, override do compose, agendamento systemd, Healthchecks, runbook de restauração); `infra/backup/testar-restauracao.sh` (full + diferencial + WAL, cifra provada com controles (marcador em claro num repositório sem cifra, ausente no cifrado, cabeçalho em todos os arquivos), desastre, senha errada recusada por decifragem, PITR conferido), rodando em todo PR no CI. Evidência parcial de CA-6 em `docs/phase-reports/evidencias/fase-01/`. Pendentes: ensaio real (VPS e bucket), transporte S3 (MinIO no CI), tempo de restauração (RTO).
-11. `docs/relatorio-fase-01` e remoção de `supabase/`.
+11. ✅ `docs/relatorio-fase-01`: [`docs/phase-reports/fase-01.md`](../phase-reports/fase-01.md) com evidências reais (aguardando aceite do Adriano) e remoção de `supabase/` (tag `revisao-1-supabase` guarda o estado anterior), de `scripts/db-local/` e do job "Banco (pgTAP)" do CI. Testes novos no fechamento: e2e de persistência e de auditoria do acesso (CA-4, CA-5), de "sair de todas as sessões", de OPERADOR em duas empresas, de CLIENTE como atacante, de criação de empresa e de token de recuperação vencido; pgTAP dos papéis OPERADOR e JURÍDICO contra a empresa B e de `updated_at`; teste unitário do Argon2id. `docs/lgpd.md` e o checklist ASVS passaram para a stack atual.
+12. (proposto, **não aprovado**) `feat/fase-01-fechamento-operacional`: comando para criar o primeiro SUPERADMIN e seed fictício de dev; Caddy com TLS, CSP e cabeçalhos (`infra/`); telas de auditoria da empresa, exclusão definitiva com dupla aprovação e criação de empresa. O que falta para o CA-6 completo (bucket, cofre, VPS, ensaio real) depende do Adriano.
 
 ## 8. Critérios de aceite
 

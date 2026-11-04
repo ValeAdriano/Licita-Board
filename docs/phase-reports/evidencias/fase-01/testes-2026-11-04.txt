@@ -1,0 +1,55 @@
+# Evidência da Fase 01: execução local das suítes em 2026-11-04 (macOS, Node v26.7.0, PostgreSQL 16.14 com pgTAP)
+# Não cobre: Semgrep, Gitleaks, pip-audit/npm audit, imagens Docker e o job de backup (rodam só no CI) nem Docker Compose (sem Docker nesta máquina).
+
+== Banco: db/scripts/test-local.sh (dbmate up, rollback de todas, up; depois pgTAP)
+ok     db/tests/000_helpers.test.sql (1 asserções)
+ok     db/tests/001_guarda_global.test.sql (19 asserções)
+ok     db/tests/002_contexto.test.sql (17 asserções)
+ok     db/tests/010_cnpj_uuid.test.sql (9 asserções)
+ok     db/tests/020_core_isolamento.test.sql (56 asserções)
+ok     db/tests/030_audit_log.test.sql (16 asserções)
+ok     db/tests/040_sessoes_login.test.sql (31 asserções)
+ok     db/tests/050_mfa.test.sql (30 asserções)
+ok     db/tests/060_mfa_endurecimento.test.sql (16 asserções)
+ok     db/tests/070_step_up.test.sql (36 asserções)
+ok     db/tests/080_exclusao_dupla_aprovacao.test.sql (30 asserções)
+ok     db/tests/090_notificacoes.test.sql (27 asserções)
+ok     db/tests/100_convites.test.sql (36 asserções)
+ok     db/tests/110_salvar_vinculo.test.sql (14 asserções)
+ok     db/tests/120_fila_recuperacao.test.sql (25 asserções)
+ok     db/tests/130_contexto_fundo.test.sql (12 asserções)
+ok     db/tests/140_dispositivos_push.test.sql (53 asserções)
+
+== Guarda de isolamento
+OK (db/): 0 tabela(s) de priv, todas com teste de isolamento.
+
+== Guardas: scripts/tests e .claude/hooks/tests
+Ran 7 tests in 0.236s
+
+OK
+Ran 11 tests in 1.159s
+
+OK
+
+== Web: lint, typecheck, test, build
+lint ok
+typecheck ok
+ Test Files  9 passed (9)
+      Tests  70 passed (70)
+precache  22 entries (336.86 KiB)
+
+== API: lint, typecheck, unitário
+lint ok
+typecheck ok
+ Test Files  5 passed (5)
+      Tests  24 passed (24)
+
+== API e2e (Postgres real, A x B)
+ Test Files  7 passed (7)
+      Tests  61 passed (61)
+
+== Worker: ruff, mypy, pytest
+All checks passed!
+Success: no issues found in 11 source files
+TOTAL                                 303     43     66      6    83%
+42 passed in 1.47s

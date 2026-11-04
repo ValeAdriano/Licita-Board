@@ -2,7 +2,7 @@
 
 Plataforma multiempresa para administrar licitações públicas, da oportunidade identificada ao recebimento: empresas e certidões, agenda com prazos jurídicos, captura de editais (PNCP), análise técnica com IA e evidência verificável, preços, propostas, peças jurídicas, contratos e financeiro.
 
-> **Estado:** Fase 00 (fundação técnica). Nenhum módulo de negócio liberado. Ver [`docs/roadmap.md`](docs/roadmap.md).
+> **Estado:** Fase 01 (arquitetura, segurança e controle de acessos) com todos os PRs entregues e relatório aguardando aceite ([`docs/phase-reports/fase-01.md`](docs/phase-reports/fase-01.md)). Nenhum módulo de negócio liberado ainda. Ver [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Para quem chega agora (pessoa ou agente de IA)
 
@@ -15,42 +15,35 @@ Plataforma multiempresa para administrar licitações públicas, da oportunidade
 
 | Camada | Tecnologia | Onde |
 | --- | --- | --- |
-| Front (PWA) | Vite + React + TypeScript | `apps/web` → Vercel |
-| Dados, auth, storage, fila | Supabase (Postgres + RLS, Auth, Storage, Vault, pg_cron, pgmq) | `supabase/` |
-| Trabalho pesado | Python 3.12 + FastAPI (PNCP, PDF, OCR, IA, DOCX) | `apps/worker` → Railway |
+| Front (PWA) | React 19 + Vite + TypeScript (design Apple, claro e escuro) | `apps/web` |
+| API | NestJS (Node 26) + Kysely; sessão em cookie HttpOnly, CSRF, guard por permissão | `apps/api` |
+| Banco | PostgreSQL 17 com RLS em duas camadas, migrations SQL (dbmate), testes pgTAP | `db/` |
+| Trabalho pesado | Python 3.12: fila `ops.jobs`, e-mail, Web Push (depois PNCP, PDF, OCR, IA) | `apps/worker` |
+| Infra | Docker Compose; backup com pgBackRest (WAL, full, diferencial, cifrado, PITR) | `compose.yml`, `infra/` |
 
-Decisões e alternativas: [`docs/adr/`](docs/adr/).
+Decisões e alternativas: [`docs/adr/`](docs/adr/). O projeto saiu do Supabase (ADR-011); a revisão 1 existe só no histórico do git (tag `revisao-1-supabase`).
 
 ## Rodando localmente
 
-Pré-requisitos: Node 26 (`.nvmrc`), [uv](https://docs.astral.sh/uv/), Docker (para o Supabase local).
+Pré-requisitos: Node 26 (`.nvmrc`), [uv](https://docs.astral.sh/uv/), Docker.
 
 > **Não mantenha o repositório em pasta sincronizada pelo iCloud** (Mesa e Documentos). O iCloud tira arquivos do disco e duplica arquivos do `.git`, travando testes e builds. Use, por exemplo, `~/Developer/Licita-Board`.
 
 ```bash
-# Front
+scripts/dev-env.sh                      # gera o .env de dev com senhas aleatórias (uma vez)
+docker compose up -d --build            # postgres, api, worker e mailpit
+docker compose run --rm dbmate up       # aplica db/migrations
+
 npm ci --prefix apps/web
-cp apps/web/.env.example apps/web/.env.local
-npm run dev --prefix apps/web
-
-# Worker
-cd apps/worker && uv sync && cp .env.example .env && uv run uvicorn worker.main:app --app-dir src --reload
-
-# Banco (Docker): sobe Postgres + Auth + Studio e aplica migrations e seed fictício
-npx supabase start
-npx supabase status        # mostra a URL e a chave pública (anon) para o apps/web/.env.local
-npx supabase test db
+npm run dev --prefix apps/web           # http://localhost:5173 (o Vite repassa /api para a API)
 ```
 
-### Entrando no sistema (local)
+Todo e-mail enviado em desenvolvimento aparece no Mailpit: http://localhost:8025.
 
-1. `npx supabase start` e copie `API URL` e `anon key` para `apps/web/.env.local`.
-2. `npm run dev --prefix apps/web` e abra http://127.0.0.1:5173.
-3. Entre com um usuário fictício do [`supabase/seed.sql`](supabase/seed.sql) (os e-mails e a senha de desenvolvimento estão no cabeçalho do arquivo).
-4. Perfis internos cadastram o autenticador (MFA) no primeiro acesso. E-mails de recuperação de senha chegam no Mailpit local: http://127.0.0.1:54324.
+Hoje **não há seed com usuário fictício**: o primeiro usuário (SUPERADMIN) é criado por SQL como `vv_owner`. Um comando para isso é a próxima pendência de ergonomia (ver `docs/phase-reports/fase-01.md`, seção 7).
 
-Sem Docker, `scripts/db-local/test.sh` roda migrations e testes num Postgres local, mas não sobe o Auth: não dá para fazer login.
+Testes de cada pacote e do banco: ver os comandos em [`AGENTS.md`](AGENTS.md) §6.
 
 ## Qualidade e segurança
 
-CI em [`.github/workflows/ci.yml`](.github/workflows/ci.yml): lint, typecheck, testes, pgTAP (RLS e isolamento A x B), Semgrep com regras próprias ([`.semgrep/`](.semgrep/)), Gitleaks, `npm audit`, `pip-audit`. Modelo de ameaças: [`docs/threat-model.md`](docs/threat-model.md).
+CI em [`.github/workflows/ci.yml`](.github/workflows/ci.yml): lint, typecheck, testes, pgTAP (RLS e isolamento A x B), e2e da API (A x B por endpoint), restauração de backup provada, Semgrep com regras próprias ([`.semgrep/`](.semgrep/)), Gitleaks, `npm audit`, `pip-audit`. Modelo de ameaças: [`docs/threat-model.md`](docs/threat-model.md).

@@ -115,7 +115,7 @@ licita-board/
 └── .github/workflows/       # CI
 ```
 
-O código da revisão 1 (`supabase/`) fica congelado como referência e sai no PR de fechamento da Fase 01. O front da revisão 1 (`apps/web`) foi substituído pelo front novo no mesmo caminho (ADR-018); o app Expo (`apps/app`) sai quando o equivalente web estiver completo.
+O código da revisão 1 (`supabase/`) foi removido no PR de fechamento da Fase 01 (2026-11-04) e fica na tag `revisao-1-supabase`. O front da revisão 1 (`apps/web`) foi substituído pelo front novo no mesmo caminho (ADR-018); o app Expo (`apps/app`) foi removido (apps nativos adiados).
 
 ### Padrões técnicos
 

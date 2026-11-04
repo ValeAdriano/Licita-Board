@@ -14,8 +14,8 @@ Preços, custos e margens; propostas e peças jurídicas; documentos de habilita
 
 | Controle | Teste que comprova | Fase | Status |
 | --- | --- | --- | --- |
-| RLS em toda tabela; `priv` via `core.has_permission` (ADR-003) | pgTAP A x B: `020_core_isolamento` (core) e `supabase/tests/isolamento/` (priv) | 01+ | implementado (core) |
-| Guarda global: nenhuma tabela sem RLS, nenhuma policy de `anon` em `priv` | `supabase/tests/001_rls_ligado.test.sql` | 00 | implementado |
+| RLS em toda tabela; `priv` via `core.has_permission` (ADR-003) | pgTAP A x B: `020_core_isolamento` (core) e `db/tests/isolamento/` (priv) | 01+ | implementado (core) |
+| Guarda global: toda tabela com RLS, nenhuma policy para PUBLIC, policies de `priv` só para `vv_api` e via `has_permission`, nenhum grant a PUBLIC | `db/tests/001_guarda_global.test.sql` | 00 | implementado |
 | CI falha se tabela de `priv` não tiver teste A x B | `scripts/check_isolation_coverage.py` | 00 | no CI |
 | IDs UUID v7 (não sequenciais) | `010_cnpj_uuid` + checklist | 01 | implementado |
 | Storage com path `{empresa_id}/...` e policy por empresa; signed URL 60 s via Edge Function auditada | pgTAP de storage + teste da Edge Function com usuário de B | 03 | planejado |
@@ -51,7 +51,7 @@ Preços, custos e margens; propostas e peças jurídicas; documentos de habilita
 
 ## T5 · Sequestro de sessão e força bruta no login
 
-Revisão 2 (auth própria, ADR-012/013). Os controles da revisão 1 sobre Supabase Auth, JWT e Vercel (T5.2 a T5.5 abaixo) valem para o código congelado em `apps/web` e saem com ele.
+Revisão 2 (auth própria, ADR-012/013). Os controles da revisão 1 sobre Supabase Auth, JWT e Vercel (antigas T5.2 a T5.5) saíram com o código antigo; ver a nota "Histórico da revisão 1" abaixo.
 
 | Controle | Teste | Fase | Status |
 | --- | --- | --- | --- |
@@ -357,36 +357,9 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | Exclusão definitiva exige dois SUPERADMIN ativos, cada um com step-up | `db/tests/080_exclusao_dupla_aprovacao` | 01 | implementado |
 | Notificação de cadastro/remoção de fator MFA (revisão 2: e-mail pela fila do worker) | e2e | 01 | planejado (PR 3b) |
 
-## T5.2 · Logout que falha aberto (nova, Fase 01 · revisão de segurança do front)
+## Histórico da revisão 1 (T5.2 a T5.5, removidas em 2026-11-04)
 
-| Controle | Teste | Fase | Status |
-| --- | --- | --- | --- |
-| Inatividade checada ao reabrir o app, antes de zerar o contador; sem registro = expira | `inatividade.test.ts` | 01 | implementado |
-| `signOut` com erro apaga a sessão local à força e recarrega no login | `sair.test.ts` | 01 | implementado |
-| "Sair das outras/de todos" só confirma se o servidor confirmou | `router.test.tsx` | 01 | implementado |
-| `inactivity_timeout = 30m` e `timebox = 12h` no Auth (Pro) | configuração do projeto de produção | 01 | planejado |
-
-## T5.3 · Sessão sequestrada vira posse da conta (nova)
-
-| Controle | Teste | Fase | Status |
-| --- | --- | --- | --- |
-| `/redefinir-senha` só aceita a aba que chegou pelo link do e-mail (`PASSWORD_RECOVERY`) | `router.test.tsx` | 01 | implementado |
-| Quem tem autenticador confirma o código antes de trocar a senha | `router.test.tsx` | 01 | implementado |
-| Risco residual: com o JWT roubado, `updateUser({ password })` pode ser chamado direto na API; o servidor só exige reautenticação após 24 h (`secure_password_change`). Avaliar exigir a senha atual no Auth e e2e contra o Supabase local | e2e (pendente, precisa de Docker) | 01 | planejado |
-
-## T5.4 · Abuso da recuperação de senha (nova)
-
-| Controle | Teste | Fase | Status |
-| --- | --- | --- | --- |
-| Mensagem neutra sempre, inclusive quando o envio falha | `router.test.tsx` | 01 | implementado |
-| CAPTCHA (Turnstile) no login e na recuperação; cota de e-mails com alerta (a cota padrão é por projeto) | configuração + CSP com `challenges.cloudflare.com` | 01 | planejado |
-
-## T5.5 · Exfiltração do token para outro projeto Supabase (nova)
-
-| Controle | Teste | Fase | Status |
-| --- | --- | --- | --- |
-| `connect-src` restrito ao projeto do ambiente (hoje `*.supabase.co`); fixar quando o projeto de produção existir | teste de headers da Vercel | 01 | planejado |
-| `style-src 'self'` (sem `unsafe-inline`), `Cross-Origin-Opener-Policy: same-origin` | `vercel.json` | 01 | implementado |
+As ameaças T5.2 (logout que falha aberto), T5.3 (sessão sequestrada vira posse da conta), T5.4 (abuso da recuperação de senha) e T5.5 (exfiltração do token para outro projeto) descreviam controles sobre Supabase Auth, JWT no navegador e Vercel, com testes do front antigo que já não existem. Os riscos continuam e estão cobertos, na stack atual, por: T5.17 (sessão no front: inatividade, logout e rotas), T5.19 e T5.20 (redefinição e troca de senha), T5.4b (spam de e-mail), T5.18 e T5.21 a T5.26 (origem do app, CSP e cabeçalhos no Caddy, service worker) e pelo CAPTCHA Turnstile na recuperação e no login (T5.4 original, hoje implementado no PR 3b). O texto antigo está no histórico do git (tag `revisao-1-supabase`).
 
 ## T3.1 · Notificação usada para phishing (nova, Fase 01)
 

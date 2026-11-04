@@ -6,7 +6,7 @@ Escreva/complete os testes da Fase <XX> para **"<área>"**.
 
 ## Isolamento A x B (obrigatório para toda tabela de `priv`)
 
-Arquivo: `supabase/tests/isolamento/<schema>_<tabela>.test.sql`, a partir de `_modelo.sql.example`.
+Arquivo: `db/tests/isolamento/<schema>_<tabela>.test.sql`, a partir de `_modelo.sql.example`.
 
 - Fixtures: duas empresas (A, B), um usuário por empresa com permissão total na própria empresa, MFA `aal2`.
 - Como usuário A: SELECT de linhas de B → vazio; UPDATE e DELETE de B → 0 linhas; INSERT com `empresa_id` de B → erro `42501`.

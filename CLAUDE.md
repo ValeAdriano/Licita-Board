@@ -17,7 +17,7 @@ As regras do projeto valem para todos os agentes e estão em `AGENTS.md`, import
 | Comando | Uso |
 | --- | --- |
 | `/spec 01` | Escreve ou revisa `docs/specs/fase-01.md` a partir do Prompt Mestre e do plano |
-| `/migration <descrição>` | Gera migration + RLS + pgTAP de isolamento, seguindo `db/` (regras de `supabase/AGENTS.md` até o port) |
+| `/migration <descrição>` | Gera migration + RLS + pgTAP de isolamento, seguindo `db/` (regras em `db/AGENTS.md`) |
 | `/isolamento <schema.tabela>` | Escreve o teste A x B de uma tabela |
 | `/adr <título>` | Cria o próximo ADR a partir do modelo |
 | `/revisar` | Revisa a branch atual contra o Definition of Done e o modelo de ameaças |
@@ -34,7 +34,7 @@ Os comandos são finos: cada um aponta para um prompt neutro em `docs/agents/pro
 
 ### Hooks (`.claude/hooks/guard.py`)
 
-Bloqueiam antes de executar: credencial de banco/S3/chave-mestra/service role em `apps/web`, credencial de `vv_worker`/`vv_owner` em `apps/api`, edição de `.env` reais, edição de migration já commitada no `main` (`db/` e `supabase/`), RLS desligado, `float` em `rules/`. Pedem confirmação em comandos destrutivos (`git push --force`, `docker compose down -v`, `docker volume rm`, `dbmate drop`, comandos de produção, `drop database`, `rm -rf /`...). Se um hook bloquear, **não contorne**: explique ao Adriano e peça orientação.
+Bloqueiam antes de executar: credencial de banco/S3/chave-mestra/service role em `apps/web`, credencial de `vv_worker`/`vv_owner` em `apps/api`, edição de `.env` reais, edição de migration já commitada no `main` (`db/migrations/`), RLS desligado, `float` em `rules/`. Pedem confirmação em comandos destrutivos (`git push --force`, `docker compose down -v`, `docker volume rm`, `dbmate drop`, comandos de produção, `drop database`, `rm -rf /`...). Se um hook bloquear, **não contorne**: explique ao Adriano e peça orientação.
 
 ### Supabase (revisão 1, descontinuado)
 
