@@ -47,13 +47,13 @@ export function ConvidarUsuario(props: { empresaId: string; modulos: Modulo[]; a
   }
 
   return (
-    <form className="pilha pilha--grande" onSubmit={revisar} noValidate>
+    <form className="flex flex-col gap-6" onSubmit={revisar} noValidate>
       <h2>Convidar usuário</h2>
-      <Campo rotulo="E-mail do convidado" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" inputMode="email" spellCheck={false} />
-      <div className="pilha">
+      <Campo rotulo="E-mail do convidado" type="email" value={email} onChange={(v) => setEmail(v)} autoComplete="off" inputMode="email" spellCheck={false} />
+      <div className="flex flex-col gap-4">
         <h3>Papel</h3>
         <SeletorPapel papel={papel} aoMudar={trocarPapel} />
-        <p className="legenda">O convite vale por 7 dias e só pode ser aceito pela conta com este e-mail, já verificado.</p>
+        <p className="text-sm text-tertiary [overflow-wrap:anywhere]">O convite vale por 7 dias e só pode ser aceito pela conta com este e-mail, já verificado.</p>
         <div>
           <Botao variante="secundario" onClick={() => setSelecao(filtrarPorPapel(papel, sugestaoPorPapel(papel, modulos)))}>
             Aplicar sugestão do papel (revise antes de enviar)

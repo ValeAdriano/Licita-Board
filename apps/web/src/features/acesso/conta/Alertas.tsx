@@ -37,10 +37,10 @@ export function Alertas() {
 
   return (
     <Secao titulo="Alertas neste dispositivo">
-      {estado === null ? <p className="legenda">Verificando…</p> : null}
+      {estado === null ? <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Verificando…</p> : null}
       {estado !== null && estado !== 'ligado' && estado !== 'desligado' ? <Aviso tipo="atencao" texto={TEXTOS[estado]} /> : null}
       {estado === 'desligado' ? (
-        <div className="pilha">
+        <div className="flex flex-col gap-4">
           <p>Receba um aviso neste dispositivo quando houver uma nova notificação. O aviso não mostra o conteúdo.</p>
           <Botao carregando={enviando} onClick={() => void trocar(ativarPush, 'Alertas ligados neste dispositivo.')}>
             Ligar alertas
@@ -48,7 +48,7 @@ export function Alertas() {
         </div>
       ) : null}
       {estado === 'ligado' ? (
-        <div className="pilha">
+        <div className="flex flex-col gap-4">
           <p>Alertas ligados neste dispositivo. Sair da conta desliga os alertas deste navegador; trocar a senha desliga em todos.</p>
           <Botao variante="secundario" carregando={enviando} onClick={() => void trocar(desativarPush, 'Alertas desligados neste dispositivo.')}>
             Desligar alertas

@@ -1,47 +1,76 @@
-import { Bell, Building2, CircleUser, ClipboardList, House, ScrollText, Search, Users } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router'
+import { Bell01, Building07, ClipboardCheck, FileSearch01, Home01, LogOut01, SearchLg, User01, Users01 } from '@untitledui/icons'
+import { Outlet, useLocation } from 'react-router'
+import { NavList } from '@/components/application/app-navigation/base-components/nav-list'
+import { MobileNavigationHeader } from '@/components/application/app-navigation/base-components/mobile-header'
+import type { NavItemType } from '@/components/application/app-navigation/config'
+import { Badge } from '@/components/base/badges/badges'
+import { useSessao } from '../auth/sessao'
 import { AMBIENTE } from '../config'
 import { AcessoProvider, useAcesso } from '../features/acesso/contexto'
 import { SeletorEmpresa } from '../features/acesso/SeletorEmpresa'
-import { FaixaAmbiente } from '../ui'
+import { Botao, FaixaAmbiente, Marca } from '../ui'
 
-// Shell (RF-01.14): menu lateral no desktop, abas embaixo no celular; empresa no cabeçalho.
-function Esqueleto() {
+// Shell (RF-01.14) no padrão "sidebar" do Untitled UI: menu lateral fixo no desktop (≥ 1024 px) e, no
+// celular, cabeçalho com botão que abre o menu em painel. A empresa fica no topo do menu.
+function Conteudo({ aoNavegar }: { aoNavegar?: () => void }) {
   const { naoLidas, pode, usuario } = useAcesso()
-  const item = (to: string, rotulo: string, icone: React.ReactNode, selo = 0) => (
-    <NavLink key={to} to={to} end={to === '/'} className="nav__item" aria-label={selo > 0 ? `${rotulo}, ${selo} não lidas` : rotulo}>
-      {icone}
-      <span>{rotulo}</span>
-      {selo > 0 ? (
-        <span className="nav__selo" aria-hidden="true">
-          {selo}
-        </span>
-      ) : null}
-    </NavLink>
-  )
+  const { sair } = useSessao()
+  const { pathname } = useLocation()
+  const itens: NavItemType[] = [
+    { label: 'Início', href: '/', icon: Home01 },
+    { label: 'Notificações', href: '/notificacoes', icon: Bell01, badge: naoLidas > 0 ? <Badge color="brand" size="sm" type="pill-color">{naoLidas}</Badge> : undefined },
+    ...(pode('empresas', 'visualizar') ? [{ label: 'Cadastros', href: '/cadastros', icon: ClipboardCheck }] : []),
+    ...(pode('editais', 'visualizar') ? [{ label: 'Oportunidades', href: '/oportunidades', icon: SearchLg }] : []),
+    ...(pode('usuarios', 'visualizar') ? [{ label: 'Equipe', href: '/equipe', icon: Users01 }] : []),
+    ...(pode('auditoria', 'visualizar') ? [{ label: 'Auditoria', href: '/auditoria', icon: FileSearch01 }] : []),
+    ...(usuario?.superadmin ? [{ label: 'Plataforma', href: '/plataforma', icon: Building07 }] : []),
+    { label: 'Conta', href: '/conta', icon: User01 },
+  ]
+  // Detalhe de edital pertence à área de Oportunidades.
+  const ativo = pathname.startsWith('/editais') ? '/oportunidades' : pathname
   return (
-    <div className={AMBIENTE === 'prod' ? 'shell' : 'shell shell--faixa'}>
-      <FaixaAmbiente ambiente={AMBIENTE} />
-      <nav className="nav" aria-label="Principal">
-        {item('/', 'Início', <House size={22} aria-hidden="true" />)}
-        {item('/notificacoes', 'Notificações', <Bell size={22} aria-hidden="true" />, naoLidas)}
-        {pode('empresas', 'visualizar') ? item('/cadastros', 'Cadastros', <ClipboardList size={22} aria-hidden="true" />) : null}
-        {pode('editais', 'visualizar') ? item('/oportunidades', 'Oportunidades', <Search size={22} aria-hidden="true" />) : null}
-        {pode('usuarios', 'visualizar') ? item('/equipe', 'Equipe', <Users size={22} aria-hidden="true" />) : null}
-        {pode('auditoria', 'visualizar') ? item('/auditoria', 'Auditoria', <ScrollText size={22} aria-hidden="true" />) : null}
-        {usuario?.superadmin ? item('/plataforma', 'Plataforma', <Building2 size={22} aria-hidden="true" />) : null}
-        {item('/conta', 'Conta', <CircleUser size={22} aria-hidden="true" />)}
-      </nav>
-      <div className="shell__lado">
-        <header className="topo">
-          <span className="topo__titulo">VV Licitações</span>
-          <span className="espaco" />
+    <div className="flex h-full flex-col justify-between overflow-y-auto bg-primary" onClick={aoNavegar ? (e) => (e.target as HTMLElement).closest('a') && aoNavegar() : undefined}>
+      <div>
+        <div className="hidden px-5 pt-6 lg:block">
+          <Marca />
+        </div>
+        <div className="px-4 pt-5">
           <SeletorEmpresa />
-        </header>
-        <main className="conteudo">
-          <Outlet />
-        </main>
+        </div>
+        <nav aria-label="Principal">
+          <NavList activeUrl={ativo} items={itens} />
+        </nav>
       </div>
+      <div className="flex flex-col gap-3 border-t border-secondary p-4">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-primary">{usuario?.nome}</p>
+          <p className="truncate text-sm text-tertiary">{usuario?.email}</p>
+        </div>
+        <Botao variante="secundario" cheio onClick={() => void sair()}>
+          <span className="inline-flex items-center gap-2">
+            <LogOut01 className="size-4" aria-hidden="true" /> Sair
+          </span>
+        </Botao>
+      </div>
+    </div>
+  )
+}
+
+function Esqueleto() {
+  return (
+    <div className={`min-h-dvh bg-primary ${AMBIENTE === 'prod' ? '' : 'pt-6 [--faixa:--spacing(6)]'}`}>
+      <FaixaAmbiente ambiente={AMBIENTE} />
+      <MobileNavigationHeader>
+        <Conteudo />
+      </MobileNavigationHeader>
+      <aside className="fixed top-(--faixa,0px) bottom-0 left-0 hidden w-72 border-r border-secondary lg:block">
+        <Conteudo />
+      </aside>
+      <main className="px-4 py-8 lg:pl-72">
+        <div className="lg:px-8">
+          <Outlet />
+        </div>
+      </main>
     </div>
   )
 }

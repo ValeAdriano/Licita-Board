@@ -96,6 +96,8 @@ nao "$h" "x-powered-by:" "X-Powered-By da API é removido"
 # Sem 'unsafe-inline' nem 'unsafe-eval', e o HTML do app não tem nada inline que a CSP bloquearia.
 csp="$(cab "$base/" | grep -i '^content-security-policy:')"
 grep -qE "unsafe-(inline|eval)" <<<"$csp" && nok "CSP sem unsafe-inline/unsafe-eval" || ok "CSP sem unsafe-inline/unsafe-eval"
+# Única abertura em style-src: o hash do <style> do react-aria (ver apps/web/AGENTS.md); nada de 'unsafe-hashes' nem fonte externa.
+grep -qE "style-src 'self' 'sha256-[A-Za-z0-9+/=]+';" <<<"$csp" && ok "style-src só com 'self' e o hash do react-aria" || nok "style-src só com 'self' e o hash do react-aria"
 if python3 - "$DIST/index.html" <<'PY'
 import re, sys
 html = open(sys.argv[1], encoding="utf-8").read()

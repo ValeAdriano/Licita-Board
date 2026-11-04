@@ -60,23 +60,23 @@ export function Contas({ empresaId, podeEditar }: { empresaId: string; podeEdita
 
   return (
     <Secao titulo="Dados bancários e PIX">
-      <p className="legenda">Guardados cifrados. Alterar ou ver por inteiro pede o código do autenticador e avisa os administradores.</p>
+      <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Guardados cifrados. Alterar ou ver por inteiro pede o código do autenticador e avisa os administradores.</p>
       <Aviso texto={erro ?? lista.erro} />
-      {lista.dados?.length === 0 ? <p className="legenda">Nenhuma conta cadastrada.</p> : null}
-      <div className="lista">
+      {lista.dados?.length === 0 ? <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Nenhuma conta cadastrada.</p> : null}
+      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {lista.dados?.map((c) => (
-          <div key={c.id} className="lista__item lista__item--acoes" style={{ cursor: 'default', alignItems: 'flex-start' }}>
-            <span className="lista__texto">
+          <div key={c.id} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left flex-wrap items-start">
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
               <strong>
                 <bdi>{c.titularNome}</bdi> {c.principal ? '· principal' : ''}
               </strong>
-              <span className="legenda">Banco {c.banco} · {TIPOS.find((t) => t.valor === c.tipoConta)?.rotulo}</span>
+              <span className="text-sm text-tertiary [overflow-wrap:anywhere]">Banco {c.banco} · {TIPOS.find((t) => t.valor === c.tipoConta)?.rotulo}</span>
               {CAMPOS.map(({ campo, rotulo }) => {
                 const mascara = campo === 'agencia' ? c.agenciaMascara : campo === 'conta' ? c.contaMascara : campo === 'titular_documento' ? c.titularDocumentoMascara : c.pixMascara
                 if (!mascara) return null
                 const aberto = valor?.chave === `${c.id}:${campo}`
                 return (
-                  <span key={campo} className="legenda">
+                  <span key={campo} className="text-sm text-tertiary [overflow-wrap:anywhere]">
                     {rotulo}: <strong>{aberto ? valor.texto : mascara}</strong>{' '}
                     {podeEditar ? (
                       <Botao variante="texto" onClick={() => (aberto ? esconder() : revelar(c, campo, rotulo))}>
@@ -133,15 +133,15 @@ function NovaConta(props: { empresaId: string; aoCancelar: () => void; aoPedir: 
     })
   }
   return (
-    <form className="pilha" onSubmit={enviar} noValidate>
-      <Campo rotulo="Banco (código, 3 dígitos)" value={f.banco} onChange={(e) => set('banco')(e.target.value)} maxLength={3} inputMode="numeric" />
+    <form className="flex flex-col gap-4" onSubmit={enviar} noValidate>
+      <Campo rotulo="Banco (código, 3 dígitos)" value={f.banco} onChange={(v) => set('banco')(v)} maxLength={3} inputMode="numeric" />
       <Selecao rotulo="Tipo de conta" value={f.tipoConta} onChange={set('tipoConta')} opcoes={TIPOS} />
-      <Campo rotulo="Titular" value={f.titularNome} onChange={(e) => set('titularNome')(e.target.value)} maxLength={200} />
-      <Campo rotulo="CPF ou CNPJ do titular" value={f.titularDocumento} onChange={(e) => set('titularDocumento')(e.target.value)} maxLength={18} autoComplete="off" />
-      <Campo rotulo="Agência" value={f.agencia} onChange={(e) => set('agencia')(e.target.value)} maxLength={7} autoComplete="off" />
-      <Campo rotulo="Conta (com dígito)" value={f.conta} onChange={(e) => set('conta')(e.target.value)} maxLength={14} autoComplete="off" />
+      <Campo rotulo="Titular" value={f.titularNome} onChange={(v) => set('titularNome')(v)} maxLength={200} />
+      <Campo rotulo="CPF ou CNPJ do titular" value={f.titularDocumento} onChange={(v) => set('titularDocumento')(v)} maxLength={18} autoComplete="off" />
+      <Campo rotulo="Agência" value={f.agencia} onChange={(v) => set('agencia')(v)} maxLength={7} autoComplete="off" />
+      <Campo rotulo="Conta (com dígito)" value={f.conta} onChange={(v) => set('conta')(v)} maxLength={14} autoComplete="off" />
       <Selecao rotulo="Tipo da chave PIX" value={f.pixTipo} onChange={set('pixTipo')} opcoes={PIX} vazio="Sem PIX" />
-      {f.pixTipo ? <Campo rotulo="Chave PIX" value={f.pixChave} onChange={(e) => set('pixChave')(e.target.value)} maxLength={120} autoComplete="off" /> : null}
+      {f.pixTipo ? <Campo rotulo="Chave PIX" value={f.pixChave} onChange={(v) => set('pixChave')(v)} maxLength={120} autoComplete="off" /> : null}
       <Caixa rotulo="Conta principal" marcado={f.principal} onChange={set('principal') as (v: boolean) => void} />
       <Aviso texto={erro} />
       <Botao type="submit">Continuar</Botao>

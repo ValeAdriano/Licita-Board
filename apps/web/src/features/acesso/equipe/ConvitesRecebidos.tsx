@@ -43,18 +43,18 @@ export function ConvitesRecebidos() {
 
   if (!dados || dados.length === 0) return null
   return (
-    <section className="cartao pilha" aria-label="Convites recebidos" style={{ borderColor: 'var(--acento)' }}>
+    <section className="flex flex-col gap-4 rounded-xl bg-primary p-4 shadow-xs ring-2 ring-brand md:p-6" aria-label="Convites recebidos">
       <h2>Convites recebidos</h2>
       {dados.map((c) => (
-        <div key={c.id} className="pilha" style={{ gap: 4 }}>
+        <div key={c.id} className="flex flex-col gap-1">
           <strong>
             <bdi>{c.empresa}</bdi>
           </strong>
-          <span className="legenda">CNPJ {cnpjLegivel(c.cnpj)}</span>
-          <span className="legenda">
+          <span className="text-sm text-tertiary [overflow-wrap:anywhere]">CNPJ {cnpjLegivel(c.cnpj)}</span>
+          <span className="text-sm text-tertiary [overflow-wrap:anywhere]">
             Convidado por <bdi>{c.convidado_por ?? 'usuário desconhecido'}</bdi>
           </span>
-          <span className="legenda">
+          <span className="text-sm text-tertiary [overflow-wrap:anywhere]">
             {rotuloPapel(c.papel)} · {c.permissoes.length} permissão(ões) · vence em {new Date(c.expira_em).toLocaleDateString('pt-BR')}
           </span>
           {revisando === c.id ? (

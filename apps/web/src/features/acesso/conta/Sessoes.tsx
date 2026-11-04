@@ -47,17 +47,17 @@ export function Sessoes() {
 
   return (
     <Secao titulo="Sessões abertas">
-      <div className="pilha">
+      <div className="flex flex-col gap-4">
         {sessoes.map((s) => (
-          <div key={s.id} className="pilha" style={{ gap: 2, paddingBottom: 'var(--e2)', borderBottom: '1px solid var(--linha)' }}>
+          <div key={s.id} className="flex flex-col gap-0.5 border-b border-secondary pb-3">
             <strong>
               {s.plataforma}
               {s.atual ? ' · esta sessão' : ''}
             </strong>
-            <span className="legenda" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <span className="text-sm text-tertiary [overflow-wrap:anywhere]">
               {[s.ip, s.user_agent].filter(Boolean).join(' · ')}
             </span>
-            <span className="legenda">Último uso: {new Date(s.ultimo_uso_em).toLocaleString('pt-BR')}</span>
+            <span className="text-sm text-tertiary [overflow-wrap:anywhere]">Último uso: {new Date(s.ultimo_uso_em).toLocaleString('pt-BR')}</span>
             {!s.atual ? (
               <div>
                 <Botao variante="secundario" onClick={() => void encerrar(s.id)}>

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { chamar } from '../../api/cliente'
-import { Aviso, Botao, Campo } from '../../ui'
+import { Abas, Aviso, Botao, Campo, Etiqueta } from '../../ui'
 import { Caixa } from '../acesso/cadastros/comum'
 import { useEnvio } from '../acesso/conta/useEnvio'
 import { useGet } from '../acesso/useGet'
@@ -46,30 +46,29 @@ export function Oportunidades({ empresaId, pode }: { empresaId: string; pode: (a
   const total = (contagem.alta ?? 0) + (contagem.media ?? 0) + (contagem.baixa ?? 0)
   const trocar = (a: Aba) => { setEscolheu(true); setAba(a); setPagina(1) }
   return (
-    <div className="pilha pilha--grande">
+    <div className="flex flex-col gap-6">
       <BannerFontes />
-      <div role="tablist" aria-label="Relevância" className="pilha" style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        {ABAS.map((a) => (
-          <Botao key={a.id} role="tab" aria-selected={aba === a.id} variante={aba === a.id ? 'primario' : 'secundario'} onClick={() => trocar(a.id)}>
-            {a.rotulo} ({a.id === 'todas' ? total : (contagem[a.id] ?? 0)})
-          </Botao>
-        ))}
-      </div>
+      <Abas
+        rotulo="Relevância"
+        ativa={aba}
+        aoMudar={trocar}
+        abas={ABAS.map((a) => ({ id: a.id, rotulo: `${a.rotulo} (${a.id === 'todas' ? total : (contagem[a.id] ?? 0)})` }))}
+      />
       <Caixa rotulo="Incluir editais com prazo de propostas já encerrado" marcado={encerradas} onChange={(v) => { setEncerradas(v); setPagina(1) }} />
       <Aviso texto={lista.erro} />
-      {lista.carregando ? <p className="legenda">Carregando…</p> : null}
+      {lista.carregando ? <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Carregando…</p> : null}
       {lista.dados && lista.dados.itens.length === 0 ? (
-        <p className="vazio">
+        <p className="px-4 py-10 text-center text-sm text-tertiary">
           Nenhuma oportunidade nesta aba. {total === 0 ? 'Cadastre palavras-chave em Cadastros e aguarde a próxima busca, ou importe um edital.' : 'Veja as outras abas.'}
         </p>
       ) : null}
-      <div className="lista">
+      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {lista.dados?.itens.map((o) => <Cartao key={o.id} o={o} empresaId={empresaId} podeTriar={pode('editar')} aoMudar={lista.recarregar} />)}
       </div>
       {lista.dados && (pagina > 1 || lista.dados.itens.length === lista.dados.porPagina) ? (
-        <div className="pilha" style={{ flexDirection: 'row' }}>
+        <div className="flex gap-4 flex-row items-center">
           <Botao variante="secundario" disabled={pagina === 1} onClick={() => setPagina(pagina - 1)}>Anterior</Botao>
-          <span className="legenda">Página {pagina}</span>
+          <span className="text-sm text-tertiary [overflow-wrap:anywhere]">Página {pagina}</span>
           <Botao variante="secundario" disabled={lista.dados.itens.length < lista.dados.porPagina} onClick={() => setPagina(pagina + 1)}>Próxima</Botao>
         </div>
       ) : null}
@@ -88,39 +87,39 @@ function Cartao({ o, empresaId, podeTriar, aoMudar }: { o: Op; empresaId: string
       aoMudar()
     })
   return (
-    <article className="lista__item" style={{ cursor: 'default', flexDirection: 'column', alignItems: 'stretch', gap: 'var(--e2)' }}>
-      <div className="lista__texto">
+    <article className="flex min-h-14 w-full items-center px-4 py-3 text-left flex-col items-stretch gap-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
         <strong><bdi>{o.orgao}</bdi> · {o.municipio ?? '—'}/{o.uf ?? '—'}</strong>
         <span><bdi>{o.descricao}</bdi></span>
-        <span className="legenda">
+        <span className="text-sm text-tertiary [overflow-wrap:anywhere]">
           Item {o.numeroItem} · {o.quantidade ?? '—'} {o.unidadeMedida ?? ''} · {moeda(o.valorTotal)} · {o.modalidade ?? '—'} · propostas até {quando(o.encerramentoPropostas)}
         </span>
-        <span className="legenda"><bdi>{o.objeto}</bdi></span>
+        <span className="text-sm text-tertiary [overflow-wrap:anywhere]"><bdi>{o.objeto}</bdi></span>
       </div>
-      <div className="pilha" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 'var(--e1)' }}>
-        <span className={o.faixa === 'baixa' ? 'tag' : 'tag tag--aviso'}>{FAIXA[o.faixa]} · {o.nota}</span>
-        <span className="tag">{BENEFICIO[o.beneficio] ?? o.beneficio}</span>
-        {o.triagem !== 'nova' ? <span className="tag">{o.triagem === 'descartada_pelo_usuario' ? 'Descartada' : o.triagem === 'interesse' ? 'Interesse' : 'Vista'}</span> : null}
-        {o.foraDosFiltros.length > 0 ? <span className="tag">Fora dos seus filtros</span> : null}
+      <div className="flex flex-row items-center flex-wrap gap-1">
+        <Etiqueta cor={o.faixa === 'baixa' ? 'cinza' : 'aviso'}>{FAIXA[o.faixa]} · {o.nota}</Etiqueta>
+        <Etiqueta>{BENEFICIO[o.beneficio] ?? o.beneficio}</Etiqueta>
+        {o.triagem !== 'nova' ? <Etiqueta>{o.triagem === 'descartada_pelo_usuario' ? 'Descartada' : o.triagem === 'interesse' ? 'Interesse' : 'Vista'}</Etiqueta> : null}
+        {o.foraDosFiltros.length > 0 ? <Etiqueta>Fora dos seus filtros</Etiqueta> : null}
       </div>
       {o.motivos.length > 0 ? (
-        <p className="legenda">Achou: {o.motivos.map((m) => `“${m.termo ?? m.tipo}” ${ONDE[m.onde ?? ''] ?? ''}${m.pagina ? ` (p. ${m.pagina})` : ''}`).join('; ')}</p>
+        <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Achou: {o.motivos.map((m) => `“${m.termo ?? m.tipo}” ${ONDE[m.onde ?? ''] ?? ''}${m.pagina ? ` (p. ${m.pagina})` : ''}`).join('; ')}</p>
       ) : null}
-      <div className="pilha" style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+      <div className="flex gap-4 flex-row items-center flex-wrap">
         <Link to={`/editais/${o.editalId}`}>Abrir edital</Link>
         {o.linkOrigem ? <a href={o.linkOrigem} target="_blank" rel="noreferrer noopener">Fonte oficial</a> : null}
       </div>
       {podeTriar && !descartando ? (
-        <div className="pilha" style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        <div className="flex gap-4 flex-row items-center flex-wrap">
           <Botao variante="secundario" carregando={enviando} onClick={() => void triar('interesse')}>Tenho interesse</Botao>
           <Botao variante="secundario" onClick={() => void triar('vista')}>Marcar como vista</Botao>
           <Botao variante="texto" onClick={() => setDescartando(true)}>Descartar…</Botao>
         </div>
       ) : null}
       {descartando ? (
-        <div className="pilha">
-          <Campo rotulo="Motivo do descarte (fica registrado)" value={motivo} onChange={(e) => setMotivo(e.target.value)} maxLength={500} />
-          <div className="pilha" style={{ flexDirection: 'row' }}>
+        <div className="flex flex-col gap-4">
+          <Campo rotulo="Motivo do descarte (fica registrado)" value={motivo} onChange={(v) => setMotivo(v)} maxLength={500} />
+          <div className="flex gap-4 flex-row items-center">
             <Botao variante="perigo" disabled={motivo.trim().length < 3} carregando={enviando} onClick={() => void triar('descartada_pelo_usuario', motivo.trim())}>Descartar</Botao>
             <Botao variante="texto" onClick={() => setDescartando(false)}>Cancelar</Botao>
           </div>
@@ -154,33 +153,33 @@ export function BuscarEdital({ empresaId }: { empresaId: string }) {
     })
   }
   return (
-    <div className="pilha pilha--grande">
-      <form className="pilha" onSubmit={(e) => void pesquisar(e)}>
+    <div className="flex flex-col gap-6">
+      <form className="flex flex-col gap-4" onSubmit={(e) => void pesquisar(e)}>
         <h2>Pesquisar agora</h2>
-        <p className="legenda">Busca no PNCP por data de publicação (até 31 dias). A busca automática roda às 07h, 12h e 17h.</p>
-        <Campo rotulo="De" type="date" value={f.inicio} onChange={(e) => setF({ ...f, inicio: e.target.value })} />
-        <Campo rotulo="Até" type="date" value={f.fim} onChange={(e) => setF({ ...f, fim: e.target.value })} />
-        <Campo rotulo="UF" value={f.uf} onChange={(e) => setF({ ...f, uf: e.target.value.toUpperCase().slice(0, 2) })} maxLength={2} />
+        <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Busca no PNCP por data de publicação (até 31 dias). A busca automática roda às 07h, 12h e 17h.</p>
+        <Campo rotulo="De" type="date" value={f.inicio} onChange={(v) => setF({ ...f, inicio: v })} />
+        <Campo rotulo="Até" type="date" value={f.fim} onChange={(v) => setF({ ...f, fim: v })} />
+        <Campo rotulo="UF" value={f.uf} onChange={(v) => setF({ ...f, uf: v.toUpperCase().slice(0, 2) })} maxLength={2} />
         <Aviso texto={pesquisa.erro} />
         <Aviso tipo="info" texto={pesquisa.ok} />
         <Botao type="submit" carregando={pesquisa.enviando} disabled={!f.inicio || !f.fim || f.uf.length !== 2}>Pesquisar</Botao>
       </form>
-      <form className="pilha" onSubmit={(e) => void importar(e)}>
+      <form className="flex flex-col gap-4" onSubmit={(e) => void importar(e)}>
         <h2>Importar edital</h2>
-        <p className="legenda">Cole o link do edital no PNCP (https://pncp.gov.br/app/editais/…). Upload de arquivo: EM DESENVOLVIMENTO.</p>
-        <Campo rotulo="Link do PNCP" value={f.url} onChange={(e) => setF({ ...f, url: e.target.value })} maxLength={1000} />
+        <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Cole o link do edital no PNCP (https://pncp.gov.br/app/editais/…). Upload de arquivo: EM DESENVOLVIMENTO.</p>
+        <Campo rotulo="Link do PNCP" value={f.url} onChange={(v) => setF({ ...f, url: v })} maxLength={1000} />
         <Aviso texto={importacao.erro} />
         <Aviso tipo="info" texto={importacao.ok} />
         <Botao type="submit" carregando={importacao.enviando} disabled={!f.url.trim()}>Importar</Botao>
       </form>
       <h3>Importações recentes</h3>
-      {importacoes.dados?.length === 0 ? <p className="vazio">Nenhuma importação.</p> : null}
-      <div className="lista">
+      {importacoes.dados?.length === 0 ? <p className="px-4 py-10 text-center text-sm text-tertiary">Nenhuma importação.</p> : null}
+      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {importacoes.dados?.map((i) => (
-          <div key={i.id} className="lista__item" style={{ cursor: 'default' }}>
-            <span className="lista__texto">
+          <div key={i.id} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left">
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
               <strong><bdi>{i.url}</bdi></strong>
-              <span className="legenda">{i.status === 'ok' ? 'Importado' : i.status === 'falhou' ? `Falhou: ${i.erro ?? ''}` : 'Em andamento'}</span>
+              <span className="text-sm text-tertiary [overflow-wrap:anywhere]">{i.status === 'ok' ? 'Importado' : i.status === 'falhou' ? `Falhou: ${i.erro ?? ''}` : 'Em andamento'}</span>
             </span>
             {i.editalId ? <Link to={`/editais/${i.editalId}`}>Abrir</Link> : null}
           </div>

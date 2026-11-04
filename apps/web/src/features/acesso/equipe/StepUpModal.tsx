@@ -79,14 +79,14 @@ export function StepUpModal(props: {
 
   return (
     <Modal aberto={aberto} titulo="Confirmar operação crítica" aoFechar={cancelar}>
-      <form className="pilha" onSubmit={(e) => void confirmar(e)} noValidate>
+      <form className="flex flex-col gap-4" onSubmit={(e) => void confirmar(e)} noValidate>
         <p>{descricao}</p>
-        <div className="modal__resumo">
+        <div className="flex flex-col gap-0.5 rounded-lg bg-secondary px-3 py-2 text-sm font-semibold text-primary">
           {resumo.map((linha) => (
             <span key={linha}>{linha}</span>
           ))}
         </div>
-        <Campo rotulo="Código do autenticador" value={codigo} onChange={(e) => setCodigo(e.target.value)} inputMode="numeric" autoComplete="one-time-code" maxLength={6} />
+        <Campo rotulo="Código do autenticador" value={codigo} onChange={(v) => setCodigo(v)} inputMode="numeric" autoComplete="one-time-code" maxLength={6} />
         <Aviso texto={erro} />
         <Botao type="submit" carregando={enviando}>
           Confirmar

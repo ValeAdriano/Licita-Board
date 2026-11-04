@@ -115,14 +115,14 @@ export function Autenticador({ usuario }: { usuario: Usuario }) {
   }
 
   const campoCodigo = (rotulo = 'Código de 6 dígitos') => (
-    <Campo rotulo={rotulo} value={codigo} onChange={(e) => setCodigo(e.target.value)} inputMode="numeric" autoComplete="one-time-code" maxLength={6} />
+    <Campo rotulo={rotulo} value={codigo} onChange={(v) => setCodigo(v)} inputMode="numeric" autoComplete="one-time-code" maxLength={6} />
   )
 
   return (
     <Secao titulo="Verificação em duas etapas">
       {passo.tipo === 'inicio' ? (
         temMfa ? (
-          <div className="pilha">
+          <div className="flex flex-col gap-4">
             <p>Autenticador ativo.</p>
             <Botao onClick={() => setPasso({ tipo: 'verificar', acao: 'codigos' })}>Gerar novos códigos de recuperação</Botao>
             <Botao variante="secundario" onClick={() => setPasso({ tipo: 'verificar', acao: 'trocar' })}>
@@ -130,14 +130,14 @@ export function Autenticador({ usuario }: { usuario: Usuario }) {
             </Botao>
           </div>
         ) : (
-          <div className="pilha">
+          <div className="flex flex-col gap-4">
             <p>Proteja sua conta com um app autenticador.</p>
             <Botao onClick={() => setPasso({ tipo: 'senha' })}>Ativar autenticador</Botao>
           </div>
         )
       ) : null}
       {passo.tipo === 'verificar' ? (
-        <form className="pilha" onSubmit={(e) => { e.preventDefault(); void verificar(passo.acao) }}>
+        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void verificar(passo.acao) }}>
           <p>Digite o código do autenticador atual. {DICA_CODIGO}</p>
           {campoCodigo()}
           <Botao type="submit" carregando={enviando}>
@@ -146,18 +146,18 @@ export function Autenticador({ usuario }: { usuario: Usuario }) {
         </form>
       ) : null}
       {passo.tipo === 'senha' ? (
-        <form className="pilha" onSubmit={(e) => { e.preventDefault(); void cadastrar() }}>
+        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void cadastrar() }}>
           <p>Confirme sua senha para cadastrar o novo autenticador. Conclua em até 5 minutos.</p>
-          <Campo rotulo="Senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="current-password" />
+          <Campo rotulo="Senha" type="password" value={senha} onChange={(v) => setSenha(v)} autoComplete="current-password" />
           <Botao type="submit" carregando={enviando}>
             Continuar
           </Botao>
         </form>
       ) : null}
       {passo.tipo === 'novo' ? (
-        <form className="pilha" onSubmit={(e) => { e.preventDefault(); void confirmar(passo.segredo) }}>
+        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void confirmar(passo.segredo) }}>
           <p>No app autenticador, adicione uma conta digitando esta chave e confirme com o código gerado:</p>
-          <p className="mono" data-testid="segredo">{passo.segredo}</p>
+          <p className="font-mono tracking-wide" data-testid="segredo">{passo.segredo}</p>
           {campoCodigo('Código do novo autenticador')}
           <Botao type="submit" carregando={enviando}>
             Confirmar
@@ -165,7 +165,7 @@ export function Autenticador({ usuario }: { usuario: Usuario }) {
         </form>
       ) : null}
       {passo.tipo === 'reverificar' ? (
-        <form className="pilha" onSubmit={(e) => { e.preventDefault(); void reverificar(passo.segredo) }}>
+        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void reverificar(passo.segredo) }}>
           <p>Passaram mais de 5 minutos. Digite um código do autenticador ATUAL para continuar o cadastro.</p>
           {campoCodigo('Código do autenticador atual')}
           <Botao type="submit" carregando={enviando}>
@@ -174,11 +174,11 @@ export function Autenticador({ usuario }: { usuario: Usuario }) {
         </form>
       ) : null}
       {passo.tipo === 'codigos' ? (
-        <div className="pilha">
+        <div className="flex flex-col gap-4">
           <p>Guarde em lugar seguro antes de sair desta tela. Eles não serão mostrados de novo; se havia códigos anteriores, eles deixaram de valer.</p>
-          <div className="codigos" data-testid="codigos">
+          <div className="grid gap-1.5 rounded-lg border border-secondary bg-secondary p-3" data-testid="codigos">
             {passo.codigos.map((c) => (
-              <span key={c} className="mono">
+              <span key={c} className="font-mono tracking-wide">
                 {c.match(/.{1,5}/g)?.join('-')}
               </span>
             ))}

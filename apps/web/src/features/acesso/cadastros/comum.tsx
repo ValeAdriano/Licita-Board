@@ -1,35 +1,8 @@
 import { useEffect, useState } from 'react'
 
-// Peças pequenas dos cadastros (Fase 02): seletor nativo, data em pt-BR e valor que some sozinho.
-export interface Opcao {
-  valor: string
-  rotulo: string
-}
-
-export function Selecao(props: { rotulo: string; value: string; onChange: (v: string) => void; opcoes: Opcao[]; vazio?: string; disabled?: boolean }) {
-  return (
-    <label className="campo">
-      <span className="campo__rotulo">{props.rotulo}</span>
-      <select className="campo__entrada" value={props.value} disabled={props.disabled} onChange={(e) => props.onChange(e.target.value)}>
-        {props.vazio !== undefined ? <option value="">{props.vazio}</option> : null}
-        {props.opcoes.map((o) => (
-          <option key={o.valor} value={o.valor}>
-            {o.rotulo}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
-}
-
-export function Caixa(props: { rotulo: string; marcado: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <label className="campo" style={{ flexDirection: 'row', alignItems: 'center', gap: 'var(--e2)' }}>
-      <input type="checkbox" checked={props.marcado} onChange={(e) => props.onChange(e.target.checked)} style={{ width: 22, height: 22 }} />
-      <span>{props.rotulo}</span>
-    </label>
-  )
-}
+// Peças pequenas dos cadastros: seleção e caixa vêm do design system (Untitled UI) em `src/ui`.
+import type { Opcao } from '../../../ui'
+export { Caixa, Selecao, type Opcao } from '../../../ui'
 
 export const dataBr = (iso?: string | null): string => (iso ? iso.split('-').reverse().join('/') : '—')
 

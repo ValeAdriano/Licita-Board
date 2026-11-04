@@ -16,7 +16,7 @@ Nada está funcionando de verdade ainda; o objetivo agora é **construir o máxi
 ## 1. O projeto em 5 linhas
 
 - Plataforma multiempresa para administrar licitações públicas: empresas, certidões, agenda e prazos jurídicos, captura de editais (PNCP), análise técnica com IA, preços, propostas, peças jurídicas, contratos.
-- Stack (ADR-011 e ADR-018): **front React 19 + Vite + TS em PWA** em `apps/web` (design Apple: `src/ui`) · **API NestJS** (Node 26) em `apps/api` · **PostgreSQL 17** com RLS, migrations SQL (dbmate) em `db/` · **worker Python 3.12** em `apps/worker` · tudo em **Docker Compose**.
+- Stack (ADR-011 e ADR-018): **front React 19 + Vite + TS em PWA** em `apps/web` (design Untitled UI: `src/components`, `src/ui`; ADR-020) · **API NestJS** (Node 26) em `apps/api` · **PostgreSQL 17** com RLS, migrations SQL (dbmate) em `db/` · **worker Python 3.12** em `apps/worker` · tudo em **Docker Compose**.
 - O front fala só com a API (mesma origem, `/api`; sessão só em cookie HttpOnly). A API confere sessão e permissão no guard e consulta o banco como `vv_api` com o contexto do usuário, filtrado por RLS (duas camadas, ADR-013). O worker consome `ops.jobs` como `vv_worker` e nunca expõe endpoint de negócio.
 - O projeto saiu do Supabase (ADR-011): a pasta `supabase/` da revisão 1 foi removida ao fechar a Fase 01 e só existe no histórico do git (tag `revisao-1-supabase`). Apps nativos (iOS/Android) foram adiados (ADR-018).
 - Equipe: Adriano (dono, revisor único) + agentes. Por isso specs explícitas; o resto do processo está no modo rápido da §0.

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { chamar, ErroApi } from '../../../api/cliente'
-import { Aviso, Botao } from '../../../ui'
+import { AreaTexto, Aviso, Botao } from '../../../ui'
 import { cnpjLegivel } from '../cnpj'
 import { StepUpModal } from '../equipe/StepUpModal'
 import type { EmpresaPlataforma } from './tipos'
@@ -35,9 +35,9 @@ export function SolicitarExclusao(props: { empresa: EmpresaPlataforma; aoConclui
   }
 
   return (
-    <form className="pilha pilha--grande" onSubmit={revisar} noValidate>
+    <form className="flex flex-col gap-6" onSubmit={revisar} noValidate>
       <h2>Excluir definitivamente</h2>
-      <div className="modal__resumo">
+      <div className="flex flex-col gap-0.5 rounded-lg bg-secondary px-3 py-2 text-sm font-semibold text-primary">
         <span>
           <bdi>{empresa.razaoSocial}</bdi>
         </span>
@@ -46,10 +46,7 @@ export function SolicitarExclusao(props: { empresa: EmpresaPlataforma; aoConclui
       <p>
         Isso apaga a empresa e tudo que é dela, <strong>sem volta</strong>. Outro SUPERADMIN precisa aprovar em até 72 horas; até lá nada é apagado.
       </p>
-      <label className="campo">
-        <span className="campo__rotulo">Motivo</span>
-        <textarea className="campo__entrada" rows={4} value={motivo} onChange={(e) => setMotivo(e.target.value)} maxLength={2000} />
-      </label>
+      <AreaTexto rotulo="Motivo" rows={4} value={motivo} onChange={setMotivo} maxLength={2000} />
       <Aviso texto={erro} />
       <Botao type="submit" variante="perigo" cheio>
         Pedir exclusão

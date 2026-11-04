@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { TURNSTILE_SITEKEY } from '../config'
+import { Aviso } from './Aviso'
 
 // Turnstile (spec fase-01 decisão 4): só aparece depois que a API pediu CAPTCHA. O script da
 // Cloudflare carrega sob demanda (a tag e `window.turnstile` ficam até recarregar a página: só o
@@ -53,6 +54,6 @@ export function Captcha({ aoResolver, acao }: { aoResolver: (token: string) => v
       if (widget) widget.t.remove(widget.id)
     }
   }, [aoResolver, acao])
-  if (!TURNSTILE_SITEKEY) return <p className="aviso aviso--atencao" role="status">Verificação adicional indisponível no momento. Tente mais tarde.</p>
+  if (!TURNSTILE_SITEKEY) return <Aviso tipo="atencao" texto="Verificação adicional indisponível no momento. Tente mais tarde." />
   return <div ref={ref} />
 }

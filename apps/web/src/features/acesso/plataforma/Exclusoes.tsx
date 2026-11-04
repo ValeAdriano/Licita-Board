@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { chamar, ErroApi } from '../../../api/cliente'
-import { Aviso, Botao } from '../../../ui'
+import { Aviso, Botao, Etiqueta } from '../../../ui'
 import { cnpjLegivel } from '../cnpj'
 import { useAcesso } from '../contexto'
 import { StepUpModal } from '../equipe/StepUpModal'
@@ -32,27 +32,27 @@ export function Exclusoes() {
   const cnpj = (p: PedidoExclusao) => (p.resumo?.cnpj ? `CNPJ ${cnpjLegivel(p.resumo.cnpj)}` : '')
 
   return (
-    <div className="pilha pilha--grande">
+    <div className="flex flex-col gap-6">
       <Aviso texto={erro ?? pedidos.erro} />
-      {pedidos.carregando ? <p className="legenda">Carregando…</p> : null}
-      {pedidos.dados?.length === 0 ? <p className="vazio">Nenhum pedido de exclusão.</p> : null}
-      <div className="lista">
+      {pedidos.carregando ? <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Carregando…</p> : null}
+      {pedidos.dados?.length === 0 ? <p className="px-4 py-10 text-center text-sm text-tertiary">Nenhum pedido de exclusão.</p> : null}
+      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {pedidos.dados?.map((p) => (
-          <div key={p.id} className="lista__item lista__item--acoes" style={{ cursor: 'default', alignItems: 'flex-start' }}>
-            <span className="lista__texto">
+          <div key={p.id} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left flex-wrap items-start">
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
               <strong>
                 <bdi>{nome(p)}</bdi>
               </strong>
-              <span className="legenda">{cnpj(p)}</span>
-              <span className="legenda">Motivo: {p.motivo}</span>
-              <span className="legenda">
+              <span className="text-sm text-tertiary [overflow-wrap:anywhere]">{cnpj(p)}</span>
+              <span className="text-sm text-tertiary [overflow-wrap:anywhere]">Motivo: {p.motivo}</span>
+              <span className="text-sm text-tertiary [overflow-wrap:anywhere]">
                 Pedido em {new Date(p.solicitadoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                 {p.solicitadoPor === usuario?.id ? ' por você' : ''}
               </span>
             </span>
-            <span className="tag">{rotuloStatus[p.status]}</span>
+            <Etiqueta>{rotuloStatus[p.status]}</Etiqueta>
             {podeDecidir(p, usuario?.id) ? (
-              <span className="lista__acoes">
+              <span className="ml-auto flex flex-wrap gap-2">
                 <Botao variante="perigo" onClick={() => setDecisao({ pedido: p, aprovar: true })}>
                   Aprovar e excluir
                 </Botao>
@@ -61,7 +61,7 @@ export function Exclusoes() {
                 </Botao>
               </span>
             ) : p.status === 'pendente' && p.solicitadoPor === usuario?.id ? (
-              <span className="legenda">Outro SUPERADMIN precisa decidir.</span>
+              <span className="text-sm text-tertiary [overflow-wrap:anywhere]">Outro SUPERADMIN precisa decidir.</span>
             ) : null}
           </div>
         ))}

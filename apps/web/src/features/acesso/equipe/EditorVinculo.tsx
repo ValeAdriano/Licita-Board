@@ -55,11 +55,11 @@ export function EditorVinculo(props: { membro: Membro; modulos: Modulo[]; podeAd
   }
 
   return (
-    <div className="pilha pilha--grande">
-      <div className="linha linha--entre">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center gap-3 justify-between">
         <div>
           <h2>{membro.nome || membro.email}</h2>
-          <p className="legenda">{membro.email}</p>
+          <p className="text-sm text-tertiary [overflow-wrap:anywhere]">{membro.email}</p>
         </div>
         <Botao variante="secundario" onClick={aoFechar}>
           Fechar
@@ -69,7 +69,7 @@ export function EditorVinculo(props: { membro: Membro; modulos: Modulo[]; podeAd
       <Aviso tipo="info" texto={ok} />
       {!podeAdministrar ? <Aviso tipo="atencao" texto="Você pode ver estas permissões, mas não alterá-las." /> : null}
 
-      <div className="pilha">
+      <div className="flex flex-col gap-4">
         <h3>Papel</h3>
         <SeletorPapel papel={papel} aoMudar={trocarPapel} desabilitado={!podeAdministrar} />
         <Interruptor rotulo="Acesso ativo" marcado={ativo} aoMudar={setAtivo} desabilitado={!podeAdministrar} />

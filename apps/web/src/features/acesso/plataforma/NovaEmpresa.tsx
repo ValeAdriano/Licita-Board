@@ -33,11 +33,11 @@ export function NovaEmpresa(props: { aoConcluir: () => void; aoCancelar: () => v
   }
 
   return (
-    <form className="pilha pilha--grande" onSubmit={(e) => void salvar(e)} noValidate>
+    <form className="flex flex-col gap-6" onSubmit={(e) => void salvar(e)} noValidate>
       <h2>Nova empresa</h2>
-      <Campo rotulo="Razão social" value={razao} onChange={(e) => setRazao(e.target.value)} maxLength={200} autoComplete="off" />
-      <Campo rotulo="Nome fantasia (opcional)" value={fantasia} onChange={(e) => setFantasia(e.target.value)} maxLength={200} autoComplete="off" />
-      <Campo rotulo="CNPJ" value={cnpj} onChange={(e) => setCnpj(e.target.value)} maxLength={18} autoComplete="off" spellCheck={false} />
+      <Campo rotulo="Razão social" value={razao} onChange={(v) => setRazao(v)} maxLength={200} autoComplete="off" />
+      <Campo rotulo="Nome fantasia (opcional)" value={fantasia} onChange={(v) => setFantasia(v)} maxLength={200} autoComplete="off" />
+      <Campo rotulo="CNPJ" value={cnpj} onChange={(v) => setCnpj(v)} maxLength={18} autoComplete="off" spellCheck={false} />
       <Aviso texto={erro} />
       <Botao type="submit" cheio carregando={enviando}>
         Cadastrar empresa

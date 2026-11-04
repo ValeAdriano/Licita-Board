@@ -39,11 +39,11 @@ export function Senha({ temMfa }: { temMfa: boolean }) {
 
   return (
     <Secao titulo="Senha">
-      <form className="pilha" onSubmit={(e) => void salvar(e)}>
-        <Campo rotulo="Senha atual" type="password" value={atual} onChange={(e) => setAtual(e.target.value)} autoComplete="current-password" />
-        <Campo rotulo="Nova senha" type="password" value={nova} onChange={(e) => setNova(e.target.value)} autoComplete="new-password" />
-        <Campo rotulo="Repita a nova senha" type="password" value={confirmacao} onChange={(e) => setConfirmacao(e.target.value)} autoComplete="new-password" />
-        {temMfa ? <Campo rotulo="Código do autenticador" value={codigo} onChange={(e) => setCodigo(e.target.value)} inputMode="numeric" autoComplete="one-time-code" maxLength={6} /> : null}
+      <form className="flex flex-col gap-4" onSubmit={(e) => void salvar(e)}>
+        <Campo rotulo="Senha atual" type="password" value={atual} onChange={(v) => setAtual(v)} autoComplete="current-password" />
+        <Campo rotulo="Nova senha" type="password" value={nova} onChange={(v) => setNova(v)} autoComplete="new-password" />
+        <Campo rotulo="Repita a nova senha" type="password" value={confirmacao} onChange={(v) => setConfirmacao(v)} autoComplete="new-password" />
+        {temMfa ? <Campo rotulo="Código do autenticador" value={codigo} onChange={(v) => setCodigo(v)} inputMode="numeric" autoComplete="one-time-code" maxLength={6} /> : null}
         <Aviso texto={erro} />
         <Aviso tipo="info" texto={ok} />
         <Botao type="submit" carregando={enviando}>

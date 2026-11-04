@@ -23,17 +23,17 @@ export function Atestados({ empresaId, pode }: { empresaId: string; pode: (acao:
   const candidatos = docs.dados?.filter((d) => d.tipoId === tipoAtestado) ?? []
   if (novo) return <Formulario empresaId={empresaId} docs={candidatos} unidades={unidades.dados ?? []} aoFim={() => { setNovo(false); lista.recarregar() }} />
   return (
-    <div className="pilha pilha--grande">
+    <div className="flex flex-col gap-6">
       <Aviso texto={lista.erro} />
       {pode('cadastrar') ? <div><Botao onClick={() => setNovo(true)}>Novo atestado</Botao></div> : null}
-      {lista.dados?.length === 0 ? <p className="vazio">Nenhum atestado cadastrado. Primeiro crie o documento do tipo “Atestado de capacidade técnica” na aba Documentos.</p> : null}
-      <div className="lista">
+      {lista.dados?.length === 0 ? <p className="px-4 py-10 text-center text-sm text-tertiary">Nenhum atestado cadastrado. Primeiro crie o documento do tipo “Atestado de capacidade técnica” na aba Documentos.</p> : null}
+      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {lista.dados?.map((a) => (
-          <div key={a.id} className="lista__item" style={{ cursor: 'default' }}>
-            <span className="lista__texto">
+          <div key={a.id} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left">
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
               <strong><bdi>{a.contratante}</bdi></strong>
-              <span className="legenda"><bdi>{a.objeto}</bdi> · {dataBr(a.periodoInicio)} a {dataBr(a.periodoFim)}</span>
-              {a.itens.map((i, n) => <span key={n} className="legenda"><bdi>{i.descricao}</bdi>: {i.quantidade} {i.unidade}</span>)}
+              <span className="text-sm text-tertiary [overflow-wrap:anywhere]"><bdi>{a.objeto}</bdi> · {dataBr(a.periodoInicio)} a {dataBr(a.periodoFim)}</span>
+              {a.itens.map((i, n) => <span key={n} className="text-sm text-tertiary [overflow-wrap:anywhere]"><bdi>{i.descricao}</bdi>: {i.quantidade} {i.unidade}</span>)}
             </span>
           </div>
         ))}
@@ -60,19 +60,19 @@ function Formulario({ empresaId, docs, unidades, aoFim }: { empresaId: string; d
     })
   }
   return (
-    <form className="pilha pilha--grande" onSubmit={(e) => void salvar(e)}>
+    <form className="flex flex-col gap-6" onSubmit={(e) => void salvar(e)}>
       <h2>Novo atestado técnico</h2>
       {docs.length === 0 ? <Aviso texto="Crie antes um documento do tipo “Atestado de capacidade técnica” na aba Documentos." /> : null}
       <Selecao rotulo="Documento (arquivo do atestado)" value={f.documentoId} onChange={(v) => setF({ ...f, documentoId: v })} opcoes={docs.map((d) => ({ valor: d.id, rotulo: d.descricao }))} />
-      <Campo rotulo="Contratante" value={f.contratante} onChange={(e) => setF({ ...f, contratante: e.target.value })} maxLength={200} />
-      <Campo rotulo="Objeto" value={f.objeto} onChange={(e) => setF({ ...f, objeto: e.target.value })} maxLength={1000} />
-      <Campo rotulo="Início" type="date" value={f.periodoInicio} onChange={(e) => setF({ ...f, periodoInicio: e.target.value })} />
-      <Campo rotulo="Fim" type="date" value={f.periodoFim} onChange={(e) => setF({ ...f, periodoFim: e.target.value })} />
+      <Campo rotulo="Contratante" value={f.contratante} onChange={(v) => setF({ ...f, contratante: v })} maxLength={200} />
+      <Campo rotulo="Objeto" value={f.objeto} onChange={(v) => setF({ ...f, objeto: v })} maxLength={1000} />
+      <Campo rotulo="Início" type="date" value={f.periodoInicio} onChange={(v) => setF({ ...f, periodoInicio: v })} />
+      <Campo rotulo="Fim" type="date" value={f.periodoFim} onChange={(v) => setF({ ...f, periodoFim: v })} />
       <h3>Itens e quantidades</h3>
       {itens.map((i, n) => (
-        <div key={n} className="pilha">
-          <Campo rotulo="Descrição do item" value={i.descricao} onChange={(e) => mudar(n, { descricao: e.target.value })} maxLength={300} />
-          <Campo rotulo="Quantidade" inputMode="decimal" value={i.quantidade} onChange={(e) => mudar(n, { quantidade: e.target.value })} />
+        <div key={n} className="flex flex-col gap-4">
+          <Campo rotulo="Descrição do item" value={i.descricao} onChange={(v) => mudar(n, { descricao: v })} maxLength={300} />
+          <Campo rotulo="Quantidade" inputMode="decimal" value={i.quantidade} onChange={(v) => mudar(n, { quantidade: v })} />
           <Selecao rotulo="Unidade" value={i.unidadeId} onChange={(v) => mudar(n, { unidadeId: v })} opcoes={unidades.map((u) => ({ valor: u.id, rotulo: `${u.simbolo} · ${u.nome}` }))} />
           {itens.length > 1 ? <Botao variante="texto" onClick={() => setItens(itens.filter((_, k) => k !== n))}>Remover item</Botao> : null}
         </div>

@@ -39,16 +39,16 @@ export default function Entrar() {
 
   return (
     <TelaAcesso titulo="Entrar">
-      <form className="pilha" onSubmit={(e) => void enviar(e)} noValidate>
-        <Campo rotulo="E-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" inputMode="email" autoCapitalize="none" spellCheck={false} />
-        <Campo rotulo="Senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="current-password" />
+      <form className="flex flex-col gap-4" onSubmit={(e) => void enviar(e)} noValidate>
+        <Campo rotulo="E-mail" type="email" value={email} onChange={(v) => setEmail(v)} autoComplete="username" inputMode="email" autoCapitalize="none" spellCheck={false} />
+        <Campo rotulo="Senha" type="password" value={senha} onChange={(v) => setSenha(v)} autoComplete="current-password" />
         {captcha.pedido && !captcha.token ? <Captcha aoResolver={aoResolver} acao="login" /> : null}
         <Aviso texto={erro} />
         <Botao type="submit" cheio carregando={enviando}>
           Entrar
         </Botao>
       </form>
-      <Link to="/recuperar" className="legenda" style={{ textAlign: 'center' }}>
+      <Link to="/recuperar" className="text-sm text-tertiary [overflow-wrap:anywhere] text-center">
         Esqueci minha senha
       </Link>
     </TelaAcesso>

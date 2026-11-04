@@ -1,10 +1,11 @@
 // Primeiro: tira o token de redefinição da URL antes de qualquer outra coisa (auth/fragmento.ts).
 import './auth/fragmento'
-import './ui/estilos.css'
+import './styles/globals.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
-import { BrowserRouter } from 'react-router'
+import { RouterProvider } from 'react-aria-components'
+import { BrowserRouter, useHref, useNavigate } from 'react-router'
 import { Rotas } from './App'
 import { SessaoProvider } from './auth/sessao'
 
@@ -12,12 +13,22 @@ import { SessaoProvider } from './auth/sessao'
 // segurança do front não ficar presa em aba antiga (T5.23).
 registerSW({ immediate: true })
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
+// Links e botões do Untitled UI (react-aria) navegam pelo roteador do app, sem recarregar a página.
+function Raiz() {
+  const navegar = useNavigate()
+  return (
+    <RouterProvider navigate={navegar} useHref={useHref}>
       <SessaoProvider>
         <Rotas />
       </SessaoProvider>
+    </RouterProvider>
+  )
+}
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <BrowserRouter>
+      <Raiz />
     </BrowserRouter>
   </StrictMode>,
 )

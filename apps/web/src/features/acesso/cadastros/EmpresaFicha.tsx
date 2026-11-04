@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { chamar, ErroApi } from '../../../api/cliente'
-import { Aviso, Botao, Campo } from '../../../ui'
+import { AreaTexto, Aviso, Botao, Campo } from '../../../ui'
 import { cnpjLegivel } from '../cnpj'
 import { Secao } from '../conta/Secao'
 import { useEnvio } from '../conta/useEnvio'
@@ -27,9 +27,9 @@ const TIPOS_CONTATO = [{ valor: 'email', rotulo: 'E-mail' }, { valor: 'telefone'
 export function EmpresaFicha({ empresaId, podeEditar }: { empresaId: string; podeEditar: boolean }) {
   const ficha = useGet<Ficha>(`/empresas/${empresaId}`)
   const cnaes = useGet<string[]>(`/empresas/${empresaId}/cnaes`)
-  if (ficha.carregando) return <p className="legenda">Carregando…</p>
+  if (ficha.carregando) return <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Carregando…</p>
   return (
-    <div className="pilha pilha--grande">
+    <div className="flex flex-col gap-6">
       <Aviso texto={ficha.erro} />
       {ficha.dados ? <DadosGerais empresaId={empresaId} ficha={ficha.dados} podeEditar={podeEditar} /> : null}
       <Cnaes empresaId={empresaId} lista={cnaes.dados ?? []} podeEditar={podeEditar} aoSalvar={cnaes.recarregar} />
@@ -44,7 +44,7 @@ function DadosGerais({ empresaId, ficha, podeEditar }: { empresaId: string; fich
   const { enviando, erro, ok, enviar } = useEnvio()
   const set = (k: keyof Ficha) => (v: string) => setF((x) => ({ ...x, [k]: v }))
   const campo = (rotulo: string, k: keyof Ficha, max = 200) => (
-    <Campo rotulo={rotulo} value={f[k] ?? ''} onChange={(e) => set(k)(e.target.value)} maxLength={max} disabled={!podeEditar} autoComplete="off" />
+    <Campo rotulo={rotulo} value={f[k] ?? ''} onChange={(v) => set(k)(v)} maxLength={max} disabled={!podeEditar} autoComplete="off" />
   )
   const salvar = (e: FormEvent) => {
     e.preventDefault()
@@ -61,7 +61,7 @@ function DadosGerais({ empresaId, ficha, podeEditar }: { empresaId: string; fich
   }
   return (
     <Secao titulo="Dados gerais">
-      <form className="pilha" onSubmit={(e) => void salvar(e)}>
+      <form className="flex flex-col gap-4" onSubmit={(e) => void salvar(e)}>
         <Campo rotulo="CNPJ" value={cnpjLegivel(ficha.cnpj)} readOnly disabled />
         {campo('Razão social', 'razaoSocial')}
         {campo('Nome fantasia', 'nomeFantasia')}
@@ -77,10 +77,7 @@ function DadosGerais({ empresaId, ficha, podeEditar }: { empresaId: string; fich
         {campo('Município', 'municipio', 100)}
         <Selecao rotulo="UF" value={f.uf ?? ''} onChange={set('uf')} opcoes={opcoesUf} vazio="—" disabled={!podeEditar} />
         {campo('CEP', 'cep', 9)}
-        <label className="campo">
-          <span className="campo__rotulo">Observações</span>
-          <textarea className="campo__entrada" rows={3} maxLength={4000} value={f.observacoes ?? ''} disabled={!podeEditar} onChange={(e) => set('observacoes')(e.target.value)} />
-        </label>
+        <AreaTexto rotulo="Observações" rows={3} maxLength={4000} value={f.observacoes ?? ''} disabled={!podeEditar} onChange={set('observacoes')} />
         <Aviso texto={erro} />
         <Aviso tipo="info" texto={ok} />
         {podeEditar ? <Botao type="submit" carregando={enviando}>Salvar dados</Botao> : null}
@@ -94,7 +91,7 @@ function Cnaes({ empresaId, lista, podeEditar, aoSalvar }: { empresaId: string; 
   const { enviando, erro, ok, enviar } = useEnvio()
   return (
     <Secao titulo="CNAEs secundários">
-      <Campo rotulo="Códigos separados por vírgula" value={texto} onChange={(e) => setTexto(e.target.value)} disabled={!podeEditar} />
+      <Campo rotulo="Códigos separados por vírgula" value={texto} onChange={(v) => setTexto(v)} disabled={!podeEditar} />
       <Aviso texto={erro} />
       <Aviso tipo="info" texto={ok} />
       {podeEditar ? (
@@ -135,13 +132,13 @@ function Contatos({ empresaId, podeEditar }: { empresaId: string; podeEditar: bo
   return (
     <Secao titulo="Contatos">
       <Aviso texto={lista.erro} />
-      {lista.dados?.length === 0 ? <p className="legenda">Nenhum contato cadastrado.</p> : null}
-      <div className="lista">
+      {lista.dados?.length === 0 ? <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Nenhum contato cadastrado.</p> : null}
+      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {lista.dados?.map((c) => (
-          <div key={c.id} className="lista__item lista__item--acoes" style={{ cursor: 'default' }}>
-            <span className="lista__texto">
+          <div key={c.id} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left flex-wrap">
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
               <strong>{c.valor}</strong>
-              <span className="legenda">{[TIPOS_CONTATO.find((t) => t.valor === c.tipo)?.rotulo, c.rotulo, c.principal ? 'principal' : null].filter(Boolean).join(' · ')}</span>
+              <span className="text-sm text-tertiary [overflow-wrap:anywhere]">{[TIPOS_CONTATO.find((t) => t.valor === c.tipo)?.rotulo, c.rotulo, c.principal ? 'principal' : null].filter(Boolean).join(' · ')}</span>
             </span>
             {podeEditar ? (
               <Botao variante="texto" onClick={() => void chamar('DELETE', `/empresas/${empresaId}/contatos/${c.id}`).then(lista.recarregar)}>
@@ -152,10 +149,10 @@ function Contatos({ empresaId, podeEditar }: { empresaId: string; podeEditar: bo
         ))}
       </div>
       {podeEditar ? (
-        <form className="pilha" onSubmit={(e) => void incluir(e)}>
+        <form className="flex flex-col gap-4" onSubmit={(e) => void incluir(e)}>
           <Selecao rotulo="Tipo" value={tipo} onChange={setTipo} opcoes={TIPOS_CONTATO} />
-          <Campo rotulo="Valor (e-mail ou telefone com DDD)" value={valor} onChange={(e) => setValor(e.target.value)} maxLength={254} />
-          <Campo rotulo="Rótulo (opcional)" value={rotulo} onChange={(e) => setRotulo(e.target.value)} maxLength={50} />
+          <Campo rotulo="Valor (e-mail ou telefone com DDD)" value={valor} onChange={(v) => setValor(v)} maxLength={254} />
+          <Campo rotulo="Rótulo (opcional)" value={rotulo} onChange={(v) => setRotulo(v)} maxLength={50} />
           <Caixa rotulo="Principal deste tipo" marcado={principal} onChange={setPrincipal} />
           <Aviso texto={erro} />
           <Botao type="submit" variante="secundario" carregando={enviando}>
@@ -188,22 +185,22 @@ function Enquadramentos({ empresaId, podeEditar }: { empresaId: string; podeEdit
   }
   return (
     <Secao titulo="Enquadramento (porte) por data de referência">
-      <p className="legenda">O histórico só recebe inclusões: o porte vale pela data de referência informada. ⚖️🧾 A lista de portes será confirmada pelo contador.</p>
+      <p className="text-sm text-tertiary [overflow-wrap:anywhere]">O histórico só recebe inclusões: o porte vale pela data de referência informada. ⚖️🧾 A lista de portes será confirmada pelo contador.</p>
       <Aviso texto={lista.erro} />
-      <div className="lista">
+      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {lista.dados?.map((x) => (
-          <div key={x.id} className="lista__item" style={{ cursor: 'default' }}>
-            <span className="lista__texto">
+          <div key={x.id} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left">
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
               <strong>{PORTES.find((p) => p.valor === x.porte)?.rotulo ?? x.porte}</strong>
-              <span className="legenda">A partir de {dataBr(x.dataReferencia)} · {FONTES.find((f) => f.valor === x.fonte)?.rotulo}</span>
+              <span className="text-sm text-tertiary [overflow-wrap:anywhere]">A partir de {dataBr(x.dataReferencia)} · {FONTES.find((f) => f.valor === x.fonte)?.rotulo}</span>
             </span>
           </div>
         ))}
       </div>
       {podeEditar ? (
-        <form className="pilha" onSubmit={(e) => void incluir(e)}>
+        <form className="flex flex-col gap-4" onSubmit={(e) => void incluir(e)}>
           <Selecao rotulo="Porte" value={porte} onChange={setPorte} opcoes={PORTES} />
-          <Campo rotulo="Data de referência" type="date" value={data} onChange={(e) => setData(e.target.value)} />
+          <Campo rotulo="Data de referência" type="date" value={data} onChange={(v) => setData(v)} />
           <Selecao rotulo="Fonte" value={fonte} onChange={setFonte} opcoes={FONTES} />
           <Aviso texto={erro} />
           <Botao type="submit" variante="secundario" carregando={enviando}>

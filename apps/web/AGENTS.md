@@ -9,7 +9,7 @@ Front do VV Licitações: React 19 + Vite + TypeScript em PWA (ADR-018). Complem
 - Toda chamada passa por `src/api/cliente.ts` (CSRF, mensagens de erro seguras, 401 e 403 "MFA" tratados, consulta de fundo). Leitura simples com `useGet`. Sem biblioteca de dados por enquanto.
 - Cada conjunto de telas só existe na fase certa da sessão (`src/App.tsx`, `Rotas`; testado em `src/App.test.tsx`). Isso é conforto: **quem decide é a API** (guard + RLS). Esconder botão é UX, não segurança.
 - Sem `dangerouslySetInnerHTML`. Texto de edital, título de notificação e nome de empresa são exibidos como texto. O nome de empresa é texto livre de terceiro: no convite, sempre junto do CNPJ e de quem convidou.
-- **Mobile-first:** toda tela nasce em 360 px; menu lateral só ≥ 768 px (abas embaixo no celular). Tabela vira lista de cards no celular. Estados obrigatórios: carregando, vazio, erro, sem permissão, sucesso.
+- **Mobile-first:** toda tela nasce em 360 px; menu lateral só ≥ 1024 px (no celular, cabeçalho com botão que abre o menu). Tabela vira lista de cards no celular. Estados obrigatórios: carregando, vazio, erro, sem permissão, sucesso.
 - Dinheiro chega como `string` e é formatado com `Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })` sobre um decimal (lib a definir na Fase 07). Nunca `parseFloat` em valor monetário. Datas em `America/Sao_Paulo`.
 - Recurso incompleto aparece com o selo **EM DESENVOLVIMENTO**, nunca como tela falsa. A `FaixaAmbiente` não pode ser removida nem escondida fora de produção.
 - PWA: o service worker guarda só os arquivos do app (shell). **Nunca cache de resposta da API** (`runtimeCaching` vazio e `/api` fora do fallback de navegação).
@@ -20,11 +20,11 @@ Front do VV Licitações: React 19 + Vite + TypeScript em PWA (ADR-018). Complem
 
 Implementados em [`infra/caddy/Caddyfile`](../../infra/caddy/Caddyfile) e testados com o Caddy real por `infra/caddy/testar-cabecalhos.sh` (job `caddy` do CI). **Mudou a política aqui? Mude o Caddyfile e o teste juntos.**
 
-Em todas as respostas, inclusive `/sw.js` (`unsafe-inline` e `unsafe-eval` **não** são necessários: o HTML só tem `<script src>` e o CSS é arquivo próprio):
+Em todas as respostas, inclusive `/sw.js` (`unsafe-inline` e `unsafe-eval` **não** são necessários: o HTML só tem `<script src>` e o CSS é arquivo próprio). Única exceção em `style-src`: o **hash** do `<style>` que o react-aria (Untitled UI) injeta em runtime para `usePress` (`@layer` com `touch-action` e `-webkit-touch-callout`). **Atualizou o `react-aria-components`?** Abra o app com a CSP e, se o console reclamar de "Applying inline style", troque o hash que o navegador sugere (Caddyfile, este arquivo e o teste):
 
 ```text
 Content-Security-Policy: default-src 'none'; script-src 'self' https://challenges.cloudflare.com;
-  style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self';
+  style-src 'self' 'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='; img-src 'self'; font-src 'self'; connect-src 'self';
   frame-src https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self';
   form-action 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests
 Strict-Transport-Security: max-age=63072000; includeSubDomains
@@ -40,13 +40,14 @@ X-Frame-Options: DENY
 - Cache: `index.html`, `sw.js`, `push.js`, `manifest.webmanifest` com `no-cache`; `/assets/*` com `public, max-age=31536000, immutable`; `/api/*` nunca cacheado nem com o `no-store` da API sobrescrito. Mudou a CSP? Mude também o `index.html` (o Workbox guarda o HTML com os cabeçalhos da época).
 - Rotas: `handle_path /api/*` com `reverse_proxy` (preservar `Origin` e `Sec-Fetch-Site`, que o login usa); fallback de SPA só fora de `/api` e de `/.well-known`. Tirar `X-Csrf-Token` dos logs. `CORS_ORIGINS` da API = a origem https do app.
 
-## Design (skill `apple-ui-design`)
+## Design (Untitled UI, ADR-020)
 
-Tudo em `src/ui`: tokens e componentes em `estilos.css` (variáveis `--fundo`, `--acento`, `--e1..e6`, `--raio`...), componentes em `*.tsx`.
+Todos os componentes vêm do **Untitled UI React** (`src/components`, copiados pelo CLI `untitledui`, só os gratuitos) sobre react-aria e Tailwind 4; as telas usam a camada em `src/ui` (nomes em português). Tokens e tema em `src/styles/theme.css` (marca azul, Inter local).
 
-- Fonte do sistema; hierarquia hero/título/corpo/legenda; escala de espaço 4/8/16/24/48/96; cartões de 18 px; botão primário em pílula, **uma** ação primária por tela.
-- Claro e escuro por `prefers-color-scheme`; alvos de toque ≥ 44 px; contraste ≥ 4,5:1 (o cinza secundário é `#6e6e73`: o `#86868b` da skill não passa); `prefers-reduced-motion` respeitado; largura de leitura ~680 px.
-- Cor e espaço só pelos tokens; componente novo em `src/ui`, não CSS solto na página.
+- Tela nova: componentes de `src/ui` (ou `src/components`) e classes Tailwind com os tokens do tema (`text-primary`, `bg-secondary`, `ring-secondary`...). **Nada de CSS próprio nem `style={{}}`** (a CSP bloqueia estilo inline).
+- Layout: menu lateral a partir de 1024 px e cabeçalho com menu em painel no celular; página = `Pagina` + `CabecalhoPagina`; blocos em `Cartao`; abas com `Abas`; alertas com `Aviso`; selos com `Etiqueta`. Uma ação primária por tela.
+- Claro/escuro: o tema do Untitled UI usa a classe `dark-mode` (hoje só o claro está ligado); contraste e alvos de toque seguem o padrão do sistema. `prefers-reduced-motion` respeitado.
+- Componente copiado que precise de ajuste: edite o arquivo e registre o ajuste no ADR-020 (o `--overwrite` do CLI o desfaz).
 
 ## Estrutura
 
@@ -56,7 +57,7 @@ src/
   auth/       sessão (provider), links (funções puras), fragmento (token de redefinição)
   features/   acesso/ (contexto, matriz, conta/, equipe/): uma feature não importa de outra
   pages/      uma por rota
-  ui/         design system (estilos.css + componentes)
+  components/ Untitled UI (copiado pelo CLI) · ui/ camada fina em português · styles/ tema
 ```
 
 ## Checks

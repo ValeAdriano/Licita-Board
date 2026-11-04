@@ -32,7 +32,7 @@ export function Rotas() {
   if (fase === 'carregando') {
     return (
       <div className="tela-acesso" role="status" aria-label="Carregando">
-        <p className="legenda">Carregando…</p>
+        <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Carregando…</p>
       </div>
     )
   }

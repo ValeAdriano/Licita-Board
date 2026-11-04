@@ -1,5 +1,7 @@
 /// <reference types="vitest/config" />
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
@@ -12,6 +14,7 @@ const proxy = { '/api': { target: API_DEV, changeOrigin: false, xfwd: true, rewr
 export default defineConfig({
   plugins: [
     react(),
+    tailwindcss(),
     // PWA: o service worker guarda só os arquivos do app (shell). Resposta da API (dado das
     // empresas) nunca vai para o cache: sem runtimeCaching.
     VitePWA({
@@ -49,6 +52,8 @@ export default defineConfig({
       },
     }),
   ],
+  // Untitled UI importa de '@/...' (componentes, utils, hooks).
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: {
     host: 'localhost',
     port: 5173,

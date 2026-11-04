@@ -55,9 +55,9 @@ export default function Mfa() {
     return (
       <TelaAcesso titulo="Códigos de recuperação">
         <p>Guarde em lugar seguro antes de continuar. Cada código vale uma vez, se você perder o autenticador. Eles não serão mostrados de novo.</p>
-        <div className="codigos" data-testid="codigos">
+        <div className="grid gap-1.5 rounded-lg border border-secondary bg-secondary p-3" data-testid="codigos">
           {codigos.map((c) => (
-            <span key={c} className="mono">
+            <span key={c} className="font-mono tracking-wide">
               {c.match(/.{1,5}/g)?.join('-')}
             </span>
           ))}
@@ -73,26 +73,26 @@ export default function Mfa() {
   return (
     <TelaAcesso titulo={cadastrando ? 'Cadastrar autenticador' : 'Verificação em duas etapas'}>
       {cadastrando && !segredo ? (
-        <form className="pilha" onSubmit={(e) => void iniciarCadastro(e)} noValidate>
+        <form className="flex flex-col gap-4" onSubmit={(e) => void iniciarCadastro(e)} noValidate>
           <p>Seu perfil exige um app autenticador (Google Authenticator, Microsoft Authenticator, 1Password...). Confirme sua senha para começar.</p>
-          <Campo rotulo="Senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="current-password" />
+          <Campo rotulo="Senha" type="password" value={senha} onChange={(v) => setSenha(v)} autoComplete="current-password" />
           <Aviso texto={erro} />
           <Botao type="submit" cheio carregando={enviando}>
             Continuar
           </Botao>
         </form>
       ) : (
-        <form className="pilha" onSubmit={(e) => void confirmar(e)} noValidate>
+        <form className="flex flex-col gap-4" onSubmit={(e) => void confirmar(e)} noValidate>
           {segredo ? (
             <>
               <p>No app autenticador, adicione uma conta digitando esta chave:</p>
-              <p className="mono" data-testid="segredo">{segredo}</p>
+              <p className="font-mono tracking-wide" data-testid="segredo">{segredo}</p>
             </>
           ) : null}
           <Campo
             rotulo={usarRecuperacao ? 'Código de recuperação' : 'Código de 6 dígitos'}
             value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
+            onChange={(v) => setCodigo(v)}
             inputMode={usarRecuperacao ? 'text' : 'numeric'}
             autoComplete="one-time-code"
             maxLength={usarRecuperacao ? 32 : 6}

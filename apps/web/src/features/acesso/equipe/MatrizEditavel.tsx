@@ -1,3 +1,4 @@
+import { Checkbox } from '@/components/base/checkbox/checkbox'
 import { ACOES, acaoPermitida, alternar, chave, type Modulo, type Papel } from '../matriz'
 
 // Matriz módulo × 12 ações. Cada módulo é um cartão com as ações como caixas de marcar (360 px
@@ -14,29 +15,25 @@ export function MatrizEditavel(props: {
 }) {
   const { modulos, papel, selecao, aoMudar, somenteLeitura, podeConceder } = props
   return (
-    <div className="matriz">
+    <div className="flex flex-col gap-3">
       {modulos.map((m) => (
-        <section key={m.slug} className="matriz__modulo" aria-label={m.nome}>
+        <section key={m.slug} className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary" aria-label={m.nome}>
           <h3>{m.nome}</h3>
-          <div className="matriz__acoes">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
             {ACOES.map((a) => {
               const marcada = selecao.has(chave(m.slug, a.id))
               const alemDoTeto = !marcada && podeConceder !== undefined && !podeConceder(m.slug, a.id)
               const bloqueada = somenteLeitura || !acaoPermitida(papel, a.id) || alemDoTeto
               return (
-                <button
+                <Checkbox
                   key={a.id}
-                  type="button"
-                  role="checkbox"
-                  aria-checked={marcada}
+                  size="md"
+                  label={a.rotulo}
                   aria-label={`${m.nome}: ${a.rotulo}`}
-                  disabled={bloqueada}
-                  className="chip"
-                  onClick={() => aoMudar(alternar(selecao, m.slug, a.id))}
-                >
-                  {marcada ? '✓ ' : ''}
-                  {a.rotulo}
-                </button>
+                  isSelected={marcada}
+                  isDisabled={bloqueada}
+                  onChange={() => aoMudar(alternar(selecao, m.slug, a.id))}
+                />
               )
             })}
           </div>

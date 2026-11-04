@@ -35,8 +35,8 @@ export default function Recuperar() {
       {enviado ? (
         <Aviso tipo="info" texto="Se o e-mail estiver cadastrado, enviaremos um link em instantes. Ele vale por 30 minutos." />
       ) : (
-        <form className="pilha" onSubmit={(e) => void enviar(e)} noValidate>
-          <Campo rotulo="E-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" inputMode="email" spellCheck={false} />
+        <form className="flex flex-col gap-4" onSubmit={(e) => void enviar(e)} noValidate>
+          <Campo rotulo="E-mail" type="email" value={email} onChange={(v) => setEmail(v)} autoComplete="email" inputMode="email" spellCheck={false} />
           {captcha.pedido && !captcha.token ? <Captcha aoResolver={aoResolver} acao="recuperar" /> : null}
           <Aviso texto={erro} />
           <Botao type="submit" cheio carregando={enviando}>
@@ -44,7 +44,7 @@ export default function Recuperar() {
           </Botao>
         </form>
       )}
-      <Link to="/entrar" className="legenda" style={{ textAlign: 'center' }}>
+      <Link to="/entrar" className="text-sm text-tertiary [overflow-wrap:anywhere] text-center">
         Voltar para entrar
       </Link>
     </TelaAcesso>

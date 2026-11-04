@@ -44,24 +44,24 @@ export function Empresas() {
     )
   }
   return (
-    <div className="pilha pilha--grande">
+    <div className="flex flex-col gap-6">
       <div>
         <Botao onClick={() => setNova(true)}>Nova empresa</Botao>
       </div>
       {aviso ? <p role="status">{aviso}</p> : null}
       <Aviso texto={empresas.erro} />
-      {empresas.carregando ? <p className="legenda">Carregando…</p> : null}
-      {empresas.dados?.length === 0 ? <p className="vazio">Nenhuma empresa cadastrada.</p> : null}
-      <div className="lista">
+      {empresas.carregando ? <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Carregando…</p> : null}
+      {empresas.dados?.length === 0 ? <p className="px-4 py-10 text-center text-sm text-tertiary">Nenhuma empresa cadastrada.</p> : null}
+      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {empresas.dados?.map((e) => (
-          <div key={e.id} className="lista__item lista__item--acoes" style={{ cursor: 'default' }}>
-            <span className="lista__texto">
+          <div key={e.id} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left flex-wrap">
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
               <strong>
                 <bdi>{e.razaoSocial}</bdi>
               </strong>
-              <span className="legenda">CNPJ {cnpjLegivel(e.cnpj)}</span>
+              <span className="text-sm text-tertiary [overflow-wrap:anywhere]">CNPJ {cnpjLegivel(e.cnpj)}</span>
             </span>
-            <span className="lista__acoes">
+            <span className="ml-auto flex flex-wrap gap-2">
               <Botao
                 variante="secundario"
                 aria-label={`Abrir ${e.razaoSocial}`}

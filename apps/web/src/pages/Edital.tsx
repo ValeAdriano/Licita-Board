@@ -5,7 +5,7 @@ import { useGet } from '../features/acesso/useGet'
 import { useEnvio } from '../features/acesso/conta/useEnvio'
 import { BannerFontes } from '../features/pesquisa/BannerFontes'
 import { BENEFICIO, moeda, quando } from '../features/pesquisa/formato'
-import { Aviso, Botao, Campo } from '../ui'
+import { Aviso, Botao, CabecalhoPagina, Campo, Cartao, Etiqueta, Legenda, Pagina } from '../ui'
 
 interface Item { id: string; numeroItem: number; descricao: string; quantidade: string | null; unidadeMedida: string | null; valorUnitario: string | null; valorTotal: string | null; beneficio: string; retirado: boolean }
 interface Arquivo { id: string; tipo: string; titulo: string | null; urlOrigem: string; statusArquivo: string; motivo: string | null; tamanho: string | null; paginas: number | null; statusExtracao: string }
@@ -25,53 +25,57 @@ const CAMPO: Record<string, string> = { itens: 'itens', arquivos: 'arquivos', ob
 export default function PaginaEdital() {
   const { id } = useParams()
   const e = useGet<Edital>(id ? `/editais/${id}` : null)
-  if (e.erro) return <p className="vazio">Edital não encontrado ou sem permissão.</p>
-  if (!e.dados) return <p className="legenda">Carregando…</p>
+  if (e.erro) return <p className="px-4 py-10 text-center text-sm text-tertiary">Edital não encontrado ou sem permissão.</p>
+  if (!e.dados) return <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Carregando…</p>
   const d = e.dados
   return (
-    <div className="conteudo__miolo conteudo__miolo--largo entra">
+    <Pagina larga>
       <Link to="/oportunidades">← Oportunidades</Link>
       <BannerFontes />
-      <div>
-        <h1><bdi>{d.orgao}</bdi></h1>
-        <p className="legenda">{d.municipio ?? '—'}/{d.uf ?? '—'} · {d.modalidade ?? '—'} · nº {d.numeroEdital ?? '—'} · versão {d.versaoAtual}{d.origem === 'manual' ? ' · importado manualmente' : ''}</p>
+      <CabecalhoPagina
+        titulo={d.orgao}
+        subtitulo={`${d.municipio ?? '—'}/${d.uf ?? '—'} · ${d.modalidade ?? '—'} · nº ${d.numeroEdital ?? '—'} · versão ${d.versaoAtual}${d.origem === 'manual' ? ' · importado manualmente' : ''}`}
+        acoes={
+          <>
+            {d.linkOrigem ? <Botao variante="secundario" onClick={() => window.open(d.linkOrigem ?? '', '_blank', 'noopener,noreferrer')}>Registro oficial no PNCP</Botao> : null}
+            {d.linkPortal ? <Botao variante="secundario" onClick={() => window.open(d.linkPortal ?? '', '_blank', 'noopener,noreferrer')}>Portal de origem</Botao> : null}
+          </>
+        }
+      />
+      <Cartao>
         <p><bdi>{d.objeto}</bdi></p>
-        <p className="legenda">
+        <Legenda>
           Publicado em {quando(d.dataPublicacao)} · propostas até {quando(d.dataEncerramentoPropostas)} · valor estimado {moeda(d.valorEstimado)} · situação {d.situacao ?? '—'} · coletado em {quando(d.ultimaColetaEm)}
-        </p>
-        <p className="legenda">A data da sessão de disputa não vem da fonte e não é deduzida: confira no edital.</p>
-        <div className="pilha" style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-          {d.linkOrigem ? <a href={d.linkOrigem} target="_blank" rel="noreferrer noopener">Registro oficial no PNCP</a> : null}
-          {d.linkPortal ? <a href={d.linkPortal} target="_blank" rel="noreferrer noopener">Portal de origem</a> : null}
-        </div>
-      </div>
+        </Legenda>
+        <Legenda>A data da sessão de disputa não vem da fonte e não é deduzida: confira no edital.</Legenda>
+      </Cartao>
       <Arquivos arquivos={d.arquivos} />
       <Busca editalId={d.id} />
       <h2>Itens ({d.itens.length})</h2>
-      <div className="lista">
+      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {d.itens.map((i) => (
-          <div key={i.id} className="lista__item" style={{ cursor: 'default', opacity: i.retirado ? 0.55 : 1 }}>
-            <span className="lista__texto">
+          <div key={i.id} className={`flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left ${i.retirado ? 'opacity-55' : ''}`}>
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
               <strong>Item {i.numeroItem}{i.retirado ? ' (retirado em retificação)' : ''}</strong>
               <span><bdi>{i.descricao}</bdi></span>
-              <span className="legenda">{i.quantidade ?? '—'} {i.unidadeMedida ?? ''} · unitário {moeda(i.valorUnitario)} · total {moeda(i.valorTotal)}</span>
+              <span className="text-sm text-tertiary [overflow-wrap:anywhere]">{i.quantidade ?? '—'} {i.unidadeMedida ?? ''} · unitário {moeda(i.valorUnitario)} · total {moeda(i.valorTotal)}</span>
             </span>
-            <span className="tag">{BENEFICIO[i.beneficio] ?? i.beneficio}</span>
+            <Etiqueta>{BENEFICIO[i.beneficio] ?? i.beneficio}</Etiqueta>
           </div>
         ))}
       </div>
       <h2>Versões</h2>
-      <div className="lista">
+      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {d.versoes.map((v) => (
-          <div key={v.versao} className="lista__item" style={{ cursor: 'default' }}>
-            <span className="lista__texto">
+          <div key={v.versao} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left">
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
               <strong>Versão {v.versao}</strong>
-              <span className="legenda">{quando(v.coletadaEm)}{v.camposAlterados.length ? ` · mudou: ${v.camposAlterados.map((c) => CAMPO[c] ?? c).join(', ')}` : ' · primeira coleta'}</span>
+              <span className="text-sm text-tertiary [overflow-wrap:anywhere]">{quando(v.coletadaEm)}{v.camposAlterados.length ? ` · mudou: ${v.camposAlterados.map((c) => CAMPO[c] ?? c).join(', ')}` : ' · primeira coleta'}</span>
             </span>
           </div>
         ))}
       </div>
-    </div>
+    </Pagina>
   )
 }
 
@@ -83,15 +87,15 @@ function Arquivos({ arquivos }: { arquivos: Arquivo[] }) {
       window.location.assign(r.url)
     })
   return (
-    <div className="pilha">
+    <div className="flex flex-col gap-4">
       <h2>Arquivos originais ({arquivos.length})</h2>
       <Aviso texto={erro} />
-      <div className="lista">
+      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {arquivos.map((a) => (
-          <div key={a.id} className="lista__item lista__item--acoes" style={{ cursor: 'default' }}>
-            <span className="lista__texto">
+          <div key={a.id} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left flex-wrap">
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
               <strong><bdi>{a.titulo ?? a.tipo}</bdi></strong>
-              <span className="legenda">
+              <span className="text-sm text-tertiary [overflow-wrap:anywhere]">
                 {ARQUIVO[a.statusArquivo] ?? a.statusArquivo}{a.motivo ? ` (${a.motivo})` : ''} · texto: {a.statusExtracao}{a.paginas ? ` · ${a.paginas} páginas` : ''}
               </span>
             </span>
@@ -112,14 +116,14 @@ function Busca({ editalId }: { editalId: string }) {
     return enviar(async () => setAchados(await chamar<Trecho[]>('GET', `/editais/${editalId}/trechos?q=${encodeURIComponent(q.trim())}`)))
   }
   return (
-    <form className="pilha" onSubmit={(ev) => void buscar(ev)}>
+    <form className="flex flex-col gap-4" onSubmit={(ev) => void buscar(ev)}>
       <h2>Buscar no texto dos arquivos</h2>
-      <Campo rotulo="Palavra ou expressão" value={q} onChange={(ev) => setQ(ev.target.value)} maxLength={120} />
+      <Campo rotulo="Palavra ou expressão" value={q} onChange={(v) => setQ(v)} maxLength={120} />
       <Aviso texto={erro} />
       <Botao type="submit" variante="secundario" carregando={enviando} disabled={q.trim().length < 2}>Buscar</Botao>
-      {achados?.length === 0 ? <p className="vazio">Nada encontrado nos arquivos já processados.</p> : null}
+      {achados?.length === 0 ? <p className="px-4 py-10 text-center text-sm text-tertiary">Nada encontrado nos arquivos já processados.</p> : null}
       {achados?.map((t) => (
-        <p key={t.id} className="legenda">
+        <p key={t.id} className="text-sm text-tertiary [overflow-wrap:anywhere]">
           <strong><bdi>{t.arquivoTitulo ?? 'arquivo'}</bdi> · p. {t.pagina}{t.origemExtracao === 'ocr' ? ' · lido por OCR' : ''}</strong>
           <br />
           <bdi>{t.texto}</bdi>

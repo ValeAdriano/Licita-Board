@@ -23,11 +23,11 @@ export function Perfil({ usuario }: { usuario: Usuario }) {
 
   return (
     <Secao titulo="Seus dados">
-      <form className="pilha" onSubmit={(e) => void salvar(e)}>
+      <form className="flex flex-col gap-4" onSubmit={(e) => void salvar(e)}>
         <Campo rotulo="E-mail" value={usuario.email} readOnly disabled />
-        <Campo rotulo="Nome" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={200} autoComplete="name" />
-        <Campo rotulo="Telefone" type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} maxLength={30} autoComplete="tel" />
-        <Campo rotulo="OAB" value={oab} onChange={(e) => setOab(e.target.value)} maxLength={30} />
+        <Campo rotulo="Nome" value={nome} onChange={(v) => setNome(v)} maxLength={200} autoComplete="name" />
+        <Campo rotulo="Telefone" type="tel" value={telefone} onChange={(v) => setTelefone(v)} maxLength={30} autoComplete="tel" />
+        <Campo rotulo="OAB" value={oab} onChange={(v) => setOab(v)} maxLength={30} />
         <Aviso texto={erro} />
         <Aviso tipo="info" texto={ok} />
         <Botao type="submit" carregando={enviando}>

@@ -39,16 +39,16 @@ export default function RedefinirSenha() {
       ) : !token ? (
         <Aviso texto="Link inválido ou incompleto. Peça um novo em “Esqueci minha senha”." />
       ) : (
-        <form className="pilha" onSubmit={(e) => void enviar(e)} noValidate>
-          <Campo rotulo="Nova senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="new-password" />
-          <Campo rotulo="Repita a nova senha" type="password" value={confirmacao} onChange={(e) => setConfirmacao(e.target.value)} autoComplete="new-password" />
+        <form className="flex flex-col gap-4" onSubmit={(e) => void enviar(e)} noValidate>
+          <Campo rotulo="Nova senha" type="password" value={senha} onChange={(v) => setSenha(v)} autoComplete="new-password" />
+          <Campo rotulo="Repita a nova senha" type="password" value={confirmacao} onChange={(v) => setConfirmacao(v)} autoComplete="new-password" />
           <Aviso texto={erro} />
           <Botao type="submit" cheio carregando={enviando}>
             Salvar nova senha
           </Botao>
         </form>
       )}
-      <Link to="/entrar" className="legenda" style={{ textAlign: 'center' }}>
+      <Link to="/entrar" className="text-sm text-tertiary [overflow-wrap:anywhere] text-center">
         Ir para entrar
       </Link>
     </TelaAcesso>
