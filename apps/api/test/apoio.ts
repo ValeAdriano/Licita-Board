@@ -58,7 +58,7 @@ export async function criarUsuario(prefixo: string, opcoes: { interno?: boolean 
 }
 
 // CNPJ numérico fictício com DV válido.
-function cnpjFicticio(): string {
+export function cnpjFicticio(): string {
   const base = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10));
   const dv = (pesos: number[], n: number[]) => {
     const r = n.reduce((s, d, i) => s + d * (pesos[i] ?? 0), 0) % 11;

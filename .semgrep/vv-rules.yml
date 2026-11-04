@@ -107,7 +107,7 @@ rules:
     languages: [generic]
     pattern-regex: (?i)(disable\s+row\s+level\s+security|using\s*\(\s*true\s*\))
     paths:
-      include: [supabase/migrations/, db/migrations/]
+      include: [db/migrations/]
 
   - id: vv-sdk-llm-fora-de-llm
     message: >-

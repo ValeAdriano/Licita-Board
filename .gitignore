@@ -25,10 +25,6 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Supabase local
-supabase/.branches/
-supabase/.temp/
-
 # Editor / SO
 .DS_Store
 .idea/

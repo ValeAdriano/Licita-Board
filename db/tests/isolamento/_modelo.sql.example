@@ -1,0 +1,43 @@
+-- MODELO de teste de isolamento A x B. Copie para priv_<tabela>.test.sql (ex.: priv_documentos.test.sql).
+-- O script scripts/check_isolation_coverage.py falha o CI se uma tabela de priv não tiver arquivo próprio.
+-- Helpers de db/tests/000_helpers.test.sql: tests.criar_empresas_ab() cria a empresa A com usuario_a e a
+-- empresa B com usuario_b (ADMIN_EMPRESA com todas as permissões); tests.autenticar_como() simula a API:
+-- sessão viva, contexto pelo token e papel vv_api. Padrão completo em db/tests/020_core_isolamento.test.sql.
+begin;
+set local search_path = tap;
+select plan(5);
+
+select tests.criar_empresas_ab();
+-- Insira aqui uma linha de priv.<tabela> para cada empresa, como superusuário (sem RLS):
+--   insert into priv.<tabela> (empresa_id, ...) values (tests.empresa_id('A'), ...), (tests.empresa_id('B'), ...);
+
+select tests.autenticar_como('usuario_a');
+
+select isnt_empty(
+  $$ select 1 from priv.<tabela> where empresa_id = tests.empresa_id('A') $$,
+  'A lê as linhas da própria empresa'
+);
+select is_empty(
+  $$ select 1 from priv.<tabela> where empresa_id = tests.empresa_id('B') $$,
+  'A não lê linhas de B'
+);
+select results_eq(
+  $$ with u as (update priv.<tabela> set updated_at = now() where empresa_id = tests.empresa_id('B') returning 1)
+     select count(*)::int from u $$,
+  $$ values (0) $$,
+  'A não edita linhas de B'
+);
+select results_eq(
+  $$ with d as (delete from priv.<tabela> where empresa_id = tests.empresa_id('B') returning 1)
+     select count(*)::int from d $$,
+  $$ values (0) $$,
+  'A não apaga linhas de B'
+);
+select throws_ok(
+  $$ insert into priv.<tabela> (empresa_id /* , ... */) values (tests.empresa_id('B') /* , ... */) $$,
+  '42501', null,
+  'A não insere linhas em nome de B'
+);
+
+select * from finish();
+rollback;

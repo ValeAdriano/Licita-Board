@@ -78,7 +78,7 @@ class GuardTest(unittest.TestCase):
         self.assertAllowed(run("Write", {"file_path": path("apps/worker/src/worker/rules/precos.py"), "content": "from decimal import Decimal"}))
 
     def test_rls_off_em_migration(self) -> None:
-        mig = path("supabase/migrations/29990101000000_x.sql")
+        mig = path("db/migrations/29990101000000_x.sql")
         self.assertBlocked(run("Write", {"file_path": mig, "content": "alter table priv.x disable row level security;"}))
         self.assertBlocked(run("Write", {"file_path": mig, "content": "create policy p on priv.x using ( true );"}))
         self.assertAllowed(run("Write", {"file_path": mig, "content": "alter table priv.x enable row level security;"}))

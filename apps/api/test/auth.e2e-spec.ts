@@ -173,6 +173,26 @@ describe('auth', () => {
     await http().get('/auth/sessao').set('Authorization', `Bearer ${b}`).expect(401);
   });
 
+  it('sair de todas as sessões: encerra as outras e mantém a atual; sem manter, encerra todas', async () => {
+    const email = await criarUsuario('sair-todas');
+    const alheia = await loginNativo(await criarUsuario('sair-todas-alheio'));
+    const a = await loginNativo(email);
+    const b = await loginNativo(email);
+    const c = await loginNativo(email);
+    const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
+
+    const manter = await http().post('/auth/logout-todas').set(auth(a)).send({}).expect(201);
+    expect(manter.body).toEqual({ encerradas: 2 });
+    await http().get('/auth/sessao').set(auth(a)).expect(200);
+    await http().get('/auth/sessao').set(auth(b)).expect(401);
+    await http().get('/auth/sessao').set(auth(c)).expect(401);
+    await http().get('/auth/sessao').set(auth(alheia)).expect(200); // a sessão de outro usuário não é tocada
+
+    const todas = await http().post('/auth/logout-todas').set(auth(a)).send({ manterAtual: false }).expect(201);
+    expect(todas.body).toEqual({ encerradas: 1 });
+    await http().get('/auth/sessao').set(auth(a)).expect(401);
+  });
+
   it('consulta de fundo (X-VV-Fundo: 1) confere a sessão sem renovar a inatividade', async () => {
     const token = await loginNativo(await criarUsuario('fundo'));
     const ultimoUso = async () => (await admin.query<{ minutos: number }>(

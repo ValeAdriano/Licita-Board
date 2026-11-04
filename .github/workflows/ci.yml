@@ -32,7 +32,7 @@ jobs:
       - name: Migrations já no main não foram alteradas
         if: github.event_name == 'pull_request'
         run: |
-          changed=$(git diff --name-only --diff-filter=MDR origin/${{ github.base_ref }}...HEAD -- supabase/migrations/ || true)
+          changed=$(git diff --name-only --diff-filter=MDR origin/${{ github.base_ref }}...HEAD -- db/migrations/ || true)
           if [ -n "$changed" ]; then
             echo "::error::Migration aplicada é imutável. Crie uma nova migration. Alterados: $changed"
             exit 1
@@ -76,7 +76,7 @@ jobs:
       - run: npm audit --audit-level=high || true
 
   api:
-    name: "API + banco (stack nova: lint, typecheck, testes, pgTAP, e2e, imagens)"
+    name: "API + banco (lint, typecheck, testes, pgTAP, e2e, imagens)"
     runs-on: ubuntu-latest
     env:
       PGHOST: 127.0.0.1
@@ -165,35 +165,10 @@ jobs:
       - run: uv run pytest --cov
       - run: uv run pip-audit --skip-editable
 
-  banco:
-    name: "Banco (pgTAP: RLS e isolamento)"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      # Revisão 1 congelada: CLI fixado na 2.x (a 3.0 de 2026-11-02 quebrou o setup com "latest").
-      # Este job sai quando o schema da Fase 01 for portado para db/.
-      - uses: supabase/setup-cli@v1
-        with:
-          version: 2.122.1
-      - name: supabase db start (migrations + seed)
-        run: |
-          set -o pipefail
-          supabase db start 2>&1 | tee dbstart.log
-      - name: supabase test db
-        run: |
-          set -o pipefail
-          supabase test db 2>&1 | tee pgtap.log
-      - name: Publicar falhas do pgTAP como anotações
-        if: failure()
-        run: |
-          cat dbstart.log pgtap.log 2>/dev/null | grep -E "not ok|ERROR|error|Failed test|caught|wanted|Looks like|psql:" | head -40 | while IFS= read -r l; do
-            echo "::error title=pgTAP::${l}"
-          done
-
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [guardas, web, api, worker, banco, backup]
+    needs: [guardas, web, api, worker, backup]
     runs-on: ubuntu-latest
     steps:
       - name: Todos os jobs passaram

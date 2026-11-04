@@ -1,7 +1,7 @@
 -- Isolamento A x B e controle de acesso nas tabelas de core (Prompt 1.3/1.4; CA-1, CA-2, CA-3).
 begin;
 set local search_path = tap;
-select plan(47);
+select plan(56);
 
 select tests.criar_empresas_ab();
 select tests.criar_usuario('operador_b');
@@ -224,6 +224,19 @@ select tests.criar_usuario('operador_a');
 select tests.vincular('operador_a', 'A', 'OPERADOR', array['empresas:visualizar', 'usuarios:visualizar']);
 select tests.autenticar_como('operador_a');
 select isnt_empty($$ select 1 from core.empresas $$, 'OPERADOR com visualizar lê a empresa');
+select results_eq(
+  $$ select razao_social from core.empresas $$,
+  $$ values ('Empresa Teste A') $$,
+  'OPERADOR vê só a empresa em que tem vínculo, não a B'
+);
+select is_empty(
+  $$ select 1 from core.vinculos where empresa_id = tests.empresa_id('B') $$,
+  'OPERADOR não lê vínculos de B'
+);
+select ok(
+  not core.has_permission(tests.empresa_id('B'), 'empresas', 'visualizar'),
+  'OPERADOR não tem permissão na empresa B'
+);
 select is_empty(
   $$ select 1 from audit.audit_log $$,
   'OPERADOR sem auditoria/visualizar não lê a auditoria nem da própria empresa'
@@ -234,6 +247,33 @@ delete from core.permissoes
  where vinculo_id = tests.vinculo_id('operador_a', 'A') and modulo = 'empresas' and acao = 'visualizar';
 select tests.autenticar_como('operador_a');
 select is_empty($$ select 1 from core.empresas $$, 'revogação vale na consulta seguinte');
+
+-- =============================================================== JURÍDICO: só a empresa autorizada (CA-2)
+select tests.sair();
+select tests.criar_usuario('juridico_a');
+select tests.vincular('juridico_a', 'A', 'JURIDICO', array['empresas:visualizar']);
+select tests.autenticar_como('juridico_a');
+select results_eq(
+  $$ select razao_social from core.empresas $$,
+  $$ values ('Empresa Teste A') $$,
+  'JURÍDICO lê só a empresa em que tem vínculo'
+);
+select is_empty(
+  $$ select 1 from core.vinculos where empresa_id = tests.empresa_id('B') $$,
+  'JURÍDICO não lê vínculos de B'
+);
+select ok(
+  not core.has_permission(tests.empresa_id('B'), 'empresas', 'visualizar'),
+  'JURÍDICO não tem permissão na empresa B'
+);
+select ok(
+  not core.has_permission(tests.empresa_id('A'), 'empresas', 'editar'),
+  'JURÍDICO não tem em A a ação que não lhe foi dada'
+);
+select is_empty(
+  $$ select 1 from audit.audit_log $$,
+  'JURÍDICO sem auditoria/visualizar não lê a auditoria'
+);
 
 -- =============================================================== inativos e arquivados
 select tests.sair();
@@ -277,5 +317,15 @@ select tests.autenticar_como('super', 'aal1');
 select is_empty($$ select 1 from core.empresas $$, 'SUPERADMIN sem MFA não lê nada');
 
 select tests.sair();
+
+-- =============================================================== updated_at automático (RF-01.1)
+alter table core.empresas disable trigger empresas_updated_at;
+update core.empresas set updated_at = now() - interval '1 day' where id = tests.empresa_id('B');
+alter table core.empresas enable trigger empresas_updated_at;
+update core.empresas set nome_fantasia = 'Fantasia B nova' where id = tests.empresa_id('B');
+select ok(
+  (select updated_at >= now() - interval '1 second' from core.empresas where id = tests.empresa_id('B')),
+  'updated_at é atualizado sozinho pelo UPDATE'
+);
 select * from finish();
 rollback;

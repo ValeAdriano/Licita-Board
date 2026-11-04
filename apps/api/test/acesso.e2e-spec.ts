@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SENHA, admin, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
+import { SENHA, admin, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
 
 // Isolamento A x B por endpoint (AGENTS.md §3.13, Prompt 1.4) e fluxos da matriz, convite, step-up,
 // exclusão com dupla aprovação e notificações.
@@ -199,10 +199,100 @@ describe('acesso', () => {
     expect(JSON.stringify(r.body)).not.toMatch(/constraint|core\.|empresas_|_check/);
   });
 
+  // CA-2 e CA-3: o vínculo vale por empresa (OPERADOR com permissões diferentes em A e em B) e o
+  // CLIENTE, como atacante, não passa da própria empresa.
+  it('OPERADOR com vínculos em duas empresas só faz em cada uma o que lhe foi dado', async () => {
+    const op = await entrar(await criarUsuario('acesso-op2'));
+    await vincular(op.email, empA, 'OPERADOR', ['empresas:visualizar']);
+    await vincular(op.email, empB, 'OPERADOR', ['empresas:visualizar', 'empresas:editar']);
+    const t = bearer(op.token);
+    const lista = await http().get('/empresas').set(t).expect(200);
+    expect((lista.body as { id: string }[]).map((e) => e.id).sort()).toEqual([empA, empB].sort());
+
+    const status = (await http().patch(`/empresas/${empA}`).set(t).send({ nomeFantasia: 'Sem permissão' })).status;
+    expect([403, 404]).toContain(status);
+    await http().get(`/empresas/${empA}/usuarios`).set(t).expect(404); // só empresas:visualizar em A
+    await http().patch(`/empresas/${empB}`).set(t).send({ nomeFantasia: 'Fantasia de B' }).expect(200);
+    const nomes = await admin.query<{ id: string; nome_fantasia: string | null }>(
+      'select id, nome_fantasia from core.empresas where id = any($1)', [[empA, empB]]);
+    const porId = Object.fromEntries(nomes.rows.map((r) => [r.id, r.nome_fantasia]));
+    expect(porId[empA]).not.toBe('Sem permissão');
+    expect(porId[empB]).toBe('Fantasia de B');
+  });
+
+  it('CLIENTE como atacante: não vê a empresa B, não cria empresa nem mexe em exclusões', async () => {
+    const email = await criarUsuario('acesso-cliente');
+    await vincular(email, empA, 'CLIENTE', ['empresas:visualizar']);
+    const login = await http().post('/auth/login').send({ email, senha: SENHA, plataforma: 'ios' }).expect(200);
+    const t = bearer((login.body as { token: string }).token);
+
+    await http().get(`/empresas/${empA}`).set(t).expect(200);
+    await http().get(`/empresas/${empB}`).set(t).expect(404);
+    await http().patch(`/empresas/${empB}`).set(t).send({ nomeFantasia: 'Hackeada' }).expect(404);
+    await http().get(`/empresas/${empB}/usuarios`).set(t).expect(404);
+    await http().get(`/empresas/${empB}/auditoria`).set(t).expect(404);
+    const lista = await http().get('/empresas').set(t).expect(200);
+    expect((lista.body as { id: string }[]).map((e) => e.id)).toEqual([empA]);
+
+    await http().post('/empresas').set(t).send({ razaoSocial: 'Empresa do cliente', cnpj: cnpjFicticio() }).expect(403);
+    const pedidos = await http().get('/exclusoes').set(t).expect(200);
+    expect(pedidos.body).toEqual([]);
+    await http().post(`/exclusoes/${crypto.randomUUID()}/decidir`).set(t)
+      .send({ aprovar: true, stepUp: crypto.randomUUID() }).expect(403);
+  });
+
+  it('SUPERADMIN cria empresa com CNPJ válido; CNPJ repetido não vira oráculo', async () => {
+    const sup = await entrar(await criarUsuario('acesso-super-cria'));
+    await admin.query('update core.usuarios set superadmin = true where email = $1', [sup.email]);
+    const cnpj = cnpjFicticio();
+    const criada = await http().post('/empresas').set(bearer(sup.token)).send({ razaoSocial: 'Empresa criada no e2e', cnpj }).expect(201);
+    const id = (criada.body as { id: string }).id;
+    await http().get(`/empresas/${id}`).set(bearer(sup.token)).expect(200);
+    const repetida = await http().post('/empresas').set(bearer(sup.token)).send({ razaoSocial: 'Outra', cnpj });
+    expect(repetida.status).toBeGreaterThanOrEqual(400);
+    expect(JSON.stringify(repetida.body)).not.toMatch(/constraint|core\.|_key|_idx|duplicate/i);
+  });
+
   it('cookie sem token CSRF não salva vínculo', async () => {
     const login = await http().post('/auth/login').send({ email: a.email, senha: SENHA, plataforma: 'web' }).expect(200);
     const ck = (login.headers['set-cookie'] as unknown as string[]).map((c) => c.split(';')[0]).join('; ');
     await http().put(`/vinculos/${crypto.randomUUID()}`).set('Cookie', ck)
       .send({ papel: 'OPERADOR', ativo: true, permissoes: [], stepUp: crypto.randomUUID() }).expect(403);
+  });
+
+  // CA-5 (Prompt 1.4): o que foi salvo permanece depois de sair e entrar de novo.
+  it('persistência: perfil e acesso salvos continuam depois de sair e entrar de novo', async () => {
+    const email = await criarUsuario('acesso-persiste');
+    const emp = await criarEmpresa('Empresa e2e persistência');
+    await vincular(email, emp, 'CLIENTE', ['empresas:visualizar']);
+    const entrarDe = async () => {
+      const r = await http().post('/auth/login').send({ email, senha: SENHA, plataforma: 'ios' }).expect(200);
+      return (r.body as { token: string }).token;
+    };
+
+    const t1 = await entrarDe();
+    await http().patch('/me').set(bearer(t1)).send({ nome: 'Nome Persistido', telefone: '11999990000', oab: 'SP123456' }).expect(200);
+    await http().post('/auth/logout').set(bearer(t1)).expect(204);
+    await http().get('/me').set(bearer(t1)).expect(401); // a sessão encerrada não vale mais
+
+    const t2 = await entrarDe();
+    const me = (await http().get('/me').set(bearer(t2)).expect(200)).body as {
+      usuario: { nome: string; telefone: string; oab: string };
+      vinculos: { empresaId: string; papel: string; permissoes: string[] }[];
+    };
+    expect(me.usuario).toMatchObject({ nome: 'Nome Persistido', telefone: '11999990000', oab: 'SP123456' });
+    expect(me.vinculos).toHaveLength(1);
+    expect(me.vinculos[0]).toMatchObject({ empresaId: emp, papel: 'CLIENTE' });
+    await http().get(`/empresas/${emp}`).set(bearer(t2)).expect(200);
+
+    // CA-4: os dois acessos (criação de sessão) e a saída (revogação) ficam na auditoria.
+    const aud = await admin.query<{ operation: string; n: number }>(
+      `select operation, count(*)::int as n from audit.audit_log
+        where table_name = 'sessoes'
+          and new_data->>'usuario_id' = (select id::text from core.usuarios where email = $1)
+        group by operation`, [email]);
+    const porOperacao = Object.fromEntries(aud.rows.map((r) => [r.operation, r.n]));
+    expect(porOperacao['INSERT']).toBe(2);
+    expect(porOperacao['UPDATE']).toBeGreaterThanOrEqual(1);
   });
 });

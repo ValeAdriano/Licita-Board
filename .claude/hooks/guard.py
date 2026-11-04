@@ -29,7 +29,7 @@ SECRET_IN_APP = re.compile(
 )
 # API: só usa vv_api (ADR-013); credenciais do worker/owner nunca entram.
 SECRET_IN_API = re.compile(r"vv_(worker|owner)\b|VV_(WORKER|OWNER)_PASSWORD|POSTGRES_PASSWORD", re.IGNORECASE)
-MIGRATION_DIRS = ("supabase/migrations/", "db/migrations/")
+MIGRATION_DIRS = ("db/migrations/",)
 FLOAT_MONEY = re.compile(r"\bfloat\s*\(|:\s*float\b|->\s*float\b")
 RLS_OFF = re.compile(r"disable\s+row\s+level\s+security|using\s*\(\s*true\s*\)", re.IGNORECASE)
 

@@ -53,6 +53,17 @@ describe('recuperação de senha', () => {
     await http().post('/auth/login').send({ email, senha: 'cavalo-bateria-grampo-novo', plataforma: 'ios' }).expect(200);
   });
 
+  it('token vencido (mais de 30 min) é recusado com a mesma mensagem e não redefine a senha', async () => {
+    const email = await criarUsuario('rec-venc');
+    const token = await emitirToken(email);
+    await admin.query(
+      `update core.tokens_recuperacao set expira_em = now() - interval '1 second'
+        where usuario_id = (select id from core.usuarios where email = $1)`, [email]);
+    const r = await http().post('/auth/redefinir').send({ token, senha: 'cavalo-bateria-grampo-novo' }).expect(400);
+    expect(r.body).toMatchObject({ message: 'Link inválido ou expirado. Peça um novo.' });
+    await http().post('/auth/login').send({ email, senha: SENHA, plataforma: 'ios' }).expect(200);
+  });
+
   it('token inventado é recusado com a mesma mensagem', async () => {
     const r = await http().post('/auth/redefinir').send({ token: 'x'.repeat(50), senha: 'cavalo-bateria-grampo-novo' }).expect(400);
     expect(r.body).toMatchObject({ message: 'Link inválido ou expirado. Peça um novo.' });
