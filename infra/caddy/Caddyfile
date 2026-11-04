@@ -53,22 +53,20 @@
 		file {path}
 	}
 
-	# API: o prefixo /api sai antes de chegar nela. O Caddy ESCREVE o X-Forwarded-For (o valor que o
-	# cliente mandar é descartado) e a API só confia nele porque o proxy é o Caddy (TRUST_PROXY).
-	# Origin e Sec-Fetch-Site seguem como vieram (o login confere). A API manda o seu no-store; se uma
-	# rota esquecer, o ?Cache-Control abaixo só preenche quando falta. O corpo é limitado (a API aceita 16 kB).
+	# API: o prefixo /api sai antes de chegar nela. Como o Caddy não tem proxy confiável na frente, ele
+	# ESCREVE o X-Forwarded-For (o valor que o cliente mandar é descartado; o teste prova) e a API só
+	# confia nele porque o proxy é o Caddy (TRUST_PROXY). Origin e Sec-Fetch-Site seguem como vieram
+	# (o login confere). O no-store é da API (testado no e2e dela). O corpo é limitado (a API aceita 16 kB).
 	handle @api {
 		uri strip_prefix /api
 		request_body {
 			max_size 256KB
 		}
 		reverse_proxy {$VV_API_UPSTREAM:api:3000} {
-			header_up X-Forwarded-For {remote_host}
 			header_up -X-Real-IP
 			header_up -Forwarded
 			header_down -Server
 			header_down -X-Powered-By
-			header_down ?Cache-Control "no-store"
 		}
 	}
 

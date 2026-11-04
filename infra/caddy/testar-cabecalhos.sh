@@ -25,12 +25,10 @@ import json, sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
-        sem_cache = self.path.startswith("/sem-cache")
         corpo = json.dumps({"path": self.path, "headers": {k.lower(): v for k, v in self.headers.items()}}).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
-        if not sem_cache:
-            self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Content-Security-Policy", "default-src *")
         self.send_header("X-Powered-By", "Express")
@@ -120,7 +118,7 @@ nao "$(cab "$base/assets/nao-existe.js")" "cache-control:.*immutable" "404 de as
 r="$(curl -s "$base/api")"; python3 -c "import json,sys; json.loads(sys.argv[1])" "$r" 2>/dev/null && ok "/api (sem barra) vai para a API, não para o app" || nok "/api sem barra caiu no app"
 
 # /api: prefixo removido; X-Forwarded-* escritos pelo Caddy; Origin e Sec-Fetch-Site preservados;
-# no-store da API intacto e preenchido quando a API esquece
+# no-store da API intacto
 resp="$(curl -s -H 'X-Forwarded-For: 6.6.6.6' -H 'X-Real-IP: 6.6.6.6' -H 'X-Forwarded-Host: evil.example' -H 'X-Forwarded-Proto: https' \
   -H 'Forwarded: for=6.6.6.6' -H 'Origin: http://127.0.0.1:18080' -H 'Sec-Fetch-Site: same-origin' "$base/api/auth/sessao?x=1")"
 py() { python3 -c "import json,sys; d=json.loads(sys.argv[1]); print($1)" "$resp"; }
@@ -132,7 +130,6 @@ py() { python3 -c "import json,sys; d=json.loads(sys.argv[1]); print($1)" "$resp
 [ "$(py 'd["headers"].get("sec-fetch-site")')" = "same-origin" ] && ok "Sec-Fetch-Site preservado" || nok "Sec-Fetch-Site perdido"
 [ "$(py 'd["headers"].get("origin")')" = "http://127.0.0.1:18080" ] && ok "Origin preservado" || nok "Origin perdido"
 tem "$(cab "$base/api/qualquer")" "cache-control: no-store" "o no-store da API não é sobrescrito"
-tem "$(cab "$base/api/sem-cache")" "cache-control: no-store" "rota da API sem Cache-Control recebe no-store"
 big="$(head -c 400000 /dev/zero | tr '\0' 'a')"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST --data "$big" "$base/api/x")" = 413 ] && ok "corpo acima de 256 KB é recusado na borda" || nok "corpo grande deveria dar 413"
 
