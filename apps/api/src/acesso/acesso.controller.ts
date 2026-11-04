@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   HttpCode,
-  NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -25,10 +24,6 @@ const empresaNovaSchema = z.object({
   razaoSocial: z.string().trim().min(2).max(200),
   nomeFantasia: z.string().trim().max(200).optional(),
   cnpj: z.string().trim().toUpperCase().regex(/^[0-9A-Z]{12}[0-9]{2}$/),
-}).strict();
-const empresaEdicaoSchema = z.object({
-  razaoSocial: z.string().trim().min(2).max(200).optional(),
-  nomeFantasia: z.string().trim().max(200).nullable().optional(),
 }).strict();
 const perfilSchema = z.object({
   nome: z.string().trim().min(1).max(200).optional(),
@@ -97,28 +92,6 @@ export class AcessoController {
     return this.q(req, async (tx) => (await sql<{ id: string }>`
       insert into core.empresas (razao_social, nome_fantasia, cnpj)
       values (${d.razaoSocial}, ${d.nomeFantasia ?? null}, ${d.cnpj}) returning id`.execute(tx)).rows[0]);
-  }
-
-  @Permissao('empresas', 'visualizar')
-  @Get('empresas/:empresa')
-  async empresa(@Req() req: RequisicaoVV, @Param('empresa') empresa: string) {
-    const e = await this.q(req, async (tx) => (await sql`
-      select id, razao_social as "razaoSocial", nome_fantasia as "nomeFantasia", cnpj, ativo
-        from core.empresas where id = ${empresa}::uuid`.execute(tx)).rows[0]);
-    if (!e) throw new NotFoundException();
-    return e;
-  }
-
-  @Permissao('empresas', 'editar')
-  @Patch('empresas/:empresa')
-  async editarEmpresa(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Body() corpo: unknown) {
-    const d = validar(empresaEdicaoSchema, corpo);
-    await this.q(req, (tx) => sql`
-      update core.empresas
-         set razao_social = coalesce(${d.razaoSocial ?? null}, razao_social),
-             nome_fantasia = case when ${d.nomeFantasia !== undefined} then ${d.nomeFantasia ?? null} else nome_fantasia end
-       where id = ${empresa}::uuid`.execute(tx));
-    return {};
   }
 
   @Permissao('usuarios', 'visualizar')
