@@ -1,6 +1,9 @@
 # Fluxo de trabalho por fase
 
-O "método obrigatório por fase" do Prompt Mestre adaptado a uma pessoa + agentes. Cada fase vira uma sequência de PRs pequenos.
+> **Modo rápido (AGENTS.md §0, 2026-11-04):** este documento é orientação para quando o projeto sair do protótipo. Hoje: tudo direto no `main`, sem PR, sem CI, sem revisores nem relatório; teste só o que acelera.
+
+
+O "método obrigatório por fase" do Prompt Mestre adaptado a uma pessoa + agentes. Cada fase vira uma sequência de blocos de trabalho (commits no `main`).
 
 ```text
  spec ✋ ─► migration ✋ ─┬─► API / worker / rules ─┐

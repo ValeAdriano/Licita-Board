@@ -1,9 +1,9 @@
 name: CI
 
+# Modo rápido (AGENTS.md §0): o CI só roda sob demanda (aba Actions > CI > Run workflow).
+# Para religar no push e no PR, volte para:  pull_request:  e  push: { branches: [main] }
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read

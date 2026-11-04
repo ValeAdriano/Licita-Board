@@ -1,6 +1,6 @@
 # CLAUDE.md · VV Licitações
 
-As regras do projeto valem para todos os agentes e estão em `AGENTS.md`, importado abaixo. Este arquivo só acrescenta o que é específico do Claude Code.
+As regras do projeto valem para todos os agentes e estão em `AGENTS.md`, importado abaixo. **Modo atual: desenvolvimento rápido, tudo no `main`, sem PR, sem CI, sem revisores (AGENTS.md §0).** Este arquivo só acrescenta o que é específico do Claude Code.
 
 @AGENTS.md
 
@@ -10,7 +10,7 @@ As regras do projeto valem para todos os agentes e estão em `AGENTS.md`, import
 
 1. Leia `docs/roadmap.md` para saber a fase atual e `docs/agents/em-andamento.md` para ver se outro agente está mexendo na mesma área.
 2. Se a tarefa for de uma fase, leia a spec dela em `docs/specs/`. Sem spec `Aprovada`, a única tarefa possível é escrever/ajustar a spec.
-3. Para trabalho com mais de um passo, use plan mode e mostre o plano antes de editar.
+3. Não use plan mode nem peça aprovação de plano: decida e execute (AGENTS.md §0).
 
 ### Comandos do projeto (`.claude/commands/`)
 
@@ -28,9 +28,9 @@ Os comandos são finos: cada um aponta para um prompt neutro em `docs/agents/pro
 
 ### Subagentes (`.claude/agents/`)
 
-- `revisor-migration` — revisa SQL, RLS e grants. Use **sempre** antes de pedir revisão humana de uma migration.
-- `revisor-seguranca` — revisa um diff contra o modelo de ameaças e o ASVS L2 resumido.
-- `auditor-fase` — confere critérios de aceite de uma fase contra evidências reais e aponta lacunas.
+- `revisor-migration` — revisa SQL, RLS e grants. **Só quando o Adriano pedir** (modo rápido).
+- `revisor-seguranca` — revisa um diff contra o modelo de ameaças e o ASVS L2 resumido. Só sob pedido.
+- `auditor-fase` — confere critérios de aceite de uma fase contra evidências reais e aponta lacunas. Só sob pedido.
 
 ### Hooks (`.claude/hooks/guard.py`)
 

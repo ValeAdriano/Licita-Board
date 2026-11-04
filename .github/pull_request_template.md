@@ -1,3 +1,4 @@
+<!-- Modo rápido (AGENTS.md §0): o projeto não usa PR agora; tudo vai direto no main. Template mantido para quando voltarmos a usar PR. -->
 ## O quê e por quê
 
 <!-- 1–3 linhas. Link para a spec e requisitos (RF-XX.n). -->

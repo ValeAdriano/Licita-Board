@@ -1,5 +1,8 @@
 # Documentação viva
 
+> **Modo rápido (AGENTS.md §0, 2026-11-04):** este documento é orientação para quando o projeto sair do protótipo. Hoje: tudo direto no `main`, sem PR, sem CI, sem revisores nem relatório; teste só o que acelera.
+
+
 A documentação deste repositório é a memória do projeto: o próximo agente (ou o Adriano, semanas depois) só sabe o que está escrito. Por isso **toda entrega atualiza a documentação no mesmo commit do código**, nunca "depois". Vale para qualquer agente (Claude Code, Antigravity, Codex, Cursor...) e para humanos.
 
 Regra de ouro: se o código e o documento discordam, o trabalho não terminou.

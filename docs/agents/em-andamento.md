@@ -6,5 +6,5 @@ Quadro simples de coordenação entre agentes. Atualize ao pegar e ao largar uma
 
 | Branch | Agente | Fase | Área | Migrations | Desde | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| main (push direto) | Claude Code | 01 | PRs 1–12 e 3b no main (PR 12: primeiro SUPERADMIN, Caddy, telas de plataforma e auditoria); nada em andamento. Fase 02: só a spec em rascunho (gate do Adriano) | — | 2026-11-04 | aguardando aceite do Adriano |
+| main (push direto) | Claude Code | 02 | PR 1 (empresa completa) em andamento; depois PRs 2 a 9 e telas, na ordem da spec §10 | ✅ | 2026-11-04 | em andamento |
 

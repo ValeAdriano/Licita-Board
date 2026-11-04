@@ -1,5 +1,8 @@
 # Definition of Done
 
+> **Modo rápido (AGENTS.md §0, 2026-11-04):** este documento é orientação para quando o projeto sair do protótipo. Hoje: tudo direto no `main`, sem PR, sem CI, sem revisores nem relatório; teste só o que acelera.
+
+
 ## Toda entrega (commit + push no `main`)
 
 - [ ] Ligado a spec `Aprovada` (exceto Fase 00, infra e docs). Requisitos `RF-XX.n` citados na descrição.

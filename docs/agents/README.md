@@ -1,3 +1,5 @@
+> **Modo rápido (AGENTS.md §0, 2026-11-04):** tudo direto no `main`, sem PR, sem CI do GitHub, sem subagentes revisores; teste só o que acelera. Os guias abaixo valem quando o projeto sair do protótipo.
+
 # Desenvolvimento com agentes de IA
 
 Como o VV Licitações é construído por uma pessoa + agentes. As regras ficam em [`AGENTS.md`](../../AGENTS.md); aqui está o **como**.

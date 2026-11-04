@@ -1,8 +1,8 @@
 # Spec · Fase 02 · Cadastro multiempresa, representantes e produtos
 
-- **Status:** Rascunho (aguardando as respostas da seção 11 e a aprovação do Adriano; **sem `Aprovada` não há código da fase**)
+- **Status:** Aprovada em 2026-11-04 (com todas as recomendações da seção 11). Pendências de terceiros que **não bloqueiam o início**: lista de poderes e regra de procuração (jurídico VV, ⚖️) antes do PR 5; portes e regimes revisados pelo contador (🧾)
 - **Onda:** 2 — MVP
-- **Autor:** Claude Code (2026-11-04) · **Aprovação:** pendente
+- **Autor:** Claude Code (2026-11-04) · **Aprovação:** Adriano Vale, 2026-11-04 ("Aprovo, siga")
 - **Validação jurídica:** pendente (poderes de representantes e procurações, ⚖️ seção 4) · **Validação contábil:** pendente (porte, enquadramento e regime tributário, 🧾 seção 4)
 - **Fontes:** Prompt Mestre Fase 02 (2.1 a 2.5); Plano, Fase 02 e "Modelo de dados núcleo e RLS"; ADR-003, ADR-013 (duas camadas), ADR-017 (criptografia de campo); [Fase 01](fase-01.md) (relatório em `docs/phase-reports/fase-01.md`)
 
@@ -72,7 +72,7 @@ Tabelas filhas (todas com `empresa_id`, FK composta `(empresa_id, id)` e RLS por
 
 | Tabela | Conteúdo | Regras |
 | --- | --- | --- |
-| `core.empresa_cnaes` | CNAEs secundários (`cnae`, `ordem`) | único por empresa e CNAE |
+| `core.empresa_cnaes` | CNAEs secundários (`cnae`; a lista é ordenada pelo código) | único por empresa e CNAE |
 | `core.empresa_contatos` | `tipo` (`telefone`, `whatsapp`, `email`), `valor`, `rotulo`, `principal` | no máximo um principal por empresa e tipo; e-mail e telefone com `check` de formato; **dado pessoal: redigido na auditoria** |
 | `core.empresa_enquadramentos` | `porte` (`MEI`, `ME`, `EPP`, `DEMAIS`: pergunta 3), `data_referencia date not null`, `fonte` (`declaracao`, `certidao_junta`, `outra`), `observacao`; **uma linha por data** | só INSERT (histórico); o "atual" é a linha de maior `data_referencia` ≤ hoje; a função `core.enquadramento_em(empresa, data)` devolve o vigente em uma data (usada pelas Fases 05 e 08) |
 | `core.empresa_contas` | `banco` (código COMPE), `agencia`, `conta`, `tipo_conta`, `titular_nome`, `titular_documento`, `pix_tipo` (`cpf`, `cnpj`, `email`, `telefone`, `aleatoria`), `pix_chave`, `principal` | **`agencia`, `conta`, `titular_documento` e `pix_chave` cifrados em envelope** (`jsonb` `{v, dek, iv, ct}`, ADR-017); a API devolve **máscara** (ex.: `•••• 1234`); `pix_chave_hash` (HMAC com chave própria) só para detectar duplicidade sem decifrar |
@@ -227,4 +227,5 @@ PRs 1 a 9 mexem em `db/migrations/`: **um agente por vez** (AGENTS.md §10), em 
 12. **Extensão `pg_trgm`** (busca por texto em produtos): permitida no `db/init`? *Recomendo:* sim (licença PostgreSQL, já vem no contrib do Postgres 17).
 13. **Importação de produtos por planilha:** entra? *Recomendo:* fora do MVP desta fase (cadastro pela tela e por API); avaliar com 20 produtos reais na Fase 06.
 14. **Formato da cifra de campo** compatível entre TS e Python (ADR-017): a Fase 02 só usa a API (TS). *Recomendo:* já gravar o formato `{v, dek, iv, ct}` do ADR e escrever os vetores de teste, para o worker (Python) implementar na fase em que precisar decifrar.
+16. **Retificar um enquadramento digitado errado** (nasceu da revisão da migration do PR 1): o histórico é só inclusão e uma linha por data, então o porte errado numa data não tem correção. *Recomendo:* permitir que SUPERADMIN marque a linha como retificada (nova coluna e `enquadramento_em` ignorando as retificadas), em migration própria **antes** da Fase 05; até lá a limitação está registrada na migration. Decisão do Adriano.
 15. **Prioridade:** começar pelo PR 1 (empresa completa) ou pelo catálogo (PR 6), que destrava a Fase 06? *Recomendo:* a ordem da seção 10 (empresa → representantes → catálogo → produtos), porque empresa e signatário são exigência da Fase 05 (MVP).

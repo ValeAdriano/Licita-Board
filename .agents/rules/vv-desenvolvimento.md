@@ -5,6 +5,8 @@ description: Como o Antigravity conduz o desenvolvimento do VV Licitações e ma
 
 # Antigravity no VV Licitações
 
+> **Modo atual: desenvolvimento rápido (AGENTS.md §0, decisão do Adriano em 2026-11-04).** Tudo direto no `main`, sem branch nem PR, sem consultar o CI do GitHub, testes e revisões só quando acelerarem ou forem pedidos. Onde as regras abaixo pedirem PR, CI verde, checklist ou documentação detalhada, o modo rápido vence: registre só uma linha em `docs/agents/em-andamento.md`.
+
 As regras do projeto estão no `AGENTS.md` da raiz (você já o recebe sempre) e valem integralmente. Este arquivo diz **como seguir o desenvolvimento** e torna obrigatório manter a documentação atualizada.
 
 ## Antes de começar qualquer tarefa
@@ -27,7 +29,7 @@ As regras do projeto estão no `AGENTS.md` da raiz (você já o recebe sempre) e
 
 A documentação é atualizada **no mesmo commit do código**, nunca depois. A tabela completa de "mudou X → atualize Y" está em [`docs/agents/documentacao-viva.md`](../../docs/agents/documentacao-viva.md); leia-a no início de cada tarefa. O mínimo, sempre:
 
-- Ao terminar um PR da fase: marcar ✅ e anotar pendências em `docs/specs/fase-XX.md` §7, e atualizar `docs/agents/em-andamento.md` e `docs/roadmap.md`.
+- Ao fechar um bloco de trabalho: uma linha em `docs/agents/em-andamento.md` (o roadmap e a spec só quando a fase mudar).
 - Controle de segurança, ameaça ou risco aceito novo: `docs/threat-model.md`.
 - Decisão de arquitetura nova: ADR em `docs/adr/`, status `Proposto` até o Adriano aceitar.
 - Comando, variável, porta ou regra nova: `AGENTS.md` (raiz ou do pacote).
@@ -37,7 +39,7 @@ Não declare a tarefa concluída enquanto o checklist de fim de tarefa de `docum
 
 ## Ao terminar ou pausar
 
-- Git: commit e push **direto no `main`**, só depois dos checks locais verdes; depois do push, confira o CI e, se ficar vermelho, corrija antes de qualquer outra coisa. Nunca `--force`. Com outro agente em paralelo, use worktree e integre no `main` com rebase local.
+- Git: commit curto e push **direto no `main`** (sem branch, sem PR). Não consulte nem corrija o CI. Nunca `--force`.
 - Commits em Conventional Commits, em português (`feat(agenda): ...`), um assunto por commit, dizendo o que foi testado, o que ficou sem teste e o que ficou de fora; dependência nova com nome, versão, licença e motivo.
 - Handoff em `docs/agents/em-andamento.md` (modelo em `docs/agents/handoff.md`) quando o trabalho ficar pela metade.
 - Nunca: segredo ou dado real em código, fixture ou log; `git push --force`; comando destrutivo; mexer em produção sem o Adriano pedir na conversa.

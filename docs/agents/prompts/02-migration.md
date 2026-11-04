@@ -13,8 +13,8 @@ Implemente a parte de banco **"<grupo de tabelas>"** da spec `docs/specs/fase-<X
 4. Para cada tabela de `priv`: `db/tests/isolamento/<schema>_<tabela>.test.sql` cobrindo SELECT/INSERT/UPDATE/DELETE cruzados (base: `_modelo.sql.example`). Para `pub`: teste de que `vv_api` lê e não escreve.
 5. Testes de regra do banco (constraints, CNPJ, funções) em `db/tests/`.
 6. Rode `db/scripts/test-local.sh` (Postgres do compose ou local com pgTAP; aplica as migrations com up, rollback e up e roda o pgTAP) e `python3 scripts/check_isolation_coverage.py`.
-7. Faça a auto-revisão com `docs/agents/checklists/revisao-migration.md` item a item (ou subagente `revisor-migration` no Claude Code).
+7. Revisão (`revisao-migration.md`, subagente `revisor-migration`) só se o Adriano pedir (modo rápido).
 
 **Não faça:** editar migration existente; aplicar em projeto remoto; `using (true)`; policy para `anon` em `priv`; tocar `audit` sem ser pedido.
 
-**Entregue:** PR com a lista das tabelas, o resultado real dos testes e os pontos que pedem atenção humana especial.
+**Entregue:** commit(s) direto no `main`, com uma frase sobre o que ficou sem teste ou pela metade (modo rápido, AGENTS.md §0).
