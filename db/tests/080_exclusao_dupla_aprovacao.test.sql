@@ -163,12 +163,12 @@ select throws_ok(
 select results_eq(
   $$ select conrelid::regclass::text from pg_constraint
       where contype = 'f' and confrelid = 'core.empresas'::regclass and confdeltype <> 'c' order by 1 $$,
-  $$ values ('core.empresa_cnaes'::text), ('core.empresa_contatos'), ('core.empresa_enquadramentos'), ('core.vinculos') $$,
+  $$ values ('core.empresa_cnaes'::text), ('core.empresa_contas'), ('core.empresa_contatos'), ('core.empresa_enquadramentos'), ('core.vinculos') $$,
   'toda FK sem cascade para core.empresas é tratada em core.executar_exclusao (atualize a função e este teste juntos)');
 select results_eq(
   $$ select conrelid::regclass::text from pg_constraint
       where contype = 'f' and confrelid = 'core.empresas'::regclass and confdeltype = 'c' order by 1 $$,
-  $$ values ('core.convites'::text), ('core.notificacoes'::text), ('ops.jobs'::text) $$,
+  $$ values ('core.convites'::text), ('core.notificacoes'::text), ('core.representantes'::text), ('core.revelacoes_dados'::text), ('ops.jobs'::text) $$,
   'lista fechada de FKs com cascade para core.empresas (nova cascade exige decisão explícita aqui)');
 
 select * from finish();

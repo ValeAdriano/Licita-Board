@@ -8,7 +8,7 @@ import { cancelarPushAoSair } from '../push/push'
 export type EstadoMfa = 'verificar' | 'cadastrar' | 'nao_requerido'
 export type Fase = 'carregando' | 'sem_conexao' | 'anonimo' | 'mfa' | 'ativa'
 export type Elevacao = 'verificar' | 'confirmar' | 'recuperacao'
-export type EscopoStepUp = 'alterar_permissoes' | 'exclusao_definitiva' | 'preco_abaixo_minimo' | 'proposta_final' | 'aprovar_peca'
+export type EscopoStepUp = 'alterar_permissoes' | 'exclusao_definitiva' | 'preco_abaixo_minimo' | 'proposta_final' | 'aprovar_peca' | 'dados_bancarios'
 
 export const INATIVIDADE_MS = 30 * 60 * 1000
 

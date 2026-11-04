@@ -89,8 +89,10 @@ export class CifraCampo {
 }
 
 // Máscara para mostrar: só os últimos caracteres, o resto vira bolinhas (nunca devolve o valor inteiro).
+// Mostra no máximo 1/3 do valor (até 4 caracteres): valor curto quase não aparece.
 export function mascarar(valor: string, visiveis = 4): string {
   const v = valor.trim();
-  if (v.length <= visiveis) return '•'.repeat(Math.max(v.length, 4));
-  return `${'•'.repeat(Math.min(v.length - visiveis, 8))}${v.slice(-visiveis)}`;
+  const n = Math.min(visiveis, Math.floor(v.length / 3));
+  if (n === 0) return '•'.repeat(Math.max(v.length, 4));
+  return `${'•'.repeat(Math.min(v.length - n, 8))}${v.slice(-n)}`;
 }

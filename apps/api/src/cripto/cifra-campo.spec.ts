@@ -69,10 +69,10 @@ describe('cifra de campo em envelope', () => {
   });
 
   it('máscara mostra só o final e nunca o valor inteiro', () => {
-    expect(mascarar('12345678909')).toBe('•••••••8909');
+    expect(mascarar('12345678909')).toBe('••••••••909');
     expect(mascarar('chave-pix-aleatoria-0123456789abcdef')).toBe('••••••••cdef');
-    expect(mascarar('123')).toBe('••••');
-    expect(mascarar('1234')).toBe('••••');
-    expect(mascarar('12345')).toBe('•2345');
+    expect(mascarar('123')).toBe('••3');
+    expect(mascarar('12345')).toBe('••••5');
+    expect(mascarar('12')).toBe('••••');
   });
 });
