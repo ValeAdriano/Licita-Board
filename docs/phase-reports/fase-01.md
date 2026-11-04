@@ -2,7 +2,7 @@
 
 - **Status:** Aguardando aceite
 - **Período:** 2026-11-02 (spec aprovada) a 2026-11-04 (fechamento)
-- **Commit de referência:** `c70771e` (PR 11: remoção do `supabase/`, testes de fechamento e este relatório). CI desse commit: [run 41813636431](https://github.com/ValeAdriano/Licita-Board/actions/runs/41813636431), 6 jobs verdes (guardas com Semgrep e Gitleaks, web, api + banco, worker, backup, `ci-ok`).
+- **Commit de referência:** `8ce1ecd` (PR 11 e PR 12). CI desse commit: [run 41828278182](https://github.com/ValeAdriano/Licita-Board/actions/runs/41828278182), 7 jobs verdes (guardas com Semgrep e Gitleaks, web, api + banco, worker, backup, **caddy**, `ci-ok`).
 - **Resumo em uma linha:** a fase **não está integralmente concluída**: sete dos oito critérios de aceite estão COMPROVADOS por teste; o CA-6 (restauração de backup) está PARCIAL, porque a restauração foi provada em disco local e no CI, mas nunca em servidor real com bucket S3 externo. O PR 12 (2026-11-04) fechou as lacunas de operação que o relatório apontava (primeiro SUPERADMIN, telas de plataforma, exclusão e auditoria, Caddy com CSP); o que resta é de infraestrutura e do jurídico, listado abaixo.
 
 Evidências em [`docs/phase-reports/evidencias/fase-01/`](evidencias/fase-01/): `testes-2026-11-04.txt` (execução local das suítes) e `restauracao-2026-11-03.txt` (backup e restauração).
@@ -37,7 +37,7 @@ Evidências em [`docs/phase-reports/evidencias/fase-01/`](evidencias/fase-01/): 
 | Web Push ponta a ponta (inscrição real e entrega pelo FCM, Mozilla ou Apple) | O navegador do painel de desenvolvimento só mostra o estado "bloqueadas"; a entrega real exige chaves VAPID de produção | Validar em Chrome, Firefox e iPhone com o PWA instalado, no primeiro deploy |
 | PWA instalável e service worker (cache, atualização) | Só o build (`vite build`, 22 entradas pré-cacheadas) é verificado | Teste manual no deploy; Playwright quando houver ambiente |
 | Layout responsivo, contraste ≥ 4.5:1 e alvos ≥ 44 px | Escolhidos nos tokens de design e conferidos à mão no navegador do painel; sem verificação automática nem captura guardada | Playwright em viewport mobile e desktop + verificação de contraste |
-| Caddyfile rodando localmente | Não há Docker nesta máquina; só o CI roda o Caddy real (job `caddy`) | Conferir o resultado do CI e subir no primeiro servidor |
+| Caddyfile na máquina do Adriano | Não há Docker nesta máquina; o Caddy real rodou só no CI (job `caddy` verde no run 41828278182, depois de 4 correções que só o CI mostrou) | Subir no primeiro servidor |
 | Atraso progressivo do login a partir da 3ª falha (RF-01.8) | O código existe (`auth.service.ts`); os testes cobrem o CAPTCHA na 3ª falha e o bloqueio de 15 min na 10ª, não o atraso | Teste com relógio controlado no PR 12 |
 | Envio de e-mail real (SMTP/Resend), Turnstile e HIBP reais | Os testes usam servidor, resposta e endpoint simulados; nenhum teste chama a rede | Conferir no deploy com Resend, chaves Turnstile e HIBP reais |
 | `docker compose up` completo (API, worker, Mailpit, Postgres juntos) | Não há Docker nesta máquina; o CI só **constrói** as imagens da API e do banco e roda o pgTAP e o e2e contra o Postgres da imagem | Subir o compose na primeira máquina com Docker |
@@ -113,7 +113,7 @@ Nenhuma tabela de `priv` existe ainda (começam na Fase 02); por isso `db/tests/
 
 | Integração | Estado | Evidência |
 | --- | --- | --- |
-| CI (GitHub Actions): guardas, web, api, worker, backup, `ci-ok` | Verde no `c70771e` | [run 41813636431](https://github.com/ValeAdriano/Licita-Board/actions/runs/41813636431) |
+| CI (GitHub Actions): guardas, web, api, worker, backup, `ci-ok` | Verde no `8ce1ecd` | [run 41828278182](https://github.com/ValeAdriano/Licita-Board/actions/runs/41828278182) |
 | E-mail (Mailpit em dev; Resend em produção) | Dev: worker pronto; produção **não configurada** | `test_email.py` (montagem do e-mail) e `test_fila.py` (falha de SMTP simulada); o envio SMTP real não é exercitado em teste |
 | CAPTCHA Turnstile | Implementado; chaves de produção **não criadas** | e2e `recuperacao` (com Turnstile simulado) |
 | HIBP | Implementado (k-anonymity); chamada real **não exercida** | `protecoes.spec.ts` |
@@ -136,7 +136,7 @@ Execução local de 2026-11-04 em `evidencias/fase-01/testes-2026-11-04.txt`.
 | Web | `npm test --prefix apps/web` | 70 testes em 9 arquivos, passam; lint, typecheck e build do PWA ok |
 | Worker | `uv run pytest --cov` | 42 testes passam; cobertura 83% |
 | Guardas | `python3 -m unittest discover -s scripts/tests` e `.claude/hooks/tests` | 7 e 11 testes, passam |
-| SAST / segredos | Semgrep, Gitleaks (só no CI) | Verde no run 41813636431 (`c70771e`) |
+| SAST / segredos | Semgrep, Gitleaks (só no CI) | Verde no run 41828278182 (`8ce1ecd`) |
 | Backup | `infra/backup/testar-restauracao.sh` (CI, job `backup`) | Verde: full + diferencial + WAL, cifra provada com controle, desastre, senha errada recusada, PITR |
 
 ## 6. Critérios de aceite
