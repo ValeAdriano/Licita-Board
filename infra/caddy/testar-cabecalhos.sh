@@ -35,6 +35,16 @@ class H(BaseHTTPRequestHandler):
         self.send_header("Set-Cookie", "sessao-falsa=resp-nao-pode-vazar; Path=/; Secure; HttpOnly")
         self.end_headers()
         self.wfile.write(corpo)
+    def do_POST(self):
+        # Lê o corpo inteiro: é assim que o limite de tamanho do Caddy aparece (413) em vez do 501 do fake.
+        n = int(self.headers.get("Content-Length", "0"))
+        try:
+            while n > 0:
+                n -= len(self.rfile.read(min(n, 65536)) or b"x")
+        except Exception:
+            return
+        self.send_response(200)
+        self.end_headers()
     def log_message(self, *a): pass
 HTTPServer(("127.0.0.1", int(sys.argv[1])), H).serve_forever()
 PY
@@ -105,7 +115,7 @@ for arq in sw.js push.js manifest.webmanifest; do
 done
 tem "$(cab "$base/sw.js")"                "content-type: .*javascript" "sw.js com tipo JavaScript"
 tem "$(cab "$base/push.js")"              "content-type: .*javascript" "push.js com tipo JavaScript"
-tem "$(cab "$base/manifest.webmanifest")" "content-type: application/manifest\+json|content-type: application/json" "manifesto com tipo JSON"
+tem "$(cab "$base/manifest.webmanifest")" "content-type: application/manifest\+json" "manifesto com tipo application/manifest+json"
 
 # Rotas
 [ "$(codigo "$base/rota/qualquer")" = 200 ] && ok "fallback do app em rota desconhecida" || nok "fallback do app"
@@ -131,7 +141,10 @@ py() { python3 -c "import json,sys; d=json.loads(sys.argv[1]); print($1)" "$resp
 [ "$(py 'd["headers"].get("origin")')" = "http://127.0.0.1:18080" ] && ok "Origin preservado" || nok "Origin perdido"
 tem "$(cab "$base/api/qualquer")" "cache-control: no-store" "o no-store da API não é sobrescrito"
 big="$(head -c 400000 /dev/zero | tr '\0' 'a')"
-[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST --data "$big" "$base/api/x")" = 413 ] && ok "corpo acima de 256 KB é recusado na borda" || nok "corpo grande deveria dar 413"
+cod="$(printf '%s' "$big" | curl -s -o /dev/null -w '%{http_code}' -X POST --data-binary @- "$base/api/x")"
+[ "$cod" = 413 ] && ok "corpo acima de 256 KB é recusado na borda" || nok "corpo grande deveria dar 413 (deu $cod)"
+cod="$(printf '%s' "corpo pequeno" | curl -s -o /dev/null -w '%{http_code}' -X POST --data-binary @- "$base/api/x")"
+[ "$cod" = 200 ] && ok "corpo pequeno passa até a API" || nok "corpo pequeno deveria dar 200 (deu $cod)"
 
 # O log: tem de EXISTIR (controle positivo) e não pode trazer cookie, token CSRF, Authorization nem Set-Cookie
 # Valores de mentira montados aqui, para o repositório não ter nada parecido com credencial.

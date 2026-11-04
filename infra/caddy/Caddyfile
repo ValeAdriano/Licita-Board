@@ -88,6 +88,7 @@
 	# (nunca o index.html no lugar de um .js). Sempre revalida.
 	handle @arquivo {
 		header Cache-Control "no-cache"
+		header /manifest.webmanifest Content-Type "application/manifest+json"
 		file_server
 	}
 
