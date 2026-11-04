@@ -4,11 +4,12 @@ import { CriptoModule } from '../cripto/cripto.module.js';
 import { AcessoController } from './acesso.controller.js';
 import { EmpresaContasController } from './empresa-contas.controller.js';
 import { EmpresaFichaController } from './empresa-ficha.controller.js';
+import { ProcuracoesController } from './procuracoes.controller.js';
 import { RepresentantesController } from './representantes.controller.js';
 import { OperacoesController } from './operacoes.controller.js';
 
 @Module({
   imports: [AuthModule, CriptoModule],
-  controllers: [AcessoController, EmpresaFichaController, EmpresaContasController, RepresentantesController, OperacoesController],
+  controllers: [AcessoController, EmpresaFichaController, EmpresaContasController, RepresentantesController, ProcuracoesController, OperacoesController],
 })
 export class AcessoModule {}
