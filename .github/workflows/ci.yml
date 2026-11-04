@@ -148,8 +148,12 @@ jobs:
       - run: npm run build --prefix apps/web
       - name: Caddyfile validado e testado com o build do front e uma API de mentira
         run: |
-          docker run --rm -e VV_SITE=localhost -v "$PWD/infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.10 \
-            caddy validate --config /etc/caddy/Caddyfile
+          # Erros viram anotações do GitHub (o log do job exige login para ser lido).
+          if ! saida="$(docker run --rm -e VV_SITE=localhost -v "$PWD/infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.10 \
+              caddy validate --config /etc/caddy/Caddyfile 2>&1)"; then
+            echo "::error title=caddy validate::$(tr '\n' ' ' <<<"$saida" | cut -c1-900)"
+            exit 1
+          fi
           infra/caddy/testar-cabecalhos.sh
 
   backup:

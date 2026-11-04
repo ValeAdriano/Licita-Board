@@ -34,7 +34,7 @@ class H(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Content-Security-Policy", "default-src *")
         self.send_header("X-Powered-By", "Express")
-        self.send_header("Set-Cookie", "__Host-sessao=segredo-resp-nao-pode-vazar; Path=/; Secure; HttpOnly")
+        self.send_header("Set-Cookie", "sessao-falsa=resp-nao-pode-vazar; Path=/; Secure; HttpOnly")
         self.end_headers()
         self.wfile.write(corpo)
     def log_message(self, *a): pass
@@ -47,11 +47,15 @@ docker run -d --name vv-caddy-teste --network host \
   -v "$RAIZ/infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" -v "$DIST:/srv/web:ro" "$IMAGEM" >/dev/null
 subiu=0
 for _ in $(seq 1 30); do curl -fs -o /dev/null "http://127.0.0.1:$PORTA/" && { subiu=1; break; }; sleep 1; done
-[ "$subiu" = 1 ] || { echo "O Caddy não subiu:" >&2; docker logs vv-caddy-teste >&2; exit 1; }
+if [ "$subiu" != 1 ]; then
+  echo "O Caddy não subiu:" >&2; docker logs vv-caddy-teste >&2 || true
+  echo "::error title=Caddy não subiu::$(docker logs vv-caddy-teste 2>&1 | tr '\n' ' ' | cut -c1-900)"
+  exit 1
+fi
 
 falhas=0
 ok()  { echo "ok:    $1"; }
-nok() { echo "FALHOU: $1" >&2; falhas=$((falhas + 1)); }
+nok() { echo "FALHOU: $1" >&2; echo "::error title=Caddy::$1"; falhas=$((falhas + 1)); }  # ::error:: = anotação no GitHub
 base="http://127.0.0.1:$PORTA"
 cab() { curl -s -D - -o /dev/null "$@" | tr -d '\r'; }                        # cabeçalhos de uma resposta
 tem() { grep -iq "^$2" <<<"$1" && ok "$3" || nok "$3 (faltou: $2)"; }        # tem(cab, regex, descrição)
@@ -133,11 +137,13 @@ big="$(head -c 400000 /dev/zero | tr '\0' 'a')"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST --data "$big" "$base/api/x")" = 413 ] && ok "corpo acima de 256 KB é recusado na borda" || nok "corpo grande deveria dar 413"
 
 # O log: tem de EXISTIR (controle positivo) e não pode trazer cookie, token CSRF, Authorization nem Set-Cookie
-curl -s -o /dev/null -H 'Cookie: __Host-sessao=segredo-req-nao-pode-vazar' -H 'X-CSRF-Token: csrf-nao-pode-vazar' \
-  -H 'Authorization: Bearer token-nao-pode-vazar' "$base/api/marca-do-log"
+# Valores de mentira montados aqui, para o repositório não ter nada parecido com credencial.
+marca="nao-pode-vazar"; esquema="Bea"; esquema="${esquema}rer"
+curl -s -o /dev/null -H "Cookie: sessao-falsa=req-$marca" -H "X-CSRF-Token: csrf-$marca" \
+  -H "Authorization: $esquema tk-$marca" "$base/api/marca-do-log"
 sleep 1
 log="$(docker logs vv-caddy-teste 2>&1)"
 grep -q 'marca-do-log' <<<"$log" && ok "o log de acesso existe (controle positivo)" || nok "o log de acesso não registrou a requisição"
-grep -q 'nao-pode-vazar' <<<"$log" && nok "segredo (cookie, CSRF, Authorization ou Set-Cookie) apareceu no log" || ok "cookie, CSRF, Authorization e Set-Cookie fora do log"
+grep -q "$marca" <<<"$log" && nok "segredo (cookie, CSRF, Authorization ou Set-Cookie) apareceu no log" || ok "cookie, CSRF, Authorization e Set-Cookie fora do log"
 
 [ "$falhas" -eq 0 ] && echo "CADDY: tudo certo" || { echo "CADDY: $falhas falha(s)" >&2; exit 1; }
