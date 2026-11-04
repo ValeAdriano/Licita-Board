@@ -1,0 +1,20 @@
+{
+  "descricao": "Vetores da cifra de campo em envelope (ADR-017). KEK e HMAC derivados de VV_KEK por HKDF-SHA256 (salt vazio; info vv-campo-kek-v1 e vv-campo-hmac-v1). AES-256-GCM; AAD dado|<contexto> para o dado e dek|<contexto> para a DEK. Dados fictícios.",
+  "segredo": "kek-de-teste-nao-usar-em-producao-0123456789",
+  "contexto": "core.empresa_contas.pix_chave:00000000-0000-7000-8000-000000000001",
+  "texto": "chave-pix@exemplo.test",
+  "dek_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+  "iv_hex": "020202020202020202020202",
+  "iv_dek_hex": "030303030303030303030303",
+  "envelope": {
+    "v": 1,
+    "dek": "AwMDAwMDAwMDAwMDWs7ANpmNfrFp5lKrYrYW7a/+lBPp+qmFUh025GzZztjAjAvOQqnWWi0Gbe39S6cx",
+    "iv": "AgICAgICAgICAgIC",
+    "ct": "ZL6oPy96sZSrjNmwOcqy3s2bpYqYxRwVPyjJbhwB7BFbac+93VU="
+  },
+  "hmac": {
+    "dominio": "pix",
+    "valor": "chave-pix@exemplo.test",
+    "marca": "e15c75ef21556b28d375e591619e2193e7901150600e9402c8a14e2bf4302a24"
+  }
+}
