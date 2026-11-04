@@ -1,0 +1,102 @@
+# Caddy: única porta de entrada em produção (TLS, cabeçalhos de segurança, front estático e /api).
+# A política de cabeçalhos é a de apps/web/AGENTS.md (T5.18). Mudou a CSP? Mude também o index.html:
+# o Workbox guarda o HTML com os cabeçalhos da época.
+#
+# Variáveis (todas com padrão de desenvolvimento):
+#   VV_SITE          endereço do site. Produção: app.exemplo.com.br (TLS automático). Teste: http://:8080
+#   VV_WEB_ROOT      pasta do build do front (apps/web/dist)
+#   VV_API_UPSTREAM  host:porta da API na rede interna
+{$VV_SITE:localhost} {
+	encode zstd gzip
+	root * {$VV_WEB_ROOT:/srv/web}
+
+	# O ">" adia a escrita para o fim: o valor do Caddy VALE mesmo que a API (ou outro) mande o seu.
+	header {
+		>Content-Security-Policy "default-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; frame-src https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self'; form-action 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
+		>Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		>X-Content-Type-Options "nosniff"
+		>Referrer-Policy "no-referrer"
+		>Cross-Origin-Opener-Policy "same-origin"
+		>Cross-Origin-Resource-Policy "same-origin"
+		>Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		>X-Frame-Options "DENY"
+		-Server
+	}
+
+	# Nada de segredo em log: cookie, token CSRF e Authorization saem do registro de acesso.
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>headers>Cookie delete
+				request>headers>Authorization delete
+				request>headers>X-Csrf-Token delete
+				resp_headers>Set-Cookie delete
+			}
+		}
+	}
+
+	# Os blocos handle abaixo não se sobrepõem de propósito (a ordem entre eles não importa).
+	@api path /api /api/*
+	@pontos {
+		path_regexp pontos ^/\.
+		not path /.well-known/*
+	}
+	@arquivo {
+		path_regexp arquivo \.[A-Za-z0-9]+$
+		not path /api/* /assets/* /.well-known/*
+		not path_regexp ponto2 ^/\.
+	}
+	@asset_existente {
+		path /assets/*
+		file {path}
+	}
+
+	# API: o prefixo /api sai antes de chegar nela. O Caddy ESCREVE o X-Forwarded-For (o valor que o
+	# cliente mandar é descartado) e a API só confia nele porque o proxy é o Caddy (TRUST_PROXY).
+	# Origin e Sec-Fetch-Site seguem como vieram (o login confere). A API manda o seu no-store; se uma
+	# rota esquecer, o ?Cache-Control abaixo só preenche quando falta. O corpo é limitado (a API aceita 16 kB).
+	handle @api {
+		uri strip_prefix /api
+		request_body {
+			max_size 256KB
+		}
+		reverse_proxy {$VV_API_UPSTREAM:api:3000} {
+			header_up X-Forwarded-For {remote_host}
+			header_up -X-Real-IP
+			header_up -Forwarded
+			header_down -Server
+			header_down -X-Powered-By
+			header_down ?Cache-Control "no-store"
+		}
+	}
+
+	# Dotfiles (.env, .git...) e .well-known nunca caem no app.
+	handle @pontos {
+		respond 404
+	}
+	handle /.well-known/* {
+		respond 404
+	}
+
+	# Arquivos com hash no nome: cache longo, só quando o arquivo existe (404 não fica um ano no cache).
+	handle /assets/* {
+		header @asset_existente Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# Qualquer outro arquivo (sw.js, push.js, manifesto, ícones): serve o que existe, 404 se não existir
+	# (nunca o index.html no lugar de um .js). Sempre revalida.
+	handle @arquivo {
+		header Cache-Control "no-cache"
+		file_server
+	}
+
+	# Rotas do app (SPA): o index.html, sempre revalidado.
+	handle {
+		header Cache-Control "no-cache"
+		rewrite * /index.html
+		file_server
+	}
+}
