@@ -10,7 +10,7 @@ Checklist usado antes de cada liberação (Prompt Mestre 1.4). Não substitui o 
 | V4 Controle de acesso | RLS + `core.has_permission`, negar por padrão, guard em toda rota, 404 para recurso de outra empresa | pgTAP `001_guarda_global`, `020_core_isolamento`; e2e `rotas.e2e-spec.ts` e `acesso.e2e-spec.ts` (A x B) | testado |
 | V4 Operação crítica | Step-up MFA (token de 5 min, uso único, preso à sessão) para permissões; dupla aprovação para exclusão | pgTAP `070_step_up`, `080_exclusao_dupla_aprovacao`; e2e `acesso.e2e-spec.ts` | testado (preço e proposta final: fases 08+) |
 | V5 Validação | Zod na API, constraints no banco, Pydantic no worker | e2e (400 sem detalhe de tabela ou índice); pgTAP `010_cnpj_uuid` | testado |
-| V5 Saída | Sem `dangerouslySetInnerHTML`, CSP estrita no Caddy | Semgrep `vv-front-sinks-perigosos`; cabeçalhos do Caddy documentados em `apps/web/AGENTS.md` | CSP **planejada** (Caddy ainda não existe em `infra/`) |
+| V5 Saída | Sem `dangerouslySetInnerHTML`, CSP estrita no Caddy | Semgrep `vv-front-sinks-perigosos`; `infra/caddy/testar-cabecalhos.sh` (job `caddy`) | CSP e cabeçalhos implementados no `infra/caddy/Caddyfile` e testados com o Caddy real no CI; **deploy pendente** (VPS) |
 | V6 Criptografia | Envelope com chave-mestra (ADR-017) para segredo TOTP; disco e repositório de backup cifrados | pgTAP `050_mfa` (segredo não legível por `vv_api`); `infra/backup/testar-restauracao.sh` (cifra provada) | testado; PIX, CPF e credenciais de portal chegam na Fase 02+ |
 | V7 Logs | JSON sem PII; auditoria imutável | pgTAP `030_audit_log` (UPDATE e DELETE falham); testes do formatter no worker | testado |
 | V8 Dados | URL assinada de 60 s, mínimo enviado à IA | Fase 03 e Fase 05 | planejado |

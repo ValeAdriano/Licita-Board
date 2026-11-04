@@ -40,7 +40,14 @@ npm run dev --prefix apps/web           # http://localhost:5173 (o Vite repassa 
 
 Todo e-mail enviado em desenvolvimento aparece no Mailpit: http://localhost:8025.
 
-Hoje **não há seed com usuário fictício**: o primeiro usuário (SUPERADMIN) é criado por SQL como `vv_owner`. Um comando para isso é a próxima pendência de ergonomia (ver `docs/phase-reports/fase-01.md`, seção 7).
+O primeiro usuário (SUPERADMIN) e, em dev, uma empresa fictícia saem de um comando que roda como `vv_owner`:
+
+```bash
+set -a && . ./.env && set +a && export DATABASE_URL="postgres://vv_owner:$VV_OWNER_PASSWORD@localhost:5433/vv"
+node scripts/criar-usuario.mjs --email voce@empresa.com.br --nome "Seu Nome" --superadmin --ficticio
+```
+
+No primeiro login ele pede o cadastro do autenticador (MFA). Detalhes e cuidados no cabeçalho de [`scripts/criar-usuario.mjs`](scripts/criar-usuario.mjs).
 
 Testes de cada pacote e do banco: ver os comandos em [`AGENTS.md`](AGENTS.md) §6.
 

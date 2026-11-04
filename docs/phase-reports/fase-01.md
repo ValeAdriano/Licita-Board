@@ -3,7 +3,7 @@
 - **Status:** Aguardando aceite
 - **Período:** 2026-11-02 (spec aprovada) a 2026-11-04 (fechamento)
 - **Commit de referência:** `c70771e` (PR 11: remoção do `supabase/`, testes de fechamento e este relatório). CI desse commit: [run 41813636431](https://github.com/ValeAdriano/Licita-Board/actions/runs/41813636431), 6 jobs verdes (guardas com Semgrep e Gitleaks, web, api + banco, worker, backup, `ci-ok`).
-- **Resumo em uma linha:** a fase **não está integralmente concluída**: sete dos oito critérios de aceite estão COMPROVADOS por teste; o CA-6 (restauração de backup) está PARCIAL, porque a restauração foi provada em disco local e no CI, mas nunca em servidor real com bucket S3 externo. Além disso há lacunas de operação (TLS e cabeçalhos no Caddy, primeiro SUPERADMIN, três telas) listadas abaixo.
+- **Resumo em uma linha:** a fase **não está integralmente concluída**: sete dos oito critérios de aceite estão COMPROVADOS por teste; o CA-6 (restauração de backup) está PARCIAL, porque a restauração foi provada em disco local e no CI, mas nunca em servidor real com bucket S3 externo. O PR 12 (2026-11-04) fechou as lacunas de operação que o relatório apontava (primeiro SUPERADMIN, telas de plataforma, exclusão e auditoria, Caddy com CSP); o que resta é de infraestrutura e do jurídico, listado abaixo.
 
 Evidências em [`docs/phase-reports/evidencias/fase-01/`](evidencias/fase-01/): `testes-2026-11-04.txt` (execução local das suítes) e `restauracao-2026-11-03.txt` (backup e restauração).
 
@@ -37,6 +37,7 @@ Evidências em [`docs/phase-reports/evidencias/fase-01/`](evidencias/fase-01/): 
 | Web Push ponta a ponta (inscrição real e entrega pelo FCM, Mozilla ou Apple) | O navegador do painel de desenvolvimento só mostra o estado "bloqueadas"; a entrega real exige chaves VAPID de produção | Validar em Chrome, Firefox e iPhone com o PWA instalado, no primeiro deploy |
 | PWA instalável e service worker (cache, atualização) | Só o build (`vite build`, 22 entradas pré-cacheadas) é verificado | Teste manual no deploy; Playwright quando houver ambiente |
 | Layout responsivo, contraste ≥ 4.5:1 e alvos ≥ 44 px | Escolhidos nos tokens de design e conferidos à mão no navegador do painel; sem verificação automática nem captura guardada | Playwright em viewport mobile e desktop + verificação de contraste |
+| Caddyfile rodando localmente | Não há Docker nesta máquina; só o CI roda o Caddy real (job `caddy`) | Conferir o resultado do CI e subir no primeiro servidor |
 | Atraso progressivo do login a partir da 3ª falha (RF-01.8) | O código existe (`auth.service.ts`); os testes cobrem o CAPTCHA na 3ª falha e o bloqueio de 15 min na 10ª, não o atraso | Teste com relógio controlado no PR 12 |
 | Envio de e-mail real (SMTP/Resend), Turnstile e HIBP reais | Os testes usam servidor, resposta e endpoint simulados; nenhum teste chama a rede | Conferir no deploy com Resend, chaves Turnstile e HIBP reais |
 | `docker compose up` completo (API, worker, Mailpit, Postgres juntos) | Não há Docker nesta máquina; o CI só **constrói** as imagens da API e do banco e roda o pgTAP e o e2e contra o Postgres da imagem | Subir o compose na primeira máquina com Docker |
@@ -48,9 +49,7 @@ Evidências em [`docs/phase-reports/evidencias/fase-01/`](evidencias/fase-01/): 
 
 | Requisito | Motivo | Vai para |
 | --- | --- | --- |
-| Telas de auditoria da empresa, de exclusão definitiva com dupla aprovação e de criação de empresa | A API e o banco estão prontos e testados; faltou o front | PR 12 (fechamento operacional) |
-| Primeiro SUPERADMIN e seed fictício de desenvolvimento | Não há comando nem seed: hoje o primeiro usuário é criado por SQL como `vv_owner` | PR 12 |
-| TLS, Caddy, CSP e cabeçalhos de segurança | O `infra/` só tem o backup; a política exata está documentada em `apps/web/AGENTS.md` | PR 12 (bloqueia o uso real) |
+| TLS em produção e deploy do Caddy | O `Caddyfile` e o teste existem (PR 12); falta o servidor, o domínio e o serviço no compose de produção | Fase 00 (deploy) |
 | Painel principal (dashboard) com dados | O Início mostra empresa, papel e os módulos liberados, todos marcados EM DESENVOLVIMENTO; os módulos de negócio nascem nas próximas fases | Fases 02 em diante |
 | Passkeys (o Prompt aceita TOTP **ou** passkey) | TOTP atende o requisito | Depois do MVP |
 | Criptografia em repouso do disco/volume do banco | Depende da VPS e do provedor; só o repositório de backup está cifrado | Fase 00 (deploy) |
@@ -59,7 +58,6 @@ Evidências em [`docs/phase-reports/evidencias/fase-01/`](evidencias/fase-01/): 
 | Expurgo de `core.sessoes`, `core.tentativas_login`, `ops.jobs`, `core.notificacoes` | Falta decisão de prazo de retenção | Com o jurídico (LGPD) |
 | Apps nativos iOS/Android | Adiados pela ADR-018 | Pós-MVP |
 | Minuta do contrato operador/controlador (RF-01.17) | O inventário de dados pessoais foi entregue (`docs/lgpd.md`, rascunho); a minuta depende do jurídico VV | Jurídico, antes do 1º cliente real |
-| SUPERADMIN "cadastra empresas clientes e administradores" (Prompt 1.2) | A API cria empresa (testado) e convida administrador (testado); falta a tela de criar empresa e o fluxo guiado de "primeiro administrador" | PR 12 |
 | Criptografia em nível de campo com KMS, cofre de certificados A1 e senhas de portal, validação de tipo de arquivo, antivírus, URL assinada, SHA-256 (Prompt 1.4, Dados sensíveis e Arquivos) | Não há dado sensível de negócio nem arquivo ainda; a spec da Fase 01 não os inclui | Fases 02 e 03 |
 | "Baixar" recurso de outra empresa (Prompt 1.4, teste A x B) | Não existe download ainda | Fase 03 |
 
@@ -122,7 +120,8 @@ Nenhuma tabela de `priv` existe ainda (começam na Fase 02); por isso `db/tests/
 | Web Push (VAPID) | Implementado; entrega real **não validada** | ver "sem teste" |
 | Backup pgBackRest | Restauração provada em disco; S3 **não configurado** | `restauracao-2026-11-03.txt`; job `backup` do CI |
 | Healthchecks (alerta de backup) | Scripts prontos; serviço **não criado** | `infra/backup/README.md` |
-| Servidor (VPS), domínio, Caddy, Sentry | **Não existem** | Fase 00 pendente |
+| Caddy (TLS, CSP, cabeçalhos) | Config e teste no CI (PR 12); **sem servidor** | job `caddy` do CI |
+| Servidor (VPS), domínio, Sentry | **Não existem** | Fase 00 pendente |
 
 ## 5. Testes e resultados
 
@@ -155,7 +154,7 @@ Execução local de 2026-11-04 em `evidencias/fase-01/testes-2026-11-04.txt`.
 
 **Nota CA-1.** O SUPERADMIN é a equipe da plataforma (RF-01.4) e administra todas as empresas: o teste "SUPERADMIN com MFA lê todas as empresas" prova que ele as vê só com `aal2`. Interpretei "só o que administram" assim. Se o Adriano entende que o SUPERADMIN também deve ficar restrito a empresas atribuídas, isso é uma regra nova que precisa de spec.
 
-**Critérios do Prompt Mestre 1.4 fora dos CA que continuam abertos:** TLS 1.2+ (Caddy ausente), criptografia em repouso do volume, backup em conta/região distinta (configurável, não provado), retenção mínima de 30 dias (configurada: 5 fulls semanais, cerca de 35 dias; não provada em operação), RPO ≤ 24 h (WAL arquivado a cada 60 s no teste; não medido em produção), "backup diário" (hoje full semanal + diferencial diário + WAL contínuo), RTO ≤ 4 h (não medido), teste trimestral de restauração (o primeiro ainda não ocorreu), ASVS L2 e pentest externo, e o pacote de LGPD (1.5) além do inventário.
+**Critérios do Prompt Mestre 1.4 fora dos CA que continuam abertos:** TLS 1.2+ (o Caddy está configurado e testado no CI, mas ainda não há servidor), criptografia em repouso do volume, backup em conta/região distinta (configurável, não provado), retenção mínima de 30 dias (configurada: 5 fulls semanais, cerca de 35 dias; não provada em operação), RPO ≤ 24 h (WAL arquivado a cada 60 s no teste; não medido em produção), "backup diário" (hoje full semanal + diferencial diário + WAL contínuo), RTO ≤ 4 h (não medido), teste trimestral de restauração (o primeiro ainda não ocorreu), ASVS L2 e pentest externo, e o pacote de LGPD (1.5) além do inventário.
 
 ## 7. Erros conhecidos
 
@@ -185,11 +184,11 @@ Execução local de 2026-11-04 em `evidencias/fase-01/testes-2026-11-04.txt`.
 - Os caminhos de T1 passaram a apontar para `db/tests/001_guarda_global.test.sql` e `db/tests/isolamento/`.
 - Nenhuma ameaça nova surgiu com a remoção do `supabase/`.
 
-Riscos que continuam abertos e dependem de deploy: CSP e cabeçalhos no Caddy (T5.18 e T5.21 a T5.26), chaves VAPID e `VV_KEK` em cofre, bucket de backup com credenciais de escrita separadas da de leitura.
+No PR 12 entraram T5.34 (script do primeiro SUPERADMIN), T5.35 (borda: cache e cabeçalhos), T5.36 (IP atrás do Docker) e T5.37 (log de acesso); T5.18 passou a "implementado (config e teste)". Riscos que continuam abertos e dependem de deploy: IP de origem atrás do Docker (T5.36), rotação do log do Caddy (T5.37), chaves VAPID e `VV_KEK` em cofre, bucket de backup com credenciais de escrita separadas da de leitura.
 
 ## 10. Próxima fase recomendada
 
 1. **Aceitar (ou devolver) a Fase 01** com a nota do CA-1 e o CA-6 parcial.
-2. **PR 12, fechamento operacional da Fase 01** (pequeno, em paralelo): comando para criar o primeiro SUPERADMIN e seed fictício de dev; Caddy com TLS, CSP e cabeçalhos; telas de auditoria, exclusão com dupla aprovação e criação de empresa. Sem isso o sistema não é utilizável por uma pessoa real.
+2. **PR 12 (entregue em 2026-11-04)**: `scripts/criar-usuario.mjs` (primeiro SUPERADMIN e dados fictícios de dev), `infra/caddy/` (TLS, CSP, cabeçalhos; teste com o Caddy real no CI), telas de Plataforma (empresas e exclusão com dupla aprovação) e de Auditoria; o SUPERADMIN passou a ver todas as empresas no seletor. Testes: e2e do script (5), vitest (85 no total, 15 novos), CI. Conferido à mão no navegador (desktop e celular); o fluxo de exclusão ponta a ponta no navegador não foi exercitado (precisa de dois SUPERADMIN com autenticador de mais de 24 h; a API tem e2e).
 3. **Spec da Fase 02** (cadastro multiempresa, representantes e produtos): sem spec `Aprovada`, a única tarefa possível é escrevê-la. É a fase que cria as primeiras tabelas de `priv` e portanto ativa de verdade o teste de isolamento A x B por tabela.
 4. Em paralelo e sem código: o Adriano cria o bucket, o cofre e a VPS, para o primeiro ensaio real de restauração (que fecha o CA-6), e o jurídico VV começa o pacote de LGPD.

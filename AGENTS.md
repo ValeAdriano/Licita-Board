@@ -68,7 +68,7 @@ apps/web/            React + Vite + TS (PWA). Regras locais: apps/web/AGENTS.md
 apps/api/            NestJS + Kysely (Node 26)
 apps/worker/         Python 3.12 + jobs. Regras locais: apps/worker/AGENTS.md
 db/                  migrations SQL (dbmate), seed fictício, pgTAP, Dockerfile do Postgres
-infra/               compose de produção, Caddy, backup
+infra/               Caddy (TLS, CSP, cabeçalhos), backup; compose de produção (pendente)
 compose.yml          stack de desenvolvimento (Docker Compose)
 packages/shared/     tipos gerados do banco, enums, schemas Zod
 docs/adr/            decisões de arquitetura (ADR-NNN)
@@ -93,6 +93,10 @@ set -a && . ./.env && set +a && docker compose exec -e VV_KEK \
                                        # registra o verificador da KEK (uma vez por banco)
 PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # pgTAP num banco descartável
 
+# Primeiro usuário (SUPERADMIN) e dados fictícios de dev: roda como vv_owner, fora da API
+set -a && . ./.env && set +a && export DATABASE_URL="postgres://vv_owner:$VV_OWNER_PASSWORD@localhost:5433/vv"
+node scripts/criar-usuario.mjs --email voce@empresa.com.br --nome "Seu Nome" --superadmin [--ficticio]
+
 # API (apps/api)
 npm ci --prefix apps/api
 npm run lint --prefix apps/api && npm run typecheck --prefix apps/api && npm test --prefix apps/api
@@ -105,6 +109,9 @@ npm run lint --prefix apps/web && npm run typecheck --prefix apps/web && npm tes
 # Worker (apps/worker)
 cd apps/worker && uv sync
 uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest --cov
+
+# Borda (Caddy): cabeçalhos, cache, /api e log, com o Caddy real (Docker, Linux/CI)
+npm run build --prefix apps/web && infra/caddy/testar-cabecalhos.sh
 
 # Guardas (rodam no CI)
 python3 scripts/check_isolation_coverage.py

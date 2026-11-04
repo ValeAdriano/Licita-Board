@@ -3,14 +3,14 @@
 Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada fase.
 
 **Fase atual:** 01 · Arquitetura, segurança e acessos — **todos os PRs entregues; relatório aguardando aceite do Adriano** ([`fase-01.md`](phase-reports/fase-01.md)). A Fase 00 segue com pendências de deploy (VPS, Sentry). Stack da revisão 2 (2026-11-02): Docker + Postgres + API NestJS + front React web (PWA) + worker Python; ADR-011 a 018.
-**Próximo passo:** Adriano lê o relatório da Fase 01, confirma a interpretação do CA-1 e aceita ou devolve. Depois: (a) PR 12 de fechamento operacional (primeiro SUPERADMIN e seed de dev, Caddy com CSP, telas de auditoria, exclusão com dupla aprovação e criação de empresa), proposto na seção 10 do relatório e ainda não aprovado; (b) escrever a spec da Fase 02 (`/spec 02`), sem a qual não há código dela. Adriano: instalar Docker; escolher VPS e bucket S3 de backup.
+**Próximo passo:** Adriano lê o relatório da Fase 01, confirma a interpretação do CA-1 e aceita ou devolve. Depois: (a) a spec da Fase 02 está em rascunho para aprovação (`docs/specs/fase-02.md`): sem `Aprovada` não há código dela; (b) infraestrutura da Fase 00/01 (VPS, bucket, ensaio de restauração), que depende do Adriano. Adriano: instalar Docker; escolher VPS e bucket S3 de backup.
 
 > A revisão 1 (Supabase) foi removida do repositório no PR 11; o estado anterior está na tag `revisao-1-supabase`.
 
 | Onda | Fase | Nome | Horas est. | Spec | Status |
 | --- | --- | --- | --- | --- | --- |
 | 1 | 00 | Fundação técnica | ~40 h | [fase-00](specs/fase-00.md) · Em revisão | 🟡 banco, API, app, worker, CI e guardas no main; falta: rodar com Docker, produção (VPS), Sentry, ameaças revisadas |
-| 1 | 01 | Arquitetura, segurança e acessos | ~90 h | [fase-01](specs/fase-01.md) · Aprovada (revisão 2) | 🟡 PRs 1–11 e 3b no main; relatório escrito, **aguardando aceite**. CA-1 a CA-5, CA-7 e CA-8 COMPROVADOS (CA-5 sem teste em navegador); CA-6 PARCIAL (falta o ensaio real). Faltam primeiro SUPERADMIN/seed, Caddy com CSP e três telas (PR 12 proposto) |
+| 1 | 01 | Arquitetura, segurança e acessos | ~90 h | [fase-01](specs/fase-01.md) · Aprovada (revisão 2) | 🟡 PRs 1–11 e 3b no main; relatório escrito, **aguardando aceite**. CA-1 a CA-5, CA-7 e CA-8 COMPROVADOS (CA-5 sem teste em navegador); CA-6 PARCIAL (falta o ensaio real). PR 12 entregue (primeiro SUPERADMIN, Caddy com CSP no CI, telas de plataforma, exclusão e auditoria); resta infraestrutura (VPS, bucket, ensaio de restauração) |
 | 2 | 02 | Empresas, representantes e produtos | ~50 h | — | ⚪ |
 | 2 | 03 | Gestão documental e certidões | ~60 h | — | ⚪ |
 | 2 | 05 | Agenda e prazos jurídicos ★ MVP | ~70 h | — | ⚪ bloqueada: planilha atual |
