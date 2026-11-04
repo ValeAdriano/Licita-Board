@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router'
 import { useSessao, type Fase } from './auth/sessao'
 import { AMBIENTE } from './config'
 import Auditoria from './pages/Auditoria'
+import Cadastros from './pages/Cadastros'
 import Conta from './pages/Conta'
 import Entrar from './pages/Entrar'
 import Equipe from './pages/Equipe'
@@ -51,6 +52,7 @@ export function Rotas() {
           <Route element={<Layout />}>
             <Route index element={<Inicio />} />
             <Route path="notificacoes" element={<Notificacoes />} />
+            <Route path="cadastros" element={<Cadastros />} />
             <Route path="equipe" element={<Equipe />} />
             <Route path="auditoria" element={<Auditoria />} />
             <Route path="plataforma" element={<Plataforma />} />

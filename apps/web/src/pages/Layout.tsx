@@ -1,4 +1,4 @@
-import { Bell, Building2, CircleUser, House, ScrollText, Users } from 'lucide-react'
+import { Bell, Building2, CircleUser, ClipboardList, House, ScrollText, Users } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router'
 import { AMBIENTE } from '../config'
 import { AcessoProvider, useAcesso } from '../features/acesso/contexto'
@@ -25,6 +25,7 @@ function Esqueleto() {
       <nav className="nav" aria-label="Principal">
         {item('/', 'Início', <House size={22} aria-hidden="true" />)}
         {item('/notificacoes', 'Notificações', <Bell size={22} aria-hidden="true" />, naoLidas)}
+        {pode('empresas', 'visualizar') ? item('/cadastros', 'Cadastros', <ClipboardList size={22} aria-hidden="true" />) : null}
         {pode('usuarios', 'visualizar') ? item('/equipe', 'Equipe', <Users size={22} aria-hidden="true" />) : null}
         {pode('auditoria', 'visualizar') ? item('/auditoria', 'Auditoria', <ScrollText size={22} aria-hidden="true" />) : null}
         {usuario?.superadmin ? item('/plataforma', 'Plataforma', <Building2 size={22} aria-hidden="true" />) : null}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAcesso } from '../features/acesso/contexto'
+import { Catalogo } from '../features/acesso/cadastros/Catalogo'
 import { Empresas } from '../features/acesso/plataforma/Empresas'
 import { Exclusoes } from '../features/acesso/plataforma/Exclusoes'
 import { Botao } from '../ui'
@@ -8,7 +9,7 @@ import { Botao } from '../ui'
 // a API recusa os demais mesmo que alguém abra o endereço à mão.
 export default function Plataforma() {
   const { usuario } = useAcesso()
-  const [aba, setAba] = useState<'empresas' | 'exclusoes'>('empresas')
+  const [aba, setAba] = useState<'empresas' | 'catalogo' | 'exclusoes'>('empresas')
   if (!usuario?.superadmin) return <p className="vazio">Esta área é só da equipe da plataforma.</p>
   return (
     <div className="conteudo__miolo conteudo__miolo--largo entra">
@@ -17,11 +18,14 @@ export default function Plataforma() {
         <Botao role="tab" aria-selected={aba === 'empresas'} variante={aba === 'empresas' ? 'primario' : 'secundario'} onClick={() => setAba('empresas')}>
           Empresas
         </Botao>
+        <Botao role="tab" aria-selected={aba === 'catalogo'} variante={aba === 'catalogo' ? 'primario' : 'secundario'} onClick={() => setAba('catalogo')}>
+          Catálogo
+        </Botao>
         <Botao role="tab" aria-selected={aba === 'exclusoes'} variante={aba === 'exclusoes' ? 'primario' : 'secundario'} onClick={() => setAba('exclusoes')}>
           Exclusões
         </Botao>
       </div>
-      {aba === 'empresas' ? <Empresas /> : <Exclusoes />}
+      {aba === 'empresas' ? <Empresas /> : aba === 'catalogo' ? <Catalogo /> : <Exclusoes />}
     </div>
   )
 }
