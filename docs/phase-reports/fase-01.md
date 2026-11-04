@@ -2,7 +2,7 @@
 
 - **Status:** Aguardando aceite
 - **Período:** 2026-11-02 (spec aprovada) a 2026-11-04 (fechamento)
-- **Commit de referência:** `ad71bef` (último código da fase, PR 10) mais o commit do PR 11 (relatório e remoção do `supabase/`). CI do `ad71bef`: [run 41759507664](https://github.com/ValeAdriano/Licita-Board/actions/runs/41759507664), 7 jobs verdes.
+- **Commit de referência:** `c70771e` (PR 11: remoção do `supabase/`, testes de fechamento e este relatório). CI desse commit: [run 41813636431](https://github.com/ValeAdriano/Licita-Board/actions/runs/41813636431), 6 jobs verdes (guardas com Semgrep e Gitleaks, web, api + banco, worker, backup, `ci-ok`).
 - **Resumo em uma linha:** a fase **não está integralmente concluída**: sete dos oito critérios de aceite estão COMPROVADOS por teste; o CA-6 (restauração de backup) está PARCIAL, porque a restauração foi provada em disco local e no CI, mas nunca em servidor real com bucket S3 externo. Além disso há lacunas de operação (TLS e cabeçalhos no Caddy, primeiro SUPERADMIN, três telas) listadas abaixo.
 
 Evidências em [`docs/phase-reports/evidencias/fase-01/`](evidencias/fase-01/): `testes-2026-11-04.txt` (execução local das suítes) e `restauracao-2026-11-03.txt` (backup e restauração).
@@ -115,7 +115,7 @@ Nenhuma tabela de `priv` existe ainda (começam na Fase 02); por isso `db/tests/
 
 | Integração | Estado | Evidência |
 | --- | --- | --- |
-| CI (GitHub Actions): guardas, web, api, worker, backup, `ci-ok` | Verde no `ad71bef` | [run 41759507664](https://github.com/ValeAdriano/Licita-Board/actions/runs/41759507664) |
+| CI (GitHub Actions): guardas, web, api, worker, backup, `ci-ok` | Verde no `c70771e` | [run 41813636431](https://github.com/ValeAdriano/Licita-Board/actions/runs/41813636431) |
 | E-mail (Mailpit em dev; Resend em produção) | Dev: worker pronto; produção **não configurada** | `test_email.py` (montagem do e-mail) e `test_fila.py` (falha de SMTP simulada); o envio SMTP real não é exercitado em teste |
 | CAPTCHA Turnstile | Implementado; chaves de produção **não criadas** | e2e `recuperacao` (com Turnstile simulado) |
 | HIBP | Implementado (k-anonymity); chamada real **não exercida** | `protecoes.spec.ts` |
@@ -137,7 +137,7 @@ Execução local de 2026-11-04 em `evidencias/fase-01/testes-2026-11-04.txt`.
 | Web | `npm test --prefix apps/web` | 70 testes em 9 arquivos, passam; lint, typecheck e build do PWA ok |
 | Worker | `uv run pytest --cov` | 42 testes passam; cobertura 83% |
 | Guardas | `python3 -m unittest discover -s scripts/tests` e `.claude/hooks/tests` | 7 e 11 testes, passam |
-| SAST / segredos | Semgrep, Gitleaks (só no CI) | Verde no run citado no topo |
+| SAST / segredos | Semgrep, Gitleaks (só no CI) | Verde no run 41813636431 (`c70771e`) |
 | Backup | `infra/backup/testar-restauracao.sh` (CI, job `backup`) | Verde: full + diferencial + WAL, cifra provada com controle, desastre, senha errada recusada, PITR |
 
 ## 6. Critérios de aceite
