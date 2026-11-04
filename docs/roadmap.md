@@ -11,7 +11,7 @@ Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada
 | --- | --- | --- | --- | --- | --- |
 | 1 | 00 | Fundação técnica | ~40 h | [fase-00](specs/fase-00.md) · Em revisão | 🟡 banco, API, app, worker, CI e guardas no main; falta: rodar com Docker, produção (VPS), Sentry, ameaças revisadas |
 | 1 | 01 | Arquitetura, segurança e acessos | ~90 h | [fase-01](specs/fase-01.md) · Aprovada (revisão 2) | 🟡 PRs 1–11 e 3b no main; relatório escrito, **aguardando aceite**. CA-1 a CA-5, CA-7 e CA-8 COMPROVADOS (CA-5 sem teste em navegador); CA-6 PARCIAL (falta o ensaio real). PR 12 entregue (primeiro SUPERADMIN, Caddy com CSP no CI, telas de plataforma, exclusão e auditoria); resta infraestrutura (VPS, bucket, ensaio de restauração) |
-| 2 | 02 | Empresas, representantes e produtos | ~50 h | — | ⚪ |
+| 2 | 02 | Empresas, representantes e produtos | ~50 h | [fase-02](specs/fase-02.md) · Aprovada | 🟡 banco, API e telas no main (modo rápido); faltam testes A x B de priv, docs e decisões do jurídico/contador |
 | 2 | 03 | Gestão documental e certidões | ~60 h | — | ⚪ |
 | 2 | 05 | Agenda e prazos jurídicos ★ MVP | ~70 h | — | ⚪ bloqueada: planilha atual |
 | 3 | 04 | Motor de pesquisa (PNCP) | ~90 h | — | ⚪ |
