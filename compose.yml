@@ -53,7 +53,7 @@ services:
       # vale vindo do Caddy, que está numa rede privada do Docker.
       CORS_ORIGINS: http://localhost:8080
       # S3 (só a API presigna; o navegador fala direto com o S3 em S3_PUBLIC_URL).
-      S3_ENDPOINT: http://minio:9000
+      S3_ENDPOINT: http://s3:8333
       S3_PUBLIC_URL: http://localhost:9000
       S3_BUCKET: vv-docs
       S3_ACCESS_KEY: ${S3_API_ACCESS_KEY:?rode scripts/dev-env.sh}
@@ -83,7 +83,7 @@ services:
       VV_ENV: dev
       VV_DATABASE_URL: postgresql://vv_worker:${VV_WORKER_PASSWORD}@postgres:5432/vv
       VV_FILA_ATIVA: "true"
-      VV_S3_ENDPOINT: http://minio:9000
+      VV_S3_ENDPOINT: http://s3:8333
       VV_S3_BUCKET: vv-docs
       VV_S3_ACCESS_KEY: ${S3_WORKER_ACCESS_KEY:?rode scripts/dev-env.sh}
       VV_S3_SECRET_KEY: ${S3_WORKER_SECRET_KEY:?rode scripts/dev-env.sh}
@@ -102,38 +102,28 @@ services:
       postgres: { condition: service_healthy }
       mailpit: { condition: service_started }
 
-  # Armazenamento S3 de desenvolvimento (ADR-017); em produção é um S3 externo. Console: http://localhost:9001.
-  minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
-    command: server /dados --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?rode scripts/dev-env.sh}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?rode scripts/dev-env.sh}
-    ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
-    volumes: ["miniodata:/dados"]
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      retries: 20
+  # Armazenamento S3 de desenvolvimento (SeaweedFS, Apache-2.0; ADR-017). Em produção é um S3 externo com
+  # políticas por prefixo; aqui as credenciais separam API e worker por BUCKET e AÇÃO, não por prefixo.
+  # A configuração com as chaves é gerada por scripts/dev-up.sh em infra/s3/s3.json (não versionada).
+  s3:
+    image: chrislusf/seaweedfs:latest
+    command: server -s3 -s3.config=/config/s3.json -dir=/data -ip.bind=0.0.0.0
+    ports: ["127.0.0.1:9000:8333"]
+    volumes: ["s3data:/data", "./infra/s3/s3.json:/config/s3.json:ro"]
 
-  minio-init:
-    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+  s3-init:
+    image: amazon/aws-cli:latest
     profiles: [tools]
-    entrypoint: ["/bin/sh", "/politicas/iniciar.sh"]
+    entrypoint: ["/bin/sh", "-c", "for i in $$(seq 1 30); do aws --endpoint-url http://s3:8333 s3 mb s3://vv-docs 2>/dev/null || aws --endpoint-url http://s3:8333 s3 ls s3://vv-docs >/dev/null 2>&1 && break; sleep 2; done; echo bucket pronto"]
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      S3_API_ACCESS_KEY: ${S3_API_ACCESS_KEY}
-      S3_API_SECRET_KEY: ${S3_API_SECRET_KEY}
-      S3_WORKER_ACCESS_KEY: ${S3_WORKER_ACCESS_KEY}
-      S3_WORKER_SECRET_KEY: ${S3_WORKER_SECRET_KEY}
-    volumes: ["./infra/minio:/politicas:ro"]
-    depends_on:
-      minio: { condition: service_healthy }
+      AWS_ACCESS_KEY_ID: ${S3_ADMIN_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${S3_ADMIN_SECRET_KEY}
+      AWS_DEFAULT_REGION: us-east-1
+    depends_on: [s3]
 
   # Antivírus (ADR-017): o worker envia cada arquivo da quarentena para o clamd antes de liberá-lo.
   clamav:
-    image: clamav/clamav:1.4
+    image: clamav/clamav-debian:stable
     healthcheck:
       test: ["CMD", "clamdcheck.sh"]
       interval: 15s
@@ -148,5 +138,5 @@ services:
 
 volumes:
   pgdata:
-  miniodata:
+  s3data:
   clamdata:

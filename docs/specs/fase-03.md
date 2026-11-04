@@ -6,7 +6,7 @@
 - **Validação jurídica:** pendente (LC 123, art. 43 §1º; prazo de guarda de documento ⚖️)
 - **Fontes:** Prompt Mestre Fase 03 (3.1 a 3.6) e 1.4 (Arquivos); Plano, Fase 03; ADR-017 (arquivos em S3 e cifra), ADR-014 (fila `ops.jobs`); [Fase 02](fase-02.md)
 
-> Estado de partida: a Fase 02 já deixou `documento_id` **sem FK** em `core.representantes` (assinatura), `core.procuracoes`, `priv.produtos` (catálogo e ficha) e `priv.fichas_tecnicas`. Esta fase cria `priv.documentos` e liga esses campos. O ambiente Docker local ainda não tem S3: o MinIO entra aqui (pergunta 1).
+> Estado de partida: a Fase 02 já deixou `documento_id` **sem FK** em `core.representantes` (assinatura), `core.procuracoes`, `priv.produtos` (catálogo e ficha) e `priv.fichas_tecnicas`. Esta fase cria `priv.documentos` e liga esses campos. O ambiente Docker local ainda não tem S3: o S3 de desenvolvimento (SeaweedFS) entra aqui (pergunta 1).
 
 ## 1. Escopo
 
@@ -73,11 +73,11 @@ Worker: `verificar_arquivo` (ClamAV + magic + hash + mover), `alertas_documentos
 
 T1 (download de outra empresa), T3 (arquivo malicioso, nome de arquivo hostil), T4 (URL assinada vazada: 60 s, uso auditado), T6 (alerta perdido ou repetido). Aceite (Prompt + plano): arquivo EICAR bloqueado no upload; versões preservadas; alertas nas datas certas (relógio simulado); vencidos em destaque; download de outra empresa negado; renovação registra sucesso ou falha real.
 
-Plano de blocos (modo rápido): (1) MinIO no compose + cliente S3 na API e no worker; (2) tipos, documentos, versões e RLS; (3) upload/quarentena/verificação (ClamAV no compose); (4) download assinado + auditoria; (5) status e alertas; (6) pendência "Atualizar"; (7) checklist; (8) atestados; (9) telas.
+Plano de blocos (modo rápido): (1) S3 de desenvolvimento (SeaweedFS) no compose + cliente S3 na API e no worker; (2) tipos, documentos, versões e RLS; (3) upload/quarentena/verificação (ClamAV no compose); (4) download assinado + auditoria; (5) status e alertas; (6) pendência "Atualizar"; (7) checklist; (8) atestados; (9) telas.
 
 ## 9. Perguntas abertas (com a minha recomendação)
 
-1. **S3 local:** MinIO e ClamAV como serviços do compose de desenvolvimento? *Recomendo:* sim (Apache/AGPL e GPL, só em dev; produção usa S3 externo do ADR-017).
+1. **S3 local:** S3 de desenvolvimento (SeaweedFS) e ClamAV como serviços do compose de desenvolvimento? *Recomendo:* sim (Apache/AGPL e GPL, só em dev; produção usa S3 externo do ADR-017).
 2. **Tamanho máximo e tipos aceitos:** *Recomendo:* 25 MB; PDF, imagens (JPEG/PNG), DOCX/XLSX/ODT para modelos; tipo real conferido, não a extensão.
 3. **Antecedências padrão** 30/15/10/5 para todos os tipos? *Recomendo:* sim, configurável por tipo; "sem vencimento" não alerta.
 4. **Canal do alerta:** notificação interna + push já existem; e-mail pelo worker (Mailpit em dev). *Recomendo:* os três.

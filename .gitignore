@@ -34,3 +34,4 @@ htmlcov/
 # Claude Code: configurações pessoais ficam fora do repo
 .claude/settings.local.json
 .dev-acesso.txt
+infra/s3/s3.json

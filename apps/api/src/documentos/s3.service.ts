@@ -15,7 +15,9 @@ export class S3Servico {
     this.bucket = config.S3_BUCKET;
     const url = config.S3_PUBLIC_URL || config.S3_ENDPOINT;
     this.cliente = url && this.bucket && config.S3_ACCESS_KEY
-      ? new S3Client({ endpoint: url, region: 'us-east-1', forcePathStyle: true, credentials: { accessKeyId: config.S3_ACCESS_KEY, secretAccessKey: config.S3_SECRET_KEY } })
+      ? new S3Client({ endpoint: url, region: 'us-east-1', forcePathStyle: true,
+        // Sem checksum embutido na URL: o navegador envia o corpo cru (o SDK novo pré-calcularia o hash do corpo vazio).
+        requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED', credentials: { accessKeyId: config.S3_ACCESS_KEY, secretAccessKey: config.S3_SECRET_KEY } })
       : null;
   }
 
