@@ -1,4 +1,4 @@
-import { Bell, CircleUser, House, Users } from 'lucide-react'
+import { Bell, Building2, CircleUser, House, ScrollText, Users } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router'
 import { AMBIENTE } from '../config'
 import { AcessoProvider, useAcesso } from '../features/acesso/contexto'
@@ -7,7 +7,7 @@ import { FaixaAmbiente } from '../ui'
 
 // Shell (RF-01.14): menu lateral no desktop, abas embaixo no celular; empresa no cabeçalho.
 function Esqueleto() {
-  const { naoLidas, pode } = useAcesso()
+  const { naoLidas, pode, usuario } = useAcesso()
   const item = (to: string, rotulo: string, icone: React.ReactNode, selo = 0) => (
     <NavLink key={to} to={to} end={to === '/'} className="nav__item" aria-label={selo > 0 ? `${rotulo}, ${selo} não lidas` : rotulo}>
       {icone}
@@ -26,6 +26,8 @@ function Esqueleto() {
         {item('/', 'Início', <House size={22} aria-hidden="true" />)}
         {item('/notificacoes', 'Notificações', <Bell size={22} aria-hidden="true" />, naoLidas)}
         {pode('usuarios', 'visualizar') ? item('/equipe', 'Equipe', <Users size={22} aria-hidden="true" />) : null}
+        {pode('auditoria', 'visualizar') ? item('/auditoria', 'Auditoria', <ScrollText size={22} aria-hidden="true" />) : null}
+        {usuario?.superadmin ? item('/plataforma', 'Plataforma', <Building2 size={22} aria-hidden="true" />) : null}
         {item('/conta', 'Conta', <CircleUser size={22} aria-hidden="true" />)}
       </nav>
       <div className="shell__lado">

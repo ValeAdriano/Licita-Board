@@ -18,6 +18,8 @@ Front do VV Licitações: React 19 + Vite + TypeScript em PWA (ADR-018). Complem
 
 ## Cabeçalhos do Caddy (obrigatórios antes de qualquer uso real; T5.18, B1 da revisão)
 
+Implementados em [`infra/caddy/Caddyfile`](../../infra/caddy/Caddyfile) e testados com o Caddy real por `infra/caddy/testar-cabecalhos.sh` (job `caddy` do CI). **Mudou a política aqui? Mude o Caddyfile e o teste juntos.**
+
 Em todas as respostas, inclusive `/sw.js` (`unsafe-inline` e `unsafe-eval` **não** são necessários: o HTML só tem `<script src>` e o CSS é arquivo próprio):
 
 ```text

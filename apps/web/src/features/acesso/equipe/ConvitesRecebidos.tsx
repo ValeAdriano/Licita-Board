@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { chamar, ErroApi } from '../../../api/cliente'
 import { Aviso, Botao } from '../../../ui'
+import { cnpjLegivel } from '../cnpj'
 import { useAcesso } from '../contexto'
 import { rotuloPapel } from '../matriz'
 import { useGet } from '../useGet'
@@ -13,11 +14,6 @@ export interface ConviteRecebido {
   papel: string
   permissoes: string[]
   expira_em: string
-}
-
-// CNPJ com máscara só para ler (00.000.000/0000-00); alfanumérico (12 + 2 dígitos) segue o mesmo corte.
-export function cnpjLegivel(cnpj: string): string {
-  return /^[0-9A-Z]{12}[0-9]{2}$/.test(cnpj) ? `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12)}` : cnpj
 }
 
 // Convites que a própria conta recebeu (a API só devolve os válidos e os cobertos pelo autor). O nome
@@ -82,3 +78,5 @@ export function ConvitesRecebidos() {
     </section>
   )
 }
+
+export { cnpjLegivel }

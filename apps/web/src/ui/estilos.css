@@ -266,6 +266,10 @@ a:hover { text-decoration: underline; }
 .lista__item:last-child { border-bottom: 0; }
 button.lista__item:hover { background: var(--acento-fraco); }
 .lista__texto { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* Linha com ações (empresas, exclusões): no celular o texto ocupa a linha e as ações vão para baixo. */
+.lista__item--acoes { flex-wrap: wrap; }
+.lista__item--acoes > .lista__texto { flex: 1 1 14rem; }
+.lista__acoes { display: flex; flex-wrap: wrap; gap: var(--e2); margin-left: auto; }
 .lista__texto > * { overflow: hidden; text-overflow: ellipsis; }
 .lista__item--nao-lida { box-shadow: inset 3px 0 0 var(--acento); background: var(--acento-fraco); }
 

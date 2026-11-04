@@ -1,0 +1,83 @@
+import { useState } from 'react'
+import { chamar, ErroApi } from '../../../api/cliente'
+import { Aviso, Botao } from '../../../ui'
+import { cnpjLegivel } from '../cnpj'
+import { useAcesso } from '../contexto'
+import { StepUpModal } from '../equipe/StepUpModal'
+import { useGet } from '../useGet'
+import { podeDecidir, rotuloStatus, type PedidoExclusao } from './tipos'
+
+// Pedidos de exclusão definitiva. Quem pediu não decide o próprio pedido (o banco também recusa).
+export function Exclusoes() {
+  const { usuario, recarregar } = useAcesso()
+  const pedidos = useGet<PedidoExclusao[]>('/exclusoes')
+  const [decisao, setDecisao] = useState<{ pedido: PedidoExclusao; aprovar: boolean } | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function decidir(stepUp: string) {
+    if (!decisao) return
+    try {
+      await chamar('POST', `/exclusoes/${decisao.pedido.id}/decidir`, { aprovar: decisao.aprovar, stepUp })
+    } catch (e) {
+      setDecisao(null)
+      setErro(`${e instanceof ErroApi ? e.message : 'Não foi possível registrar a decisão.'} O código já foi usado: aguarde o próximo para tentar de novo.`)
+      return
+    }
+    setDecisao(null)
+    pedidos.recarregar()
+    await recarregar()
+  }
+
+  const nome = (p: PedidoExclusao) => p.resumo?.razao_social ?? 'Empresa'
+  const cnpj = (p: PedidoExclusao) => (p.resumo?.cnpj ? `CNPJ ${cnpjLegivel(p.resumo.cnpj)}` : '')
+
+  return (
+    <div className="pilha pilha--grande">
+      <Aviso texto={erro ?? pedidos.erro} />
+      {pedidos.carregando ? <p className="legenda">Carregando…</p> : null}
+      {pedidos.dados?.length === 0 ? <p className="vazio">Nenhum pedido de exclusão.</p> : null}
+      <div className="lista">
+        {pedidos.dados?.map((p) => (
+          <div key={p.id} className="lista__item lista__item--acoes" style={{ cursor: 'default', alignItems: 'flex-start' }}>
+            <span className="lista__texto">
+              <strong>
+                <bdi>{nome(p)}</bdi>
+              </strong>
+              <span className="legenda">{cnpj(p)}</span>
+              <span className="legenda">Motivo: {p.motivo}</span>
+              <span className="legenda">
+                Pedido em {new Date(p.solicitadoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                {p.solicitadoPor === usuario?.id ? ' por você' : ''}
+              </span>
+            </span>
+            <span className="tag">{rotuloStatus[p.status]}</span>
+            {podeDecidir(p, usuario?.id) ? (
+              <span className="lista__acoes">
+                <Botao variante="perigo" onClick={() => setDecisao({ pedido: p, aprovar: true })}>
+                  Aprovar e excluir
+                </Botao>
+                <Botao variante="secundario" onClick={() => setDecisao({ pedido: p, aprovar: false })}>
+                  Rejeitar
+                </Botao>
+              </span>
+            ) : p.status === 'pendente' && p.solicitadoPor === usuario?.id ? (
+              <span className="legenda">Outro SUPERADMIN precisa decidir.</span>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      <StepUpModal
+        aberto={decisao !== null}
+        escopo="exclusao_definitiva"
+        descricao={
+          decisao?.aprovar
+            ? 'Aprovar apaga a empresa e tudo que é dela, sem volta. Confira o resumo e digite o código do autenticador.'
+            : 'Rejeitar encerra o pedido sem apagar nada. Confira o resumo e digite o código do autenticador.'
+        }
+        resumo={decisao ? [`${decisao.aprovar ? 'Aprovar e excluir' : 'Rejeitar'}: ${nome(decisao.pedido)}`, cnpj(decisao.pedido), `Motivo do pedido: ${decisao.pedido.motivo}`].filter(Boolean) : []}
+        aoConfirmar={decidir}
+        aoCancelar={() => setDecisao(null)}
+      />
+    </div>
+  )
+}

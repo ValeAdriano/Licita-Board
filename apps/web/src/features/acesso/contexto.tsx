@@ -61,7 +61,25 @@ interface Me {
   usuario: Usuario
   vinculos: Vinculo[]
 }
-const buscarMe = () => chamar<Me>('GET', '/me')
+interface EmpresaResumo {
+  id: string
+  razaoSocial: string
+}
+// SUPERADMIN administra todas as empresas, tenha vínculo ou não: as sem vínculo entram no seletor como
+// "SUPERADMIN" (sem permissões listadas; `pode()` já libera tudo para ele e a API confere de novo).
+export function empresasDoSuperadmin(vinculos: Vinculo[], empresas: EmpresaResumo[]): Vinculo[] {
+  const com = new Set(vinculos.map((v) => v.empresaId))
+  const sinteticos = empresas
+    .filter((e) => !com.has(e.id))
+    .map((e): Vinculo => ({ id: `superadmin:${e.id}`, empresaId: e.id, empresa: e.razaoSocial, papel: 'SUPERADMIN', ativo: true, permissoes: [] }))
+  return [...vinculos, ...sinteticos]
+}
+const buscarMe = async (): Promise<Me> => {
+  const me = await chamar<Me>('GET', '/me')
+  if (!me.usuario.superadmin) return me
+  const empresas = await chamar<EmpresaResumo[]>('GET', '/empresas').catch(() => [] as EmpresaResumo[])
+  return { ...me, vinculos: empresasDoSuperadmin(me.vinculos.filter((v) => v.ativo), empresas) }
+}
 // Polling marcado como fundo: não renova a inatividade (T5.17).
 const buscarNotificacoes = () => chamar<Notificacao[]>('GET', '/notificacoes', undefined, { fundo: true }).catch(() => null)
 

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { useSessao, type Fase } from './auth/sessao'
 import { AMBIENTE } from './config'
+import Auditoria from './pages/Auditoria'
 import Conta from './pages/Conta'
 import Entrar from './pages/Entrar'
 import Equipe from './pages/Equipe'
@@ -8,6 +9,7 @@ import Inicio from './pages/Inicio'
 import Layout from './pages/Layout'
 import Mfa from './pages/Mfa'
 import Notificacoes from './pages/Notificacoes'
+import Plataforma from './pages/Plataforma'
 import RedefinirSenha from './pages/RedefinirSenha'
 import Recuperar from './pages/Recuperar'
 import { Botao, FaixaAmbiente, TelaAcesso } from './ui'
@@ -50,6 +52,8 @@ export function Rotas() {
             <Route index element={<Inicio />} />
             <Route path="notificacoes" element={<Notificacoes />} />
             <Route path="equipe" element={<Equipe />} />
+            <Route path="auditoria" element={<Auditoria />} />
+            <Route path="plataforma" element={<Plataforma />} />
             <Route path="conta" element={<Conta />} />
           </Route>
         ) : null}

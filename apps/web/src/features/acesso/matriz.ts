@@ -31,7 +31,7 @@ export const PAPEIS: { id: Papel; rotulo: string }[] = [
   { id: 'CLIENTE', rotulo: 'Cliente (somente leitura)' },
 ]
 
-export const rotuloPapel = (p: string) => PAPEIS.find((x) => x.id === p)?.rotulo ?? p
+export const rotuloPapel = (p: string) => (p === 'SUPERADMIN' ? 'Equipe da plataforma' : (PAPEIS.find((x) => x.id === p)?.rotulo ?? p))
 export const chave = (modulo: string, acao: string) => `${modulo}:${acao}`
 const acaoDe = (k: string) => k.split(':')[1] ?? ''
 

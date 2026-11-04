@@ -24,7 +24,11 @@ export default function Inicio() {
               </li>
             ))}
           </ul>
-          {empresa.permissoes.length === 0 ? <p>Seu acesso a esta empresa ainda não tem permissões.</p> : null}
+          {empresa.papel === 'SUPERADMIN' ? (
+            <p>Você acessa esta empresa como equipe da plataforma. Convide o administrador dela em Equipe.</p>
+          ) : empresa.permissoes.length === 0 ? (
+            <p>Seu acesso a esta empresa ainda não tem permissões.</p>
+          ) : null}
         </>
       ) : (
         <p className="vazio">Você ainda não tem acesso a nenhuma empresa. Quando um administrador te convidar, o convite aparece aqui.</p>

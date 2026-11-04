@@ -27,13 +27,13 @@ function Sonda() {
   )
 }
 
-const fetchMock = vi.fn((url: string) =>
-  Promise.resolve(url.endsWith('/me') ? resposta(200, ME) : resposta(200, [{ id: 'n1', empresaId: 'e1', titulo: 'Aviso', corpo: null, lidaEm: null, criadaEm: '2026-11-03T12:00:00Z' }])),
-)
+const padrao = (url: string) =>
+  Promise.resolve(url.endsWith('/me') ? resposta(200, ME) : resposta(200, [{ id: 'n1', empresaId: 'e1', titulo: 'Aviso', corpo: null, lidaEm: null, criadaEm: '2026-11-03T12:00:00Z' }]))
+const fetchMock = vi.fn(padrao)
 
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true })
-  fetchMock.mockClear()
+  fetchMock.mockReset().mockImplementation(padrao)
   vi.stubGlobal('fetch', fetchMock)
 })
 afterEach(() => {
@@ -49,6 +49,17 @@ describe('AcessoProvider', () => {
     expect(screen.getByText('naoLidas:1')).toBeInTheDocument()
     expect(screen.getByText('pode-agenda:true')).toBeInTheDocument()
     expect(screen.getByText('pode-usuarios:false')).toBeInTheDocument()
+  })
+
+  it('SUPERADMIN ganha todas as empresas no seletor, mesmo sem vínculo', async () => {
+    fetchMock.mockImplementation((url: string) => {
+      if (url.endsWith('/me')) return Promise.resolve(resposta(200, { ...ME, usuario: { ...ME.usuario, superadmin: true } }))
+      if (url.endsWith('/empresas')) return Promise.resolve(resposta(200, [{ id: 'e1', razaoSocial: 'Alfa' }, { id: 'e9', razaoSocial: 'Sem vínculo' }]))
+      return Promise.resolve(resposta(200, []))
+    })
+    render(<AcessoProvider><Sonda /></AcessoProvider>)
+    await waitFor(() => expect(screen.getByText('vinculos:2')).toBeInTheDocument())
+    expect(screen.getByText('pode-usuarios:true')).toBeInTheDocument()
   })
 
   it('o polling de notificações vai marcado como fundo (não renova a inatividade)', async () => {
