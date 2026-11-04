@@ -49,9 +49,25 @@ services:
       VV_KEK: ${VV_KEK:?rode scripts/dev-env.sh}
       # Chave PÚBLICA do Web Push (ADR-018); vazia = push desligado.
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      # O app é servido pelo Caddy em http://localhost:8080 (mesma origem, /api). O X-Forwarded-For só
+      # vale vindo do Caddy, que está numa rede privada do Docker.
+      CORS_ORIGINS: http://localhost:8080
+      TRUST_PROXY: 172.16.0.0/12,192.168.0.0/16,10.0.0.0/8
     ports: ["127.0.0.1:3000:3000"]
     depends_on:
       postgres: { condition: service_healthy }
+
+  # Front + Caddy: http://localhost:8080 (o app inteiro: telas em /, API em /api).
+  web:
+    build:
+      context: .
+      dockerfile: infra/caddy/Dockerfile
+    environment:
+      VV_SITE: http://:8080
+      VV_API_UPSTREAM: api:3000
+    ports: ["127.0.0.1:8080:8080"]
+    depends_on:
+      api: { condition: service_healthy }
 
   # Sem porta publicada: o worker não expõe nada fora da rede do compose (ADR-014).
   worker:
@@ -62,7 +78,7 @@ services:
       VV_FILA_ATIVA: "true"
       VV_SMTP_HOST: mailpit
       VV_SMTP_PORT: "1025"
-      VV_APP_URL: http://localhost:5173
+      VV_APP_URL: http://localhost:8080
       # Chave PRIVADA do Web Push: só o worker a conhece. Vazia = push desligado.
       VV_VAPID_PRIVATE_KEY: ${VV_VAPID_PRIVATE_KEY:-}
       VV_VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
