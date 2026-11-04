@@ -13,10 +13,13 @@ from decimal import Decimal
 from typing import Any, Protocol
 from zoneinfo import ZoneInfo
 
+from worker.pesquisa.http import ErroPermanente
+
 FUSO = ZoneInfo("America/Sao_Paulo")
 BASE = "https://pncp.gov.br"
 CONSULTA = f"{BASE}/api/consulta/v1/contratacoes"
 DETALHE = f"{BASE}/api/pncp/v1/orgaos"
+CONSULTA_ORGAOS = f"{BASE}/api/consulta/v1/orgaos"
 # Códigos de modalidade do PNCP (uma por chamada); ops.fontes.parametros pode trocar a lista.
 MODALIDADES = list(range(1, 14))
 TAMANHO_PAGINA = 50
@@ -135,7 +138,10 @@ def normalizar_compra(raw: dict[str, Any]) -> Compra:
         "modo_disputa": _texto(raw.get("modoDisputaNome"), 80),
         "srp": bool(raw.get("srp")),
         "objeto": str(raw.get("objetoCompra") or "").strip()[:20000] or "(sem objeto informado)",
-        "valor_estimado": _dec(raw.get("valorTotalEstimado")),
+        # orçamento sigiloso (código diferente de 1 = "sem sigilo"): não guardamos o valor
+        "valor_estimado": None
+        if raw.get("orcamentoSigilosoCodigo") not in (None, 1)
+        else _dec(raw.get("valorTotalEstimado")),
         "situacao": _texto(raw.get("situacaoCompraNome"), 80),
         "data_publicacao": _data(raw.get("dataPublicacaoPncp")),
         "data_abertura_propostas": _data(raw.get("dataAberturaProposta")),
@@ -215,6 +221,14 @@ class ConectorPNCP:
             if pagina >= int(r.get("totalPaginas") or 0):
                 return
             pagina += 1
+
+    def compra_por_endereco(self, cnpj: str, ano: int, sequencial: int) -> Compra | None:
+        """Uma compra pelo identificador (importação manual); None se a fonte não a conhece."""
+        try:
+            raw = self._http.get_json(f"{CONSULTA_ORGAOS}/{cnpj}/compras/{ano}/{sequencial}")
+        except ErroPermanente:  # 4xx da fonte = não encontrada; falha de rede propaga
+            return None
+        return normalizar_compra(raw) if raw else None
 
     def detalhar(self, compra: Compra) -> Compra:
         """Busca itens e arquivos da compra; falha de rede é de quem chama (isola o registro)."""

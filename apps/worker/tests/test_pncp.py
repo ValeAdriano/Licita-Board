@@ -36,6 +36,12 @@ class FakeHttp:
             return carregar("publicacao_p1.json") if ok else None
         if "/atualizacao" in url:
             return None
+        if "/api/consulta/v1/orgaos/" in url:  # compra individual (importação manual)
+            lista = carregar("publicacao_p1.json")["data"]
+            return next(
+                (c for c in lista if f"/compras/{c['anoCompra']}/{c['sequencialCompra']}" in url),
+                None,
+            )
         seq = "298" if "/compras/2026/298/" in url else "484"
         return carregar(f"{'itens' if url.endswith('/itens') else 'arquivos'}_{seq}.json")
 

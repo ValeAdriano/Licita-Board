@@ -2,6 +2,7 @@ import { DynamicModule, Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { AcessoModule } from './acesso/acesso.module.js';
 import { DocumentosModule } from './documentos/documentos.module.js';
+import { PesquisaModule } from './pesquisa/pesquisa.module.js';
 import { PushModule } from './push/push.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import type { Config } from './config.js';
@@ -33,6 +34,7 @@ export class AppModule {
         AcessoModule,
         PushModule,
         DocumentosModule,
+        PesquisaModule,
       ],
       controllers: [HealthController],
       providers: [{ provide: CONFIG, useValue: config }],

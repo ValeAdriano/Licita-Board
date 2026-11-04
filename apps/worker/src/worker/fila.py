@@ -18,6 +18,7 @@ from worker.pesquisa.agenda import agendar, vigiar
 from worker.pesquisa.arquivos import baixar, extrair_texto
 from worker.pesquisa.coleta import coletar
 from worker.pesquisa.http import ClienteHttp, ErroPermanente
+from worker.pesquisa.importacao import importar
 from worker.pesquisa.relevancia import avaliar_edital
 from worker.pesquisa.texto import Tesseract
 from worker.push import REDE, TTL_SEGUNDOS, EnviadorPush, Inscricao, carga_generica
@@ -64,6 +65,7 @@ class Handlers:
             "email_operacional": self.email_operacional,
             "coletar_fonte": self.coletar_fonte,
             "avaliar_relevancia": self.avaliar_relevancia,
+            "importar_edital": self.importar_edital,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -180,6 +182,20 @@ class Handlers:
         ocr = Tesseract() if shutil.which("tesseract") else None
         agora = dt.datetime.now(dt.UTC)
         extrair_texto(conn, str(job["payload"]["arquivo_id"]), self._s3, ocr, agora)  # type: ignore[arg-type]
+
+    def importar_edital(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute("select hosts_permitidos, parametros from ops.fontes where slug = 'pncp'")
+            f = cur.fetchone()
+        if f is None:
+            raise ErroPermanente("fonte pncp não cadastrada")
+        ua = f"VV-Licitacoes-Robo/1.0 (+{self._s.robo_contato or 'contato-nao-configurado'})"
+        http = ClienteHttp(
+            ua,
+            list(f["hosts_permitidos"]),
+            float(f["parametros"].get("requisicoes_por_segundo", 2)),
+        )
+        importar(conn, str(job["payload"]["importacao_id"]), http)
 
     def avaliar_relevancia(self, conn: psycopg.Connection[Any], job: Job) -> None:
         avaliar_edital(conn, str(job["payload"]["edital_id"]))

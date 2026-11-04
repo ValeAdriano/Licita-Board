@@ -22,7 +22,7 @@ from worker.connectors.pncp import (
 )
 from worker.pesquisa.agenda import FUSO, alertar_superadmins, pingar
 from worker.pesquisa.http import ErroPermanente, ErroTransitorio
-from worker.pesquisa.repositorio import gravar, ja_atualizado
+from worker.pesquisa.repositorio import Resultado, gravar, ja_atualizado
 
 log = logging.getLogger("worker.pesquisa.coleta")
 
@@ -177,21 +177,25 @@ def _processar(
     elif r.situacao == "atualizado":
         cont["atualizados"] += 1
     if r.situacao != "igual":
-        # Etapas seguintes (arquivos e relevância) nascem do evento; chave por edital e versão.
-        for aid in r.arquivos_novos:
-            conn.execute(
-                "select ops.enfileirar_pesquisa('baixar_arquivo_edital', null, %s::jsonb, %s)",
-                (json.dumps({"arquivo_id": aid}), f"baixar:{aid}"),
-            )
-            cont["arquivos"] += 1
+        cont["arquivos"] += enfileirar_etapas(conn, r)
+
+
+def enfileirar_etapas(conn: psycopg.Connection[Any], r: Resultado) -> int:
+    """Etapas seguintes (arquivos e relevância) nascem do resultado; chave por arquivo e por edital/versão."""
+    for aid in r.arquivos_novos:
         conn.execute(
-            "select ops.enfileirar_pesquisa('avaliar_relevancia', null, %s::jsonb, %s)",
-            (
-                json.dumps({"edital_id": r.edital_id, "versao": r.versao}),
-                f"avaliar:{r.edital_id}:{r.versao}",
-            ),
+            "select ops.enfileirar_pesquisa('baixar_arquivo_edital', null, %s::jsonb, %s)",
+            (json.dumps({"arquivo_id": aid}), f"baixar:{aid}"),
         )
-        conn.commit()
+    conn.execute(
+        "select ops.enfileirar_pesquisa('avaliar_relevancia', null, %s::jsonb, %s)",
+        (
+            json.dumps({"edital_id": r.edital_id, "versao": r.versao}),
+            f"avaliar:{r.edital_id}:{r.versao}",
+        ),
+    )
+    conn.commit()
+    return len(r.arquivos_novos)
 
 
 def _falha(
