@@ -2,8 +2,8 @@
 
 Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada fase.
 
-**Fase atual:** 01 · Arquitetura, segurança e acessos — **todos os PRs entregues; relatório aguardando aceite do Adriano** ([`fase-01.md`](phase-reports/fase-01.md)). A Fase 00 segue com pendências de deploy (VPS, Sentry). Stack da revisão 2 (2026-11-02): Docker + Postgres + API NestJS + front React web (PWA) + worker Python; ADR-011 a 018.
-**Próximo passo:** Adriano lê o relatório da Fase 01, confirma a interpretação do CA-1 e aceita ou devolve. Depois: (a) a spec da Fase 02 está em rascunho para aprovação (`docs/specs/fase-02.md`): sem `Aprovada` não há código dela; (b) infraestrutura da Fase 00/01 (VPS, bucket, ensaio de restauração), que depende do Adriano. Adriano: instalar Docker; escolher VPS e bucket S3 de backup.
+**Fase atual (2026-11-05):** Fases 00 a 04 construídas no `main` em modo rápido (rodam no Docker); a **spec da Fase 05 está em rascunho** aguardando aprovação. Stack: Docker + Postgres + API NestJS + front React (Untitled UI, PWA) + worker Python (ADR-011 a 020).
+**Próximo passo:** Adriano aprova (ou ajusta) a spec da Fase 05 (`docs/specs/fase-05.md`) e decide o Compras.gov.br na Fase 04. Em paralelo, dependem de fora do código: planilha atual da agenda e 30+ casos de prazo do jurídico (Fase 05), 50 editais da amostra (Fase 04), VPS, bucket S3 e ensaio de restauração (Fases 00 e 01), decisões do jurídico e do contador.
 
 > A revisão 1 (Supabase) foi removida do repositório no PR 11; o estado anterior está na tag `revisao-1-supabase`.
 
@@ -12,7 +12,7 @@ Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada
 | 1 | 00 | Fundação técnica | ~40 h | [fase-00](specs/fase-00.md) · Em revisão | 🟡 banco, API, app, worker, CI e guardas no main; falta: rodar com Docker, produção (VPS), Sentry, ameaças revisadas |
 | 1 | 01 | Arquitetura, segurança e acessos | ~90 h | [fase-01](specs/fase-01.md) · Aprovada (revisão 2) | 🟡 PRs 1–11 e 3b no main; relatório escrito, **aguardando aceite**. CA-1 a CA-5, CA-7 e CA-8 COMPROVADOS (CA-5 sem teste em navegador); CA-6 PARCIAL (falta o ensaio real). PR 12 entregue (primeiro SUPERADMIN, Caddy com CSP no CI, telas de plataforma, exclusão e auditoria); resta infraestrutura (VPS, bucket, ensaio de restauração) |
 | 2 | 02 | Empresas, representantes e produtos | ~50 h | [fase-02](specs/fase-02.md) · Aprovada | 🟡 banco, API e telas no main (modo rápido); faltam testes A x B de priv, docs e decisões do jurídico/contador |
-| 2 | 03 | Gestão documental e certidões | ~60 h | [fase-03](specs/fase-03.md) · Rascunho | ⚪ aguarda aprovação da spec |
+| 2 | 03 | Gestão documental e certidões | ~60 h | [fase-03](specs/fase-03.md) · Aprovada | 🟡 no main (modo rápido): repositório com quarentena e antivírus, versões, download auditado, alertas diários, pendência "Atualizar", atestados, checklist (regra pura); falta tela do checklist (com os editais), A x B de `priv`, retenção e ME/EPP do jurídico |
 | 2 | 05 | Agenda e prazos jurídicos ★ MVP | ~70 h | [fase-05](specs/fase-05.md) · Rascunho | ⚪ spec em rascunho; aceite depende da planilha e dos 30 casos do jurídico |
 | 3 | 04 | Motor de pesquisa (PNCP) | ~90 h | [fase-04](specs/fase-04.md) · Aprovada | 🟡 PNCP no main (modo rápido): coleta, arquivos, texto, relevância, API e telas; falta Compras.gov.br, embeddings, e2e A x B e a amostra de 50 editais |
 | 4 | 06 | IA para análise técnica (veículos) | ~100 h | — | ⚪ |
