@@ -52,6 +52,12 @@ services:
       # O app é servido pelo Caddy em http://localhost:8080 (mesma origem, /api). O X-Forwarded-For só
       # vale vindo do Caddy, que está numa rede privada do Docker.
       CORS_ORIGINS: http://localhost:8080
+      # S3 (só a API presigna; o navegador fala direto com o S3 em S3_PUBLIC_URL).
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_URL: http://localhost:9000
+      S3_BUCKET: vv-docs
+      S3_ACCESS_KEY: ${S3_API_ACCESS_KEY:?rode scripts/dev-env.sh}
+      S3_SECRET_KEY: ${S3_API_SECRET_KEY:?rode scripts/dev-env.sh}
       TRUST_PROXY: 172.16.0.0/12,192.168.0.0/16,10.0.0.0/8
     ports: ["127.0.0.1:3000:3000"]
     depends_on:
@@ -65,6 +71,7 @@ services:
     environment:
       VV_SITE: http://:8080
       VV_API_UPSTREAM: api:3000
+      VV_CSP_CONNECT_EXTRA: http://localhost:9000
     ports: ["127.0.0.1:8080:8080"]
     depends_on:
       api: { condition: service_healthy }
@@ -76,6 +83,11 @@ services:
       VV_ENV: dev
       VV_DATABASE_URL: postgresql://vv_worker:${VV_WORKER_PASSWORD}@postgres:5432/vv
       VV_FILA_ATIVA: "true"
+      VV_S3_ENDPOINT: http://minio:9000
+      VV_S3_BUCKET: vv-docs
+      VV_S3_ACCESS_KEY: ${S3_WORKER_ACCESS_KEY:?rode scripts/dev-env.sh}
+      VV_S3_SECRET_KEY: ${S3_WORKER_SECRET_KEY:?rode scripts/dev-env.sh}
+      VV_CLAMAV_HOST: clamav
       VV_SMTP_HOST: mailpit
       VV_SMTP_PORT: "1025"
       VV_APP_URL: http://localhost:8080
@@ -90,6 +102,45 @@ services:
       postgres: { condition: service_healthy }
       mailpit: { condition: service_started }
 
+  # Armazenamento S3 de desenvolvimento (ADR-017); em produção é um S3 externo. Console: http://localhost:9001.
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: server /dados --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?rode scripts/dev-env.sh}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?rode scripts/dev-env.sh}
+    ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
+    volumes: ["miniodata:/dados"]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      retries: 20
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    profiles: [tools]
+    entrypoint: ["/bin/sh", "/politicas/iniciar.sh"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      S3_API_ACCESS_KEY: ${S3_API_ACCESS_KEY}
+      S3_API_SECRET_KEY: ${S3_API_SECRET_KEY}
+      S3_WORKER_ACCESS_KEY: ${S3_WORKER_ACCESS_KEY}
+      S3_WORKER_SECRET_KEY: ${S3_WORKER_SECRET_KEY}
+    volumes: ["./infra/minio:/politicas:ro"]
+    depends_on:
+      minio: { condition: service_healthy }
+
+  # Antivírus (ADR-017): o worker envia cada arquivo da quarentena para o clamd antes de liberá-lo.
+  clamav:
+    image: clamav/clamav:1.4
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 15s
+      retries: 20
+      start_period: 120s
+    volumes: ["clamdata:/var/lib/clamav"]
+
   # Caixa de e-mail de desenvolvimento: todo e-mail enviado aparece em http://localhost:8025.
   mailpit:
     image: axllent/mailpit:v1.27
@@ -97,3 +148,5 @@ services:
 
 volumes:
   pgdata:
+  miniodata:
+  clamdata:

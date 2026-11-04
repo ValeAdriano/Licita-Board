@@ -1,8 +1,8 @@
 # Spec · Fase 03 · Gestão documental e controle de certidões
 
-- **Status:** Rascunho (aguardando as respostas da seção 9 e a aprovação do Adriano; **sem `Aprovada` não há código da fase**)
+- **Status:** Aprovada em 2026-11-04 (instrução do Adriano: "continue executando as próximas etapas", com as recomendações da seção 9). ⚖️ Retenção e texto de ME/EPP seguem pendentes do jurídico e não bloqueiam o início
 - **Onda:** 2 — MVP
-- **Autor:** Claude Code (2026-11-04) · **Aprovação:** pendente
+- **Autor:** Claude Code (2026-11-04) · **Aprovação:** Adriano Vale, 2026-11-04
 - **Validação jurídica:** pendente (LC 123, art. 43 §1º; prazo de guarda de documento ⚖️)
 - **Fontes:** Prompt Mestre Fase 03 (3.1 a 3.6) e 1.4 (Arquivos); Plano, Fase 03; ADR-017 (arquivos em S3 e cifra), ADR-014 (fila `ops.jobs`); [Fase 02](fase-02.md)
 

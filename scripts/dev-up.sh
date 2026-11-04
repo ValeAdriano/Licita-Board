@@ -16,12 +16,13 @@ if [ "$(docker compose exec -T postgres psql -U postgres -d vv -Atc 'select coun
     -e DATABASE_URL="postgres://vv_owner:$VV_OWNER_PASSWORD@localhost:5432/vv" postgres /db/scripts/registrar-kek.sh
 fi
 docker compose up -d --build
+docker compose run --rm minio-init
 
 echo
 docker compose ps
 echo
 echo "App:     http://localhost:8080"
-echo "E-mails: http://localhost:8025"
+echo "E-mails: http://localhost:8025      Arquivos (MinIO): http://localhost:9001"
 echo "Primeiro usuário (SUPERADMIN) e empresa fictícia:"
 echo "  export DATABASE_URL=\"postgres://vv_owner:\$VV_OWNER_PASSWORD@localhost:5433/vv\"   # depois de: set -a && . ./.env && set +a"
 echo "  node scripts/criar-usuario.mjs --email voce@exemplo.com --nome \"Seu Nome\" --superadmin --ficticio"

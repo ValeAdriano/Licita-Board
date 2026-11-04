@@ -6,13 +6,14 @@
 #   VV_SITE          endereço do site. Produção: app.exemplo.com.br (TLS automático). Teste: http://:8080
 #   VV_WEB_ROOT      pasta do build do front (apps/web/dist)
 #   VV_API_UPSTREAM  host:porta da API na rede interna
+#   VV_CSP_CONNECT_EXTRA origem do S3 (upload direto do navegador); vazio quando não há
 {$VV_SITE:localhost} {
 	encode zstd gzip
 	root * {$VV_WEB_ROOT:/srv/web}
 
 	# O ">" adia a escrita para o fim: o valor do Caddy VALE mesmo que a API (ou outro) mande o seu.
 	header {
-		>Content-Security-Policy "default-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; frame-src https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self'; form-action 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
+		>Content-Security-Policy "default-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self' {$VV_CSP_CONNECT_EXTRA:}; frame-src https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self'; form-action 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
 		>Strict-Transport-Security "max-age=63072000; includeSubDomains"
 		>X-Content-Type-Options "nosniff"
 		>Referrer-Policy "no-referrer"
