@@ -301,3 +301,11 @@ Cada bloco fica abaixo de ~500 linhas alteradas quando possível. Testes: `rules
 15. **Quem vê o painel completo.** Opções: (a) só SUPERADMIN, com banner de estado para todos; (b) também ADMIN_EMPRESA. *Recomendação:* (a), porque o painel mostra execuções e erros da plataforma, que não pertencem a nenhuma empresa.
 16. **Credenciais de fonte.** PNCP e Compras.gov.br não usam. Para as fontes futuras o cofre (ADR-007) segue sem decisão. *Recomendação:* deixar `credencial_ref` nulo e decidir o ADR-007 antes da Fase 13.
 17. **Ordem com a Fase 05.** O Plano põe a 05 antes da 04, mas a 05 está bloqueada pela planilha. Esta fase não depende da 05; só produz `pub.edital_eventos`. Posso seguir com a 04 agora? *Recomendação:* sim.
+
+## 12. Desvios e estado da implementação (2026-11-04)
+
+- **Job `detalhar_edital` não existe:** itens e arquivos são buscados na própria coleta, por compra, com falha isolada por registro (menos peças, mesma garantia).
+- **Quarentena em memória** para arquivos de edital (ADR-019): nada não verificado vai ao S3.
+- **`data_sessao` fica nula** (a fonte não informa); a Fase 05 decide a origem.
+- **Pronto e verificado no Docker com dados reais do PNCP:** banco (pub, ops, priv, RLS, pgTAP 210), agendador e vigia, conector PNCP, versões e eventos, arquivos, extração, relevância por termos e filtros, importação por link do PNCP, API, telas (oportunidades, edital, busca manual, cobertura).
+- **Falta:** conector Compras.gov.br (bloco 8); embeddings e semelhança semântica; extração de ZIP; importação por upload (EM DESENVOLVIMENTO); telas de cadastro da amostra e de classificação de causa (API de amostra e de apuração prontas); e2e A x B dos endpoints da API; heartbeat e e-mail reais (Healthchecks, SMTP); `VV_ROBO_CONTATO`; calibração dos pesos da relevância com editais reais; CA-15 (amostra de 50 editais da operação).

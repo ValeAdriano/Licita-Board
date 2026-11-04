@@ -23,10 +23,12 @@ async def ciclo(_app: FastAPI) -> AsyncIterator[None]:
     parar = threading.Event()
     if settings.fila_ativa:
         push = EnviadorWebPush(settings) if settings.vapid_private_key.get_secret_value() else None
-        t = threading.Thread(
-            target=consumir, args=(settings, EnviadorSmtp(settings), parar, push), daemon=True
-        )
-        t.start()
+        for pesado in (False, True):  # jobs curtos + agendador / jobs longos da pesquisa
+            threading.Thread(
+                target=consumir,
+                args=(settings, EnviadorSmtp(settings), parar, push, pesado),
+                daemon=True,
+            ).start()
     yield
     parar.set()
 

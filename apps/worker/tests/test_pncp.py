@@ -168,7 +168,7 @@ def test_retry_com_espera_progressiva_e_sucesso() -> None:
 
 
 def test_esgota_tentativas_vira_erro_transitorio() -> None:
-    c = _cliente([_http(500)] * 4, [])
+    c = _cliente([_http(500)] * 6, [])
     with pytest.raises(ErroTransitorio):
         c.get_json("https://pncp.gov.br/x")
 

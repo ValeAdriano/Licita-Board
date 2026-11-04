@@ -12,6 +12,7 @@ const listaSchema = z.object({
   faixa: z.enum(['alta', 'media', 'baixa']).optional(),
   triagem: z.enum(['nova', 'vista', 'interesse', 'descartada_pelo_usuario']).optional(),
   pagina: z.coerce.number().int().min(1).max(1000).default(1),
+  encerradas: z.enum(['0', '1']).default('0'),
 }).strict();
 const triagemSchema = z.object({
   triagem: z.enum(['vista', 'interesse', 'descartada_pelo_usuario']), motivo: z.string().trim().max(500).nullable().optional(),
@@ -21,6 +22,15 @@ const pesquisaSchema = z.object({
   fonte: z.enum(['pncp', 'comprasgov']).default('pncp'), inicio: dia, fim: dia, uf: z.string().regex(/^[A-Z]{2}$/).nullable().optional(),
 }).strict();
 const importacaoSchema = z.object({ url: z.url().max(1000) }).strict();
+const amostraSchema = z.object({
+  mes: dia.refine((d) => d.endsWith('-01')),
+  itens: z.array(z.object({
+    referencia: z.string().trim().min(3).max(300), uf: z.string().regex(/^[A-Z]{2}$/),
+    orgaoNome: z.string().trim().max(200).nullable().optional(), objetoResumo: z.string().trim().max(300).nullable().optional(),
+    dataPublicacao: dia.nullable().optional(), levantadoPor: z.string().trim().max(120).nullable().optional(),
+  }).strict()).min(1).max(500),
+}).strict();
+const apuracaoSchema = z.object({ mes: dia.refine((d) => d.endsWith('-01')) }).strict();
 const buscaSchema = z.object({ q: z.string().trim().min(2).max(120) }).strict();
 
 // Pesquisa de editais (spec fase-04): dado público de licitações (pub, lido por quem tem editais/visualizar em
@@ -52,6 +62,8 @@ export class PesquisaController {
     return this.q(req, async (tx) => {
       const filtroFaixa = f.faixa ? sql`and o.faixa = ${f.faixa}` : sql``;
       const filtroTriagem = f.triagem ? sql`and o.triagem = ${f.triagem}` : sql``;
+      // Prazo de propostas já vencido sai da lista por padrão (não é apagado: `encerradas=1` mostra).
+      const filtroPrazo = f.encerradas === '1' ? sql`` : sql`and (e.data_encerramento_propostas is null or e.data_encerramento_propostas > now())`;
       const itens = (await sql`
         select o.id, o.nota, o.faixa, o.motivos, o.fora_dos_filtros as "foraDosFiltros", o.triagem, o.triagem_motivo as "triagemMotivo",
                i.numero_item as "numeroItem", left(i.descricao, 300) as descricao, i.quantidade::text as quantidade, i.unidade_medida as "unidadeMedida",
@@ -63,11 +75,12 @@ export class PesquisaController {
           join pub.edital_itens i on i.id = o.item_id
           join pub.editais e on e.id = o.edital_id
           join pub.orgaos g on g.id = e.orgao_id
-         where o.empresa_id = ${empresa}::uuid and not o.retirado ${filtroFaixa} ${filtroTriagem}
+         where o.empresa_id = ${empresa}::uuid and not o.retirado ${filtroFaixa} ${filtroTriagem} ${filtroPrazo}
          order by o.nota desc, e.data_publicacao desc nulls last, i.numero_item
          limit ${POR_PAGINA} offset ${(f.pagina - 1) * POR_PAGINA}`.execute(tx)).rows;
       const contagem = (await sql<{ faixa: string; n: string }>`
-        select faixa, count(*)::text as n from priv.oportunidades where empresa_id = ${empresa}::uuid and not retirado group by faixa`.execute(tx)).rows;
+        select o.faixa, count(*)::text as n from priv.oportunidades o join pub.editais e on e.id = o.edital_id
+         where o.empresa_id = ${empresa}::uuid and not o.retirado ${filtroPrazo} group by o.faixa`.execute(tx)).rows;
       return { itens, contagem: Object.fromEntries(contagem.map((c) => [c.faixa, Number(c.n)])), pagina: f.pagina, porPagina: POR_PAGINA };
     });
   }
@@ -205,6 +218,31 @@ export class PesquisaController {
           left join lateral (select encontrado from ops.cobertura_resultados x where x.amostra_id = a.id order by x.apurado_em desc limit 1) r on true
          group by a.mes_referencia order by a.mes_referencia desc limit 12`.execute(tx)).rows;
       return { fontes, execucoes, totais, cobertura, amostraMedida: cobertura.length > 0 };
+    });
+  }
+
+  // Amostra de referência (Prompt 4.10): editais reais de PR e SC levantados pela operação. Só SUPERADMIN.
+  @Post('plataforma/pesquisa/amostra')
+  @HttpCode(201)
+  cadastrarAmostra(@Req() req: RequisicaoVV, @Body() corpo: unknown) {
+    const d = validar(amostraSchema, corpo);
+    return this.soSuperadmin(req, async (tx) => {
+      for (const i of d.itens) {
+        await sql`insert into ops.amostra_cobertura (referencia, uf, orgao_nome, objeto_resumo, data_publicacao, levantado_por, mes_referencia)
+          values (${i.referencia}, ${i.uf}, ${i.orgaoNome ?? null}, ${i.objetoResumo ?? null}, ${i.dataPublicacao ?? null}::date, ${i.levantadoPor ?? null}, ${d.mes}::date)
+          on conflict (mes_referencia, referencia) do nothing`.execute(tx);
+      }
+      return { cadastrados: d.itens.length };
+    });
+  }
+
+  @Post('plataforma/pesquisa/cobertura/apurar')
+  @HttpCode(202)
+  apurar(@Req() req: RequisicaoVV, @Body() corpo: unknown) {
+    const d = validar(apuracaoSchema, corpo);
+    return this.soSuperadmin(req, async (tx) => {
+      await sql`select ops.solicitar_apuracao(${d.mes}::date)`.execute(tx);
+      return { status: 'enfileirada' };
     });
   }
 }

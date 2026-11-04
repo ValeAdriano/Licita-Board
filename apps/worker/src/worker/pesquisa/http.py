@@ -13,7 +13,7 @@ from typing import Any
 
 log = logging.getLogger("worker.pesquisa.http")
 
-TENTATIVAS = 4
+TENTATIVAS = 6  # esperas de 1, 2, 4, 8 e 16 s entre elas
 
 
 class ErroPermanente(Exception):  # noqa: N818 - 4xx da fonte: repetir não adianta

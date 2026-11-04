@@ -57,6 +57,7 @@ ignore = ["PLR2004"]
 "tests/test_relevancia.py" = ["S101", "PLR2004", "E501"]
 "tests/test_avaliacao.py" = ["S101", "PLR2004", "E501", "F811", "S608"]
 "tests/test_importacao.py" = ["S101", "PLR2004", "E501", "F811", "S608"]
+"tests/test_cobertura.py" = ["S101", "PLR2004", "E501", "F811", "S608"]
 "tests/test_texto.py" = ["S101", "PLR2004", "E501", "F811", "S608"]
 
 [tool.mypy]

@@ -14,7 +14,7 @@ Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada
 | 2 | 02 | Empresas, representantes e produtos | ~50 h | [fase-02](specs/fase-02.md) · Aprovada | 🟡 banco, API e telas no main (modo rápido); faltam testes A x B de priv, docs e decisões do jurídico/contador |
 | 2 | 03 | Gestão documental e certidões | ~60 h | [fase-03](specs/fase-03.md) · Rascunho | ⚪ aguarda aprovação da spec |
 | 2 | 05 | Agenda e prazos jurídicos ★ MVP | ~70 h | — | ⚪ bloqueada: planilha atual |
-| 3 | 04 | Motor de pesquisa (PNCP) | ~90 h | [fase-04](specs/fase-04.md) · Rascunho | ⚪ aguarda aprovação da spec |
+| 3 | 04 | Motor de pesquisa (PNCP) | ~90 h | [fase-04](specs/fase-04.md) · Aprovada | 🟡 PNCP no main (modo rápido): coleta, arquivos, texto, relevância, API e telas; falta Compras.gov.br, embeddings, e2e A x B e a amostra de 50 editais |
 | 4 | 06 | IA para análise técnica (veículos) | ~100 h | — | ⚪ |
 | 5 | 07 | Formação de preços | ~50 h | — | ⚪ |
 | 5 | 08 | Propostas, declarações e habilitação | ~70 h | — | ⚪ |

@@ -16,6 +16,7 @@ from worker.documentos import Antivirus, Armazenamento, processar_versao
 from worker.email import Enviador, mensagem_alerta, mensagem_operacional, mensagem_recuperacao
 from worker.pesquisa.agenda import agendar, vigiar
 from worker.pesquisa.arquivos import baixar, extrair_texto
+from worker.pesquisa.cobertura import apurar
 from worker.pesquisa.coleta import coletar
 from worker.pesquisa.http import ClienteHttp, ErroPermanente
 from worker.pesquisa.importacao import importar
@@ -66,6 +67,7 @@ class Handlers:
             "coletar_fonte": self.coletar_fonte,
             "avaliar_relevancia": self.avaliar_relevancia,
             "importar_edital": self.importar_edital,
+            "apurar_cobertura": self.apurar_cobertura,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -183,6 +185,9 @@ class Handlers:
         agora = dt.datetime.now(dt.UTC)
         extrair_texto(conn, str(job["payload"]["arquivo_id"]), self._s3, ocr, agora)  # type: ignore[arg-type]
 
+    def apurar_cobertura(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        apurar(conn, dt.date.fromisoformat(str(job["payload"]["mes"])))
+
     def importar_edital(self, conn: psycopg.Connection[Any], job: Job) -> None:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute("select hosts_permitidos, parametros from ops.fontes where slug = 'pncp'")
@@ -294,9 +299,21 @@ def alertas_do_dia(conn: psycopg.Connection[Any], hoje: dt.date, ultimo: dt.date
     if ultimo == hoje:
         return hoje
     n = conn.execute("select priv.gerar_alertas_documentos(%s)", (hoje,)).fetchone()
+    if hoje.day == 1:  # cobertura do mês contra a amostra (idempotente pela chave do mês)
+        conn.execute(
+            "select ops.enfileirar_pesquisa('apurar_cobertura', null, %s::jsonb, %s)",
+            (f'{{"mes": "{hoje:%Y-%m-01}"}}', f"cobertura:{hoje:%Y-%m}"),
+        )
     conn.commit()
     log.info("alertas de documentos", extra={"ctx": {"novos": n[0] if n else 0}})
     return hoje
+
+
+# Jobs longos da pesquisa de editais (coleta de horas, downloads, OCR) rodam num consumidor próprio:
+# e-mail, push, verificação de documentos e o agendador não esperam atrás deles. Dentro do grupo,
+# a coleta passa na frente dos downloads (a das 07h não fica atrás de centenas de arquivos).
+PESADOS = frozenset({"coletar_fonte", "baixar_arquivo_edital", "extrair_texto", "indexar_trechos"})
+PRIORIDADE_PESADOS = frozenset({"coletar_fonte"})
 
 
 def consumir(
@@ -304,8 +321,12 @@ def consumir(
     enviador: Enviador,
     parar: threading.Event,
     push: EnviadorPush | None = None,
+    pesado: bool = False,
 ) -> None:
-    """Laço do consumidor: LISTEN ops_jobs com polling de reserva a cada 30 s."""
+    """Laço do consumidor: LISTEN ops_jobs com polling de reserva a cada 30 s.
+
+    `pesado=False` cuida dos jobs curtos e do agendador; `pesado=True`, dos jobs longos da pesquisa.
+    """
     global ultimo_ciclo  # noqa: PLW0603 - heartbeat lido pelo /health
     s3 = antivirus = None
     if settings.s3_endpoint and settings.s3_bucket and settings.clamav_host:
@@ -316,7 +337,9 @@ def consumir(
             ArmazenamentoS3(settings),
             Clamd(settings.clamav_host, settings.clamav_porta),
         )
-    handlers = Handlers(settings, enviador, push, s3, antivirus).tipos()
+    todos = Handlers(settings, enviador, push, s3, antivirus).tipos()
+    handlers = {t: h for t, h in todos.items() if (t in PESADOS) == pesado}
+    prioritarios = {t: h for t, h in handlers.items() if t in PRIORIDADE_PESADOS}
     ultimo_alerta: dt.date | None = None
     while not parar.is_set():
         try:
@@ -325,17 +348,23 @@ def consumir(
                 conn.commit()
                 while not parar.is_set():
                     ultimo_ciclo = time.monotonic()
-                    ultimo_alerta = alertas_do_dia(
-                        conn, dt.datetime.now(FUSO).date(), ultimo_alerta
-                    )
-                    try:  # o agendador nunca derruba o consumo da fila
-                        agora = dt.datetime.now(dt.UTC)
-                        agendar(conn, agora)
-                        vigiar(conn, agora)
-                    except Exception as e:
-                        conn.rollback()
-                        log.error("agendador com erro", extra={"ctx": {"erro": type(e).__name__}})
-                    if processar_lote(conn, handlers) == 0:
+                    if not pesado:
+                        ultimo_alerta = alertas_do_dia(
+                            conn, dt.datetime.now(FUSO).date(), ultimo_alerta
+                        )
+                        try:  # o agendador nunca derruba o consumo da fila
+                            agora = dt.datetime.now(dt.UTC)
+                            agendar(conn, agora)
+                            vigiar(conn, agora)
+                        except Exception as e:
+                            conn.rollback()
+                            log.error(
+                                "agendador com erro", extra={"ctx": {"erro": type(e).__name__}}
+                            )
+                    feitos = processar_lote(conn, prioritarios) if prioritarios else 0
+                    if feitos == 0:
+                        feitos = processar_lote(conn, handlers)
+                    if feitos == 0:
                         for _ in conn.notifies(timeout=30, stop_after=1):
                             pass
         except Exception as e:  # qualquer erro: registra e tenta de novo (a thread não morre)

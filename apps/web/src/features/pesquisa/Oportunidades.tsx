@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { chamar } from '../../api/cliente'
 import { Aviso, Botao, Campo } from '../../ui'
+import { Caixa } from '../acesso/cadastros/comum'
 import { useEnvio } from '../acesso/conta/useEnvio'
 import { useGet } from '../acesso/useGet'
 import { BannerFontes } from './BannerFontes'
@@ -25,13 +26,25 @@ const ONDE: Record<string, string> = { item: 'no item', objeto: 'no objeto', tre
 // Oportunidades da empresa (Fase 04): cada item de edital avaliado contra as palavras-chave. Baixa relevância
 // fica visível e nunca é apagada; descartar exige motivo e continua registrado.
 export function Oportunidades({ empresaId, pode }: { empresaId: string; pode: (acao: string) => boolean }) {
-  const [aba, setAba] = useState<Aba>('alta')
+  const [aba, setAba] = useState<Aba>('todas')
+  const [escolheu, setEscolheu] = useState(false)
+  const [encerradas, setEncerradas] = useState(false)
   const [pagina, setPagina] = useState(1)
+  const [contagem, setContagem] = useState<Record<string, number>>({})
   const filtro = aba === 'todas' ? '' : `&faixa=${aba}`
-  const lista = useGet<Lista>(`/empresas/${empresaId}/oportunidades?pagina=${pagina}${filtro}`)
-  const contagem = lista.dados?.contagem ?? {}
+  const lista = useGet<Lista>(`/empresas/${empresaId}/oportunidades?pagina=${pagina}&encerradas=${encerradas ? 1 : 0}${filtro}`)
+  const novaContagem = lista.dados?.contagem
+  // Contagens ficam na tela enquanto a lista recarrega; sem escolha da pessoa, abre na melhor faixa com itens.
+  // (estado derivado ajustado durante a renderização, como a documentação do React recomenda)
+  if (novaContagem && novaContagem !== contagem) {
+    setContagem(novaContagem)
+    if (!escolheu) {
+      const melhor = (['alta', 'media', 'baixa'] as const).find((f) => (novaContagem[f] ?? 0) > 0)
+      if (melhor && melhor !== aba) setAba(melhor)
+    }
+  }
   const total = (contagem.alta ?? 0) + (contagem.media ?? 0) + (contagem.baixa ?? 0)
-  const trocar = (a: Aba) => { setAba(a); setPagina(1) }
+  const trocar = (a: Aba) => { setEscolheu(true); setAba(a); setPagina(1) }
   return (
     <div className="pilha pilha--grande">
       <BannerFontes />
@@ -42,6 +55,7 @@ export function Oportunidades({ empresaId, pode }: { empresaId: string; pode: (a
           </Botao>
         ))}
       </div>
+      <Caixa rotulo="Incluir editais com prazo de propostas já encerrado" marcado={encerradas} onChange={(v) => { setEncerradas(v); setPagina(1) }} />
       <Aviso texto={lista.erro} />
       {lista.carregando ? <p className="legenda">Carregando…</p> : null}
       {lista.dados && lista.dados.itens.length === 0 ? (
