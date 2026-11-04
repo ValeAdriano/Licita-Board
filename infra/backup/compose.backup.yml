@@ -1,0 +1,21 @@
+# Liga o backup no serviço `postgres` de QUALQUER compose base (dev ou produção):
+#   docker compose -f <compose base> -f /opt/vv/infra/backup/compose.backup.yml up -d postgres
+# Use caminhos ABSOLUTOS e rode a partir da raiz do repositório: o volume abaixo é relativo ao 1º arquivo.
+# Variáveis vêm de VV_BACKUP_ENV_FILE (padrão `.env.backup` na raiz; 0400, fora do repositório).
+# ATENÇÃO: `command:` SUBSTITUI o command do compose base; se ele tiver flags próprias, copie-as para cá.
+services:
+  postgres:
+    env_file: ${VV_BACKUP_ENV_FILE:-.env.backup}
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=pgbackrest --stanza=vv archive-push %p
+      # No máximo 60 s sem fechar um segmento de WAL: o RPO é de minutos, não de horas.
+      - -c
+      - archive_timeout=60
+    volumes:
+      - ./infra/backup/pgbackrest.conf:/etc/pgbackrest/pgbackrest.conf:ro

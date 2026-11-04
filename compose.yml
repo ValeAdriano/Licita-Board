@@ -9,6 +9,8 @@ services:
       args: { COM_PGTAP: "1" }
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?rode scripts/dev-env.sh}
+      # Checksums de página (o pgBackRest os valida no backup: detecta corrupção); só vale em volume novo.
+      POSTGRES_INITDB_ARGS: --data-checksums
       VV_OWNER_PASSWORD: ${VV_OWNER_PASSWORD:?rode scripts/dev-env.sh}
       VV_API_PASSWORD: ${VV_API_PASSWORD:?rode scripts/dev-env.sh}
       VV_WORKER_PASSWORD: ${VV_WORKER_PASSWORD:?rode scripts/dev-env.sh}

@@ -1,0 +1,11 @@
+[Unit]
+Description=Backup diferencial diário do VV Licitações
+
+[Timer]
+OnCalendar=Mon..Sat *-*-* 03:00:00
+Persistent=true
+RandomizedDelaySec=300
+Unit=vv-backup@diff.service
+
+[Install]
+WantedBy=timers.target

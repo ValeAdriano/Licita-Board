@@ -1,0 +1,19 @@
+[Unit]
+Description=Backup do VV Licitações (%i)
+Wants=network-online.target
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/vv
+# Sem o "-": se o arquivo (0600, root) faltar, a unidade FALHA em vez de rodar muda.
+EnvironmentFile=/etc/vv/backup-host.env
+ExecStart=/opt/vv/infra/backup/rodar-backup.sh %i
+TimeoutStartSec=6h
+# O acesso ao Docker já equivale a root: o endurecimento abaixo só reduz o resto da superfície.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/vv

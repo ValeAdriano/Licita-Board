@@ -1,0 +1,43 @@
+# Evidência CA-6 (parcial): teste automático de backup e restauração
+# Data: 2026-11-03
+# Cluster descartável; repositório em disco (posix) cifrado aes-256-cbc. NÃO cobre S3, container nem o ensaio real em servidor.
+# Comando: infra/backup/testar-restauracao.sh
+
+
+== 1. Postgres descartável com arquivamento de WAL pelo pgBackRest
+
+== 2. Dados em fases + backup full e diferencial
+antes do desastre: a-antes-do-full=2000,b-depois-do-full=300,c-ate-o-alvo=150,d-depois-do-alvo=50 (alvo do PITR: 2026-11-03 23:14:42.386769-03)
+
+== 3. O repositório está cifrado (prova com controle, não só um grep)
+ok (controles): o marcador aparece em claro no banco e no repositório sem cifra
+ok: 1002 arquivos, nenhum em claro, todos com cabeçalho de cifra
+
+== 4. Desastre: o servidor cai e o diretório de dados é apagado
+
+== 5. Senha de cifra errada NÃO restaura
+ok: restauração recusada por falha de decifragem
+
+== 6. Restauração com PITR até o alvo
+2026-11-03 23:14:51.093 P00   WARN: unknown group 'wheel' in backup manifest mapped to current group
+depois da restauração: a-antes-do-full=2000,b-depois-do-full=300,c-ate-o-alvo=150
+ok: tudo até o alvo voltou e o que veio depois não
+
+== 7. Integridade do repositório e resumo
+ok: pgbackrest verify
+stanza: vv
+    status: ok
+    cipher: aes-256-cbc
+
+    db (current)
+        wal archive min/max (16): 000000010000000000000001/000000020000000000000007
+
+        full backup: 20261103-231438F
+            timestamp start/stop: 2026-11-03 23:14:38-03 / 2026-11-03 23:14:39-03
+            wal start/stop: 000000010000000000000003 / 000000010000000000000003
+            database size: 22.8MB, database backup size: 22.8MB
+            repo1: backup set size: 22.8MB, backup size: 22.8MB
+
+versões: pgBackRest 2.60.0 · postgres (PostgreSQL) 16.14 (Homebrew)
+
+RESTAURAÇÃO PROVADA: full + diferencial + WAL, cifrado (provado com controle), PITR até o alvo.

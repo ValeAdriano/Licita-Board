@@ -1,0 +1,12 @@
+[Unit]
+Description=Backup semanal completo do VV Licitações
+
+[Timer]
+# Domingo 03:00 (horário do servidor). Persistent: roda ao ligar se o horário passou desligado.
+OnCalendar=Sun *-*-* 03:00:00
+Persistent=true
+RandomizedDelaySec=300
+Unit=vv-backup@full.service
+
+[Install]
+WantedBy=timers.target

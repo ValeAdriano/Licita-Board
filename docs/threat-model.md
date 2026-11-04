@@ -124,7 +124,7 @@ Revisão 2 (auth própria, ADR-012/013). Os controles da revisão 1 sobre Supaba
 | Alertas D-5/D-3/D-1/dia com escalonamento | pytest com relógio simulado | 05 | planejado |
 | Validação bloqueante da proposta (totais, signatário, documentos) | pytest: total divergente bloqueia | 08 | planejado |
 | Preço abaixo do mínimo exige step-up + justificativa | pytest/pgTAP | 07 | planejado |
-| Backup diário + `pg_dump` semanal externo + restauração testada | relatório de restauração | 01 | planejado |
+| WAL contínuo + full semanal + diferencial diário cifrados (aes-256-cbc) para bucket externo (pgBackRest); `check` horário e Healthchecks; restauração com PITR provada | `infra/backup/testar-restauracao.sh` (CI) e evidência `docs/phase-reports/evidencias/fase-01/`; ensaio real trimestral | 01 | implementado (config e teste); ensaio real e S3: pendentes (VPS e bucket de produção) |
 
 ## T7 · Indisponibilidade de fontes e falha silenciosa do agendador
 
@@ -298,6 +298,25 @@ Adicionada pelo plano: o código é escrito em grande parte por agentes.
 | T5.31 | Push amplifica notificação de terceiros (convite, prazo de outra empresa) | No máximo 5 pushes por hora por usuário; a notificação segue no app; notificação com mais de 24 h não vira push | `140_dispositivos_push`, `test_fila.py` | implementado |
 | T5.32 | Job de push envenenado ou revogação em massa por falha de infraestrutura | Exceção ao cifrar vira recusa do dispositivo (não derruba os outros); rede/429/5xx não contam contra o dispositivo; 401/403 (chave VAPID errada) é erro de configuração: nada é revogado, o job volta e falha; conferência do par VAPID na subida; reenvio não duplica para quem já recebeu | `test_fila.py`, `test_push.py` | implementado |
 | T5.33 | Metadado do push visível ao serviço de push; `push.js` preso no cache HTTP | O serviço vê momento e frequência por dispositivo (carga cifrada e genérica): risco aceito. `/push.js` com `no-cache` no Caddy | — | aceito / planejado (Caddy) |
+
+## T8.1 a T8.6 · Backup e restauração (novas, PR 10, ADR-015)
+
+| ID | Ameaça | Controle | Teste | Status |
+| --- | --- | --- | --- | --- |
+| T8.1 | Perda do servidor, corrupção ou erro humano (dado apagado) | WAL com `archive_timeout=60` (RPO de minutos), full semanal e diferencial diário, PITR; restauração para volume paralelo | `testar-restauracao.sh` (CI) | implementado |
+| T8.2 | Backup vazado (bucket aberto, credencial roubada) lê todo o banco | Repositório inteiro cifrado (aes-256-cbc, senha fora do servidor e do bucket); segredos de TOTP e campos cifrados continuam protegidos pela `VV_KEK`, que não está no backup. O ambiente do container tem a senha de cifra e as chaves S3: risco aceito, mitigado porque os papéis da aplicação não são superusuário nem membros de papel nenhum (pgTAP) | `testar-restauracao.sh`: controle (o marcador aparece em claro no banco e num repositório sem cifra), nenhum arquivo do repositório cifrado contém o marcador e todos têm cabeçalho `Salted__`; senha errada falha por decifragem | implementado |
+| T8.3 | Ransomware ou invasor apaga ou sobrescreve os backups | Credencial do servidor sem `DeleteObject` (`expire-auto=n`; a expiração roda de outra máquina ou por lifecycle); credencial de restauração só de leitura, no cofre; bucket de outro provedor com versionamento e object lock; um alarme do Healthchecks por operação | — | planejado (provisionar o bucket e as credenciais) |
+| T8.4 | Backup que ninguém consegue restaurar (senha perdida, `VV_KEK` perdida, WAL faltando) | Senha de cifra e `VV_KEK` no cofre, com duas pessoas; `check` horário; `verify` depois de cada full; ensaio automático em todo PR e real a cada trimestre | CI; relatório trimestral | parcial (ensaio real pendente) |
+| T8.5 | Dado apagado a pedido (LGPD) permanece nos backups | Retenção curta e declarada (5 fulls, ~35 dias) no inventário LGPD; restauração reaplica o apagamento (runbook) | — | planejado (inventário LGPD) |
+| T8.6 | Restaurar sessões, tokens, convites, dispositivos e jobs antigos reabre acesso de quem já foi barrado | Runbook: revogar sessões, invalidar tokens de recuperação/step-up/códigos/convites, revogar dispositivos de push, cancelar a fila e reaplicar revogações e exclusões a partir de uma fonte fora do banco (o SQL do runbook foi executado no esquema real); se foi invasão, redefinir senhas e rotacionar a `VV_KEK` (guardando a antiga) | SQL do runbook rodado contra o esquema | documentado |
+| T8.7 | Falha do arquivamento (bucket fora do ar, credencial revogada, cota) enche o disco do `pg_wal` e derruba o banco | Alerta em `pg_stat_archiver` e no espaço do `pg_wal`; `check` horário; runbook diz para não apagar WAL à mão | — | planejado (monitoramento) |
+| T8.8 | Backup parado sem alarme (um ping só esconderia full e diff parados) | Uma URL do Healthchecks por operação, com período e tolerância próprios; `EnvironmentFile` obrigatório (a unidade falha se faltar); falha do `verify` também avisa; a URL (capability) vai por stdin ao curl, nunca no argv | `rodar-backup.sh` | implementado |
+| T8.9 | Restauração contamina o repositório de produção (arquivamento ligado, servidor antigo vivo, linha do tempo errada) | Runbook: Postgres temporário com `archive_mode=off` e sem o `.env.backup` de escrita; desligar o servidor antigo e revogar a credencial; `--target-timeline=current`; `check` e novo full depois | — | documentado |
+| T8.10 | O teste de backup escreve no bucket real (variáveis `PGBACKREST_*` do ambiente) | O script remove essas variáveis antes de tudo e usa só caminho temporário | `testar-restauracao.sh` | implementado |
+| T8.11 | Reversão do repositório a um estado antigo válido ou truncamento (CBC não autentica) | Checksums do manifesto (`verify`) detectam adulteração e corrupção; versionamento e object lock contra reversão | — | parcial |
+| T8.12 | WAL na fila perdido na recriação do container (arquivamento assíncrono) | `archive-async=n`: o `archive_command` só confirma depois de o WAL estar no bucket | `pgbackrest.conf` | implementado |
+| T8.13 | Configuração do pgBackRest adulterada por quem controla o usuário `postgres` | `/etc/pgbackrest` é de root (só leitura para o `postgres`) | CI (imagem) | implementado |
+| T8.14 | Retenção real maior que a declarada (versionamento/lock) e transferência internacional (LGPD art. 33); perda da `VV_KEK` antiga inutiliza backups antigos | Declarar o prazo total no inventário LGPD; escolher região e contrato; guardar KEKs antigas no cofre enquanto houver backup que dependa delas | — | planejado (inventário LGPD) |
 
 ## T5.15 · Worker comprometido forja recuperação de senha (nova)
 

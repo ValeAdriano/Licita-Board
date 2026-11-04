@@ -25,7 +25,7 @@ O Prompt exige DESENVOLVIMENTO, HOMOLOGAÇÃO e PRODUÇÃO separados, com bancos
 - **Dev:** `compose.yml` na raiz (`postgres`, `minio`, `mailpit`, `api`, `worker`, `clamav`), `db/seed.sql` fictício, faixa laranja "DESENVOLVIMENTO" no app. Nenhuma chave de produção na máquina de dev.
 - **Produção:** `infra/compose.prod.yml` numa VPS em São Paulo, Caddy com TLS, segredos como Docker secrets (arquivos `0400` fora do repositório), imagens versionadas no GHCR. O deploy roda só pelo pipeline do `main` (pull das imagens + `dbmate up` + restart).
 - **Homologação:** mesma stack numa segunda VPS (ou na mesma, com outro projeto Compose e outro banco), faixa roxa e dados anonimizados. Ligada **antes** do 1º cliente real.
-- **Backup:** WAL contínuo + base semanal (wal-g ou pgBackRest) cifrados para um bucket externo de outro provedor (PITR, RPO de minutos). Restauração testada e documentada a cada trimestre.
+- **Backup:** WAL contínuo + base semanal (wal-g ou pgBackRest) cifrados para um bucket externo de outro provedor (PITR, RPO de minutos). Restauração testada e documentada a cada trimestre. **Escolhido em 2026-11-03: pgBackRest** (MIT; cifra e S3 nativos, PITR, `verify`), configuração e runbook em `infra/backup/`; o teste de restauração roda em todo PR no CI.
 - **Hardening da VPS:** SSH só por chave, firewall liberando apenas 80/443/SSH, atualizações automáticas de segurança, Postgres e MinIO sem porta pública.
 
 ## Consequências

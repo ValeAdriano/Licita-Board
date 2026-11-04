@@ -1,0 +1,11 @@
+[Unit]
+Description=Conferência horária do arquivamento de WAL do VV Licitações
+
+[Timer]
+# `pgbackrest check` falha se o WAL parou de chegar ao bucket: o Healthchecks avisa em até 1 h.
+OnCalendar=hourly
+Persistent=true
+Unit=vv-backup@check.service
+
+[Install]
+WantedBy=timers.target

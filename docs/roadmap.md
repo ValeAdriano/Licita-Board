@@ -3,14 +3,14 @@
 Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada fase.
 
 **Fase atual:** 00 · Fundação técnica — **recomeçando na stack nova** (revisão 2 do plano, 2026-11-02: Docker + Postgres + API NestJS + front React web + worker Python; ADR-011 a 018).
-**Próximo passo:** Fase 01 em andamento: banco, API, fila/worker e front React web (PWA, design Apple; ADR-018) com login, MFA, conta, empresas, notificações, matriz de permissões e convites e alertas Web Push no main; próximo PR 10, backup com restauração testada. Adriano: instalar Docker; escolher VPS/S3.
+**Próximo passo:** Fase 01 em andamento: banco, API, fila/worker e front React web (PWA, design Apple; ADR-018) com login, MFA, conta, empresas, notificações, matriz de permissões e convites alertas Web Push e backup com restauração provada (pgBackRest) no main; próximo PR 11, relatório da Fase 01 e remoção de `supabase/`. Adriano: instalar Docker; escolher VPS/S3.
 
 > O trabalho da Fase 01 na revisão 1 (Supabase: migrations, RLS, pgTAP) fica congelado em `supabase/` até o fechamento da Fase 01. O front da revisão 1 (Vite) foi substituído pelo front novo em `apps/web`.
 
 | Onda | Fase | Nome | Horas est. | Spec | Status |
 | --- | --- | --- | --- | --- | --- |
 | 1 | 00 | Fundação técnica | ~40 h | [fase-00](specs/fase-00.md) · Em revisão | 🟡 banco, API, app, worker, CI e guardas no main; falta: rodar com Docker, produção (VPS), Sentry, ameaças revisadas |
-| 1 | 01 | Arquitetura, segurança e acessos | ~90 h | [fase-01](specs/fase-01.md) · Aprovada (revisão 2) | 🟡 PRs 1–9 e 3b no main (banco, API de acesso, fila, front, matriz/convites, Web Push); faltam backup, relatório, telas de auditoria/exclusão e a CSP do Caddy |
+| 1 | 01 | Arquitetura, segurança e acessos | ~90 h | [fase-01](specs/fase-01.md) · Aprovada (revisão 2) | 🟡 PRs 1–10 e 3b no main (banco, API de acesso, fila, front, matriz/convites, Web Push, backup); faltam relatório, telas de auditoria/exclusão, a CSP do Caddy e o ensaio real de restauração |
 | 2 | 02 | Empresas, representantes e produtos | ~50 h | — | ⚪ |
 | 2 | 03 | Gestão documental e certidões | ~60 h | — | ⚪ |
 | 2 | 05 | Agenda e prazos jurídicos ★ MVP | ~70 h | — | ⚪ bloqueada: planilha atual |
@@ -40,3 +40,4 @@ Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada
 | Provedor da VPS (São Paulo) e do S3 de produção | Adriano | Deploy da Fase 00 |
 | Destino do projeto Supabase `gqrilopolbanlrdyrrsd` | Adriano | — (custo/limpeza) |
 | Domínio e identidade visual (logo, ícones do PWA) | Adriano | PWA em produção (Fase 01) |
+| Bucket S3 de backup em **outro provedor** (R2/B2) com versionamento e object lock; cofre para a senha de cifra do backup e a `VV_KEK` (duas pessoas) | Adriano | Backup em produção e o 1º ensaio real de restauração (CA-6 completo) |

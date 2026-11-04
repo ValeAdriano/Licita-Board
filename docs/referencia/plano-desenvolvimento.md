@@ -235,7 +235,7 @@ Reaproveita o schema, a RLS e os testes pgTAP da revisão 1, portados para `db/m
 - [ ] Front: login, MFA, recuperação, shell (menu lateral no desktop, barra de abas no celular), seletor de empresa, notificações, conta, matriz e convites
 - [ ] Push: inscrição Web Push (PWA) e envio pelo worker
 - [ ] LGPD: inventário em `docs/lgpd.md`, minuta do contrato operador/controlador (jurídico VV)
-- [ ] Backup: WAL contínuo + base semanal cifrados para bucket externo; primeiro teste de restauração documentado
+- [x] Backup: WAL contínuo + base semanal cifrados para bucket externo (pgBackRest, `infra/backup/`); teste de restauração automático no CI. Pendente: primeiro ensaio real com bucket e VPS de produção
 
 **Aceite:** os 6 critérios do Prompt, com destaque para o CLIENTE que tenta acessar outra empresa por URL/requisição e recebe 403/404 (teste automatizado em todo endpoint) e para a restauração de backup testada.
 

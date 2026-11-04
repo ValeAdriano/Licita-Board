@@ -19,6 +19,7 @@ Regra de ouro: se o código e o documento discordam, o trabalho não terminou.
 | Dependência nova | Corpo do commit: nome, versão, licença e motivo |
 | Termo de licitação novo | [`glossario.md`](glossario.md) |
 | Fim de fase | `docs/phase-reports/fase-XX.md` com evidências reais ([`prompts/06-relatorio-fase.md`](prompts/06-relatorio-fase.md)) e `docs/roadmap.md` |
+| Backup, restauração ou segredo de operação | `infra/backup/README.md` (runbook) e o ensaio trimestral em `docs/phase-reports/evidencias/` |
 | Algo pendente para o Adriano (decisão, conta, fornecedor) | Tabela "Dependências externas abertas" em `docs/roadmap.md` |
 | Documento que você leu está desatualizado | Corrija na mesma entrega (ou registre no handoff, se fugir do escopo) |
 

@@ -92,6 +92,9 @@ jobs:
       - name: Postgres da imagem db/Dockerfile (com pgTAP)
         run: |
           docker build --build-arg COM_PGTAP=1 -t vv-db ./db
+          # A imagem traz o pgBackRest (backup e PITR, ADR-015) e os diretórios dele.
+          docker run --rm vv-db pgbackrest version
+          docker run --rm vv-db test -d /var/spool/pgbackrest
           export PGPASSWORD="$(openssl rand -hex 16)"
           echo "::add-mask::$PGPASSWORD"
           echo "PGPASSWORD=$PGPASSWORD" >> "$GITHUB_ENV"
@@ -130,6 +133,19 @@ jobs:
           VV_DATABASE_URL_TEST="postgresql://vv_worker:$P@127.0.0.1:5432/vv_test" \
           VV_ADMIN_URL_TEST="postgresql://postgres:$PGPASSWORD@127.0.0.1:5432/vv_test" \
             uv run pytest tests/test_fila.py
+
+  backup:
+    name: "Backup (pgBackRest: restauração provada, repositório cifrado, PITR)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pgbackrest
+      - name: Full + diferencial + WAL, desastre e restauração até um ponto no tempo
+        run: |
+          PGBIN="$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)"
+          export PGBIN
+          infra/backup/testar-restauracao.sh
 
   worker:
     name: "Worker (ruff, mypy, pytest, pip-audit)"
@@ -177,7 +193,7 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [guardas, web, api, worker, banco]
+    needs: [guardas, web, api, worker, banco, backup]
     runs-on: ubuntu-latest
     steps:
       - name: Todos os jobs passaram
