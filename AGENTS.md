@@ -97,6 +97,7 @@ scripts/             guardas do CI (cobertura de isolamento, migrations)
 ```bash
 # Stack inteira (precisa de Docker Desktop aberto)
 scripts/dev-up.sh                      # TUDO de uma vez: .env, banco, migrations, KEK, API, worker, Mailpit e o app em http://localhost:8080
+                                       # Em dev, a tela de entrada tem "Criar conta de teste" (/cadastrar): usuário comum + empresa fictícia; só com VV_ENV=dev e banco marcado vv.ambiente=dev
 scripts/dev-env.sh                     # só gera o .env de dev com senhas aleatórias (uma vez)
 docker compose up -d --build           # postgres, api e worker (minio e mailpit entram com o primeiro uso)
 docker compose run --rm dbmate up      # aplica db/migrations (new <nome>, rollback, status)

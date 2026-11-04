@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpException,
   HttpStatus,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
@@ -48,6 +49,7 @@ const loginSchema = z.object({
   captcha: z.string().max(4096).optional(),
 });
 const recuperarSchema = z.object({ email: z.email().max(254), captcha: z.string().max(4096).optional() }).strict();
+const cadastroTesteSchema = z.object({ nome: z.string().trim().min(2).max(120), email: z.email().max(254), senha: z.string() }).strict();
 const redefinirSchema = z.object({ token: z.string().min(43).max(128), senha: z.string() }).strict();
 const MSG_VAZADA = 'Esta senha aparece em vazamentos conhecidos. Escolha outra.';
 const logHibp = new Logger('hibp');
@@ -94,6 +96,39 @@ export class AuthController {
       return { mfa: r.mfa, csrf: r.csrf };
     }
     return { mfa: r.mfa, token: r.token };
+  }
+
+  // Conta de TESTE para usar o sistema à mão: só com VV_ENV=dev (fora disso a rota nem existe) e só se o
+  // banco também estiver marcado como dev (core.cadastrar_conta_teste recusa senão). Cria usuário comum
+  // (nunca SUPERADMIN) com uma empresa FICTÍCIA; o primeiro login obriga o cadastro do MFA.
+  @Publico()
+  @Post('cadastro-teste')
+  @HttpCode(201)
+  async cadastroTeste(@Req() req: RequisicaoVV, @Body() corpo: unknown) {
+    if (this.config.VV_ENV !== 'dev') throw new NotFoundException();
+    this.conferirOrigem(req);
+    const { nome, email, senha } = validar(cadastroTesteSchema, corpo);
+    if (!this.limiteRecuperacao.permitir(ipDe(req))) {
+      throw new HttpException('Muitas tentativas. Tente mais tarde.', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    const problema = problemaNaSenha(senha);
+    if (problema) throw new BadRequestException(problema);
+    let hash: string;
+    try {
+      hash = await hashSenha(senha);
+    } catch (e) {
+      if (e instanceof Argon2Ocupado) throw new ServiceUnavailableException();
+      throw e;
+    }
+    try {
+      await this.contexto.semSessao((tx) => sql`select core.cadastrar_conta_teste(${email}, ${nome}, ${hash})`.execute(tx));
+    } catch (e) {
+      const cod = typeof e === 'object' && e !== null && 'code' in e ? (e as { code?: string }).code : undefined;
+      if (cod === '23505') throw new BadRequestException('Já existe uma conta com esse e-mail.');
+      if (cod === '42501') throw new NotFoundException();
+      throw e;
+    }
+    return { criada: true };
   }
 
   // Recuperação (Prompt 1.4): resposta sempre igual, exista ou não a conta. O e-mail com o link sai
