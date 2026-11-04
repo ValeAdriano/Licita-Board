@@ -115,7 +115,7 @@ for arq in sw.js push.js manifest.webmanifest; do
 done
 tem "$(cab "$base/sw.js")"                "content-type: .*javascript" "sw.js com tipo JavaScript"
 tem "$(cab "$base/push.js")"              "content-type: .*javascript" "push.js com tipo JavaScript"
-tem "$(cab "$base/manifest.webmanifest")" "content-type: application/manifest\+json" "manifesto com tipo application/manifest+json"
+tem "$(cab "$base/manifest.webmanifest")" "content-type: application/manifest[+]json" "manifesto com tipo application/manifest+json"
 
 # Rotas
 [ "$(codigo "$base/rota/qualquer")" = 200 ] && ok "fallback do app em rota desconhecida" || nok "fallback do app"
