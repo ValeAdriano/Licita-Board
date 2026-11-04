@@ -42,6 +42,13 @@ const esquema = z.object({
   // Chave-mestra (ADR-017): o banco só aceita login, recuperação e MFA com ela (confere contra o
   // verificador registrado por db/scripts/registrar-kek.sh). Nunca em log nem no app.
   VV_KEK: z.string().min(32, 'VV_KEK precisa de pelo menos 32 caracteres'),
+  // S3 dos documentos (ADR-017). A API só assina URLs (PUT em quarentena/, GET em documentos/); o
+  // navegador fala direto com S3_PUBLIC_URL. Vazio = repositório documental desligado (503).
+  S3_ENDPOINT: z.string().default(''),
+  S3_PUBLIC_URL: z.string().default(''),
+  S3_BUCKET: z.string().default(''),
+  S3_ACCESS_KEY: z.string().default(''),
+  S3_SECRET_KEY: z.string().default(''),
   DATABASE_URL: z
     .url({ protocol: /^postgres(ql)?$/ })
     .refine((u) => new URL(u).username === 'vv_api', 'DATABASE_URL precisa usar o papel vv_api'),

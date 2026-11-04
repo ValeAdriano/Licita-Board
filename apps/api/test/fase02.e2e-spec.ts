@@ -102,18 +102,20 @@ describe('fase 02', () => {
     expect((await http().get(`/empresas/${empA}/produtos/${pa.id}/precos`).set(bearer(a.token)).expect(200)).body).toEqual({ precoCusto: '85000.5000', precoReferencia: '99900.0000' });
     expect((await http().get(`/empresas/${empB}/produtos/${pb.id}/precos`).set(bearer(b.token)).expect(200)).body).toEqual({ precoCusto: '70000.0000', precoReferencia: '80000.0000' });
     await http().get(`/empresas/${empA}/produtos/${pb.id}`).set(bearer(a.token)).expect(404);
-    await http().get(`/empresas/${empA}/produtos/${pb.id}/precos`).set(bearer(a.token)).expect(200).then((r) => expect(r.body).toEqual({ precoCusto: null, precoReferencia: null }));
+    const precosDeB = await http().get(`/empresas/${empA}/produtos/${pb.id}/precos`).set(bearer(a.token)).expect(200);
+    expect(precosDeB.body).toEqual({ precoCusto: null, precoReferencia: null });
     await http().get(`/empresas/${empB}/produtos`).set(bearer(a.token)).expect(404);
     const listaB = (await http().get(`/empresas/${empB}/produtos`).set(bearer(b.token)).expect(200)).body as { id: string }[];
     expect(listaB.map((p) => p.id)).toEqual([pb.id]);
-    const ids = new Set((await http().get(`/empresas/${empA}/produtos`).set(bearer(a.token))).body.map((p: { id: string }) => p.id));
+    const todosA = (await http().get(`/empresas/${empA}/produtos`).set(bearer(a.token))).body as { id: string }[];
+    const ids = new Set(todosA.map((p) => p.id));
     expect(ids.has(pb.id)).toBe(false);
 
     // Fichas: nova versão preserva a anterior (histórico).
     const f1 = await http().post(`/empresas/${empA}/produtos/${pa.id}/fichas`).set(bearer(a.token)).send({ fabricante: 'Fab E2E', modelo: 'Modelo X', ano: 2026, validaAte: '2099-12-31' }).expect(201);
     await http().post(`/empresas/${empA}/produtos/${pa.id}/fichas`).set(bearer(a.token)).send({ fabricante: 'Fab E2E', modelo: 'Modelo X', ano: 2027 }).expect(201);
     const fichas = (await http().get(`/empresas/${empA}/produtos/${pa.id}/fichas`).set(bearer(a.token))).body as { versaoFicha: number; situacao: string; ano: number }[];
-    expect(fichas.map((f) => `${f.versaoFicha}:${f.situacao}:${f.ano}`)).toEqual(['2:vigente:2027', '1:substituida:2026']);
+    expect(fichas.map((f) => `${String(f.versaoFicha)}:${f.situacao}:${String(f.ano)}`)).toEqual(['2:vigente:2027', '1:substituida:2026']);
     await http().patch(`/empresas/${empA}/fichas/${(f1.body as { id: string }).id}`).set(bearer(a.token)).send({ situacao: 'descontinuada' }).expect(404);
   });
 

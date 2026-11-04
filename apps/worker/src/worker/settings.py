@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     # Chave pública VAPID que a API publica: o worker confere que ela é a do par da privada (par
     # trocado = o serviço de push recusa tudo com 401/403). Opcional.
     vapid_public_key: str = ""
+    # S3 dos documentos (ADR-017): o worker verifica a quarentena e move o liberado. Vazio = sem
+    # verificação (jobs `verificar_arquivo` aguardam na fila). ClamAV por socket TCP (clamd).
+    s3_endpoint: str = ""
+    s3_bucket: str = ""
+    s3_access_key: str = ""
+    s3_secret_key: SecretStr = SecretStr("")
+    clamav_host: str = ""
+    clamav_porta: int = 3310
     # URL pública do app, base dos links enviados por e-mail.
     app_url: str = "http://localhost:5173"
 

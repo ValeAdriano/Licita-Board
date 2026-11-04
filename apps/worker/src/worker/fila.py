@@ -9,6 +9,7 @@ from typing import Any
 import psycopg
 from psycopg.rows import dict_row
 
+from worker.documentos import Antivirus, Armazenamento, processar_versao
 from worker.email import Enviador, mensagem_alerta, mensagem_recuperacao
 from worker.push import REDE, TTL_SEGUNDOS, EnviadorPush, Inscricao, carga_generica
 from worker.settings import Settings
@@ -34,11 +35,18 @@ class Handlers:
     """Um método por tipo de job. Payload só traz IDs; dado sensível nunca entra no log."""
 
     def __init__(
-        self, settings: Settings, enviador: Enviador, push: EnviadorPush | None = None
+        self,
+        settings: Settings,
+        enviador: Enviador,
+        push: EnviadorPush | None = None,
+        s3: Armazenamento | None = None,
+        antivirus: Antivirus | None = None,
     ) -> None:
         self._s = settings
         self._enviador = enviador
         self._push = push
+        self._s3 = s3
+        self._antivirus = antivirus
 
     def tipos(self) -> dict[str, Handler]:
         tipos: dict[str, Handler] = {
@@ -48,7 +56,14 @@ class Handlers:
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
             tipos["push_notificacao"] = self.push_notificacao
+        # Sem S3 e antivírus configurados, a quarentena espera: nada é liberado sem verificação.
+        if self._s3 is not None and self._antivirus is not None:
+            tipos["verificar_arquivo"] = self.verificar_arquivo
         return tipos
+
+    def verificar_arquivo(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        assert self._s3 is not None and self._antivirus is not None  # noqa: S101 - só registrado ligado
+        processar_versao(conn, str(job["payload"]["versao_id"]), self._s3, self._antivirus)
 
     def push_notificacao(self, conn: psycopg.Connection[Any], job: Job) -> None:
         assert self._push is not None  # noqa: S101 - só registrado com push ligado
@@ -177,7 +192,16 @@ def consumir(
 ) -> None:
     """Laço do consumidor: LISTEN ops_jobs com polling de reserva a cada 30 s."""
     global ultimo_ciclo  # noqa: PLW0603 - heartbeat lido pelo /health
-    handlers = Handlers(settings, enviador, push).tipos()
+    s3 = antivirus = None
+    if settings.s3_endpoint and settings.s3_bucket and settings.clamav_host:
+        from worker.documentos import Clamd  # noqa: PLC0415 - só quando o repositório documental está ligado
+        from worker.s3 import ArmazenamentoS3  # noqa: PLC0415
+
+        s3, antivirus = (
+            ArmazenamentoS3(settings),
+            Clamd(settings.clamav_host, settings.clamav_porta),
+        )
+    handlers = Handlers(settings, enviador, push, s3, antivirus).tipos()
     while not parar.is_set():
         try:
             with psycopg.connect(settings.database_url.get_secret_value()) as conn:
