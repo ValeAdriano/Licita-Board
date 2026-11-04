@@ -50,6 +50,7 @@ create schema if not exists extensions;
 grant usage on schema extensions to vv_owner, vv_api, vv_worker;
 create extension if not exists citext with schema extensions;  -- e-mail (core.usuarios)
 create extension if not exists pgcrypto with schema extensions;  -- TOTP (HMAC), segredo e códigos de recuperação
+create extension if not exists unaccent with schema extensions;  -- busca sem acento (pub.pt_unaccent)
 -- pgvector vem na imagem de db/Dockerfile; num Postgres local sem ela, o teste segue sem a extensão.
 select 'create extension if not exists vector with schema extensions'
  where exists (select 1 from pg_available_extensions where name = 'vector') \gexec

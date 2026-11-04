@@ -1,8 +1,8 @@
 # Spec · Fase 04 · Motor de pesquisa automática de licitações
 
-- **Status:** Rascunho
+- **Status:** Aprovada em 2026-11-04 ("Aprovo, siga", com as recomendações da seção 11). Pendências que não bloqueiam o início: CA-15 (amostra de 50 editais), ⚖️ ME/EPP e upload manual, contato do `User-Agent`, Healthchecks/SMTP reais
 - **Onda:** 3 (o modelo `pub.editais` e a importação manual nascem antes, para alimentar a Fase 05)
-- **Autor:** Claude Code (2026-11-04) · **Aprovação:** pendente (Adriano Vale)
+- **Autor:** Claude Code (2026-11-04) · **Aprovação:** Adriano Vale, 2026-11-04
 - **Validação jurídica:** pendente (marcação ME/EPP e cota reservada por item; termos de uso das fontes)
 - **Fontes:** Prompt Mestre Fase 04 (4.1 a 4.10); Plano, Fase 04; ADR-008 (busca: `tsvector` + `pgvector`), ADR-014 (fila `ops.jobs` e agendador), ADR-017 (arquivos e cifra), ADR-003/013 (dado público x privado); Fase 03 (quarentena e verificação de arquivos); `docs/threat-model.md` (T3, T7)
 
