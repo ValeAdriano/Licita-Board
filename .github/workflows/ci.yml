@@ -149,9 +149,10 @@ jobs:
       - name: Caddyfile validado e testado com o build do front e uma API de mentira
         run: |
           # Erros viram anotações do GitHub (o log do job exige login para ser lido).
+          docker pull -q caddy:2.10 >/dev/null
           if ! saida="$(docker run --rm -e VV_SITE=localhost -v "$PWD/infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.10 \
               caddy validate --config /etc/caddy/Caddyfile 2>&1)"; then
-            echo "::error title=caddy validate::$(tr '\n' ' ' <<<"$saida" | cut -c1-900)"
+            echo "::error title=caddy validate::$(tr '\n' ' ' <<<"$saida" | tail -c 900)"
             exit 1
           fi
           infra/caddy/testar-cabecalhos.sh
