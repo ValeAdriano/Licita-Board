@@ -80,6 +80,33 @@ export class DocumentosController {
         from priv.documento_versoes where documento_id = ${id}::uuid and empresa_id = ${empresa}::uuid order by versao desc`.execute(tx)).rows);
   }
 
+  // "Atualizar documento": não há integração oficial; a pendência leva instruções e o link do emissor. Só
+  // fecha como sucesso quando um arquivo novo é liberado (trigger) ou como falha registrada à mão.
+  @Permissao('documentos', 'visualizar')
+  @Get('empresas/:empresa/documentos/:id/pendencias')
+  pendencias(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
+    return this.q(req, async (tx) => (await sql`
+      select id, status, instrucoes, resultado, detalhe, created_at as "criadaEm", resolvida_em as "resolvidaEm"
+        from priv.documento_pendencias where documento_id = ${id}::uuid and empresa_id = ${empresa}::uuid order by created_at desc`.execute(tx)).rows);
+  }
+
+  @Permissao('documentos', 'editar')
+  @Post('empresas/:empresa/documentos/:id/pendencias')
+  async solicitar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
+    const d = validar(z.object({ instrucoes: z.string().trim().min(1).max(1000) }).strict(), corpo);
+    const r = await this.q(req, async (tx) => (await sql<{ p: string }>`
+      select priv.solicitar_atualizacao(${empresa}::uuid, ${id}::uuid, ${d.instrucoes}) as p`.execute(tx)).rows[0]);
+    return { pendenciaId: r?.p };
+  }
+
+  @Permissao('documentos', 'editar')
+  @Post('empresas/:empresa/pendencias/:pid/falha')
+  @HttpCode(204)
+  async falhar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('pid', new ParseUUIDPipe()) pid: string, @Body() corpo: unknown) {
+    const d = validar(z.object({ detalhe: z.string().trim().min(1).max(500) }).strict(), corpo);
+    await this.q(req, (tx) => sql`select priv.registrar_falha_atualizacao(${empresa}::uuid, ${pid}::uuid, ${d.detalhe})`.execute(tx));
+  }
+
   // Passo 1 do upload: cria a versão em quarentena e devolve a URL assinada de envio (5 min).
   @Permissao('documentos', 'cadastrar')
   @Post('empresas/:empresa/documentos/:id/versoes')

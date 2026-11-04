@@ -104,6 +104,8 @@ set -a && . ./.env && set +a && docker compose exec -e VV_KEK \
   -e DATABASE_URL="postgres://vv_owner:$VV_OWNER_PASSWORD@localhost:5432/vv" postgres /db/scripts/registrar-kek.sh
                                        # registra o verificador da KEK (uma vez por banco)
 PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # pgTAP num banco descartável
+                                       # ATENÇÃO: troca as senhas dos papéis vv_* do servidor; no Postgres do compose, depois rode
+                                       # scripts/dev-up.sh (restaura as senhas do .env) ou use um Postgres separado
 
 # Primeiro usuário (SUPERADMIN) e dados fictícios de dev: roda como vv_owner, fora da API
 set -a && . ./.env && set +a && export DATABASE_URL="postgres://vv_owner:$VV_OWNER_PASSWORD@localhost:5433/vv"

@@ -20,6 +20,12 @@ JSON
 chmod 600 infra/s3/s3.json
 
 docker compose up -d --build postgres
+# Alinha as senhas dos papéis com o .env (db/scripts/test-local.sh as troca no servidor); idempotente.
+docker compose exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q <<SQL
+alter role vv_owner password '$VV_OWNER_PASSWORD';
+alter role vv_api password '$VV_API_PASSWORD';
+alter role vv_worker password '$VV_WORKER_PASSWORD';
+SQL
 docker compose run --rm dbmate up
 # Verificador da chave-mestra: só no banco novo (com o banco já registrado, nada a fazer).
 if [ "$(docker compose exec -T postgres psql -U postgres -d vv -Atc 'select count(*) from core.chaves_mestras')" = 0 ]; then

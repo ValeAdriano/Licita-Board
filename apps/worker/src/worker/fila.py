@@ -1,3 +1,4 @@
+import datetime as dt
 import hashlib
 import logging
 import secrets
@@ -5,6 +6,7 @@ import threading
 import time
 from collections.abc import Callable
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import psycopg
 from psycopg.rows import dict_row
@@ -184,6 +186,19 @@ def processar_lote(conn: psycopg.Connection[Any], handlers: dict[str, Handler]) 
     return len(jobs)
 
 
+FUSO = ZoneInfo("America/Sao_Paulo")
+
+
+def alertas_do_dia(conn: psycopg.Connection[Any], hoje: dt.date, ultimo: dt.date | None) -> dt.date:
+    """Uma vez por dia (e na partida) gera os alertas de vencimento (idempotente)."""
+    if ultimo == hoje:
+        return hoje
+    n = conn.execute("select priv.gerar_alertas_documentos(%s)", (hoje,)).fetchone()
+    conn.commit()
+    log.info("alertas de documentos", extra={"ctx": {"novos": n[0] if n else 0}})
+    return hoje
+
+
 def consumir(
     settings: Settings,
     enviador: Enviador,
@@ -202,6 +217,7 @@ def consumir(
             Clamd(settings.clamav_host, settings.clamav_porta),
         )
     handlers = Handlers(settings, enviador, push, s3, antivirus).tipos()
+    ultimo_alerta: dt.date | None = None
     while not parar.is_set():
         try:
             with psycopg.connect(settings.database_url.get_secret_value()) as conn:
@@ -209,6 +225,9 @@ def consumir(
                 conn.commit()
                 while not parar.is_set():
                     ultimo_ciclo = time.monotonic()
+                    ultimo_alerta = alertas_do_dia(
+                        conn, dt.datetime.now(FUSO).date(), ultimo_alerta
+                    )
                     if processar_lote(conn, handlers) == 0:
                         for _ in conn.notifies(timeout=30, stop_after=1):
                             pass

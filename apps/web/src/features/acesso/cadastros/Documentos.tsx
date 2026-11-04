@@ -8,6 +8,7 @@ import { Caixa, dataBr, Selecao } from './comum'
 
 interface Tipo { id: string; slug: string; nome: string; pasta: string; exigeValidade: boolean; emissorUrl: string | null }
 interface Doc { id: string; tipoId: string; descricao: string; numero: string | null; emissor: string | null; status: string; validade: string | null }
+interface Pendencia { id: string; status: string; instrucoes: string; resultado: string | null; detalhe: string | null }
 interface Versao { id: string; versao: number; nome: string; tipoReal: string | null; tamanho: string | null; emissao: string | null; validade: string | null; statusArquivo: string; motivoBloqueio: string | null }
 
 const PASTAS: Record<string, string> = {
@@ -74,7 +75,11 @@ function Novo({ empresaId, tipos, aoFim }: { empresaId: string; tipos: Tipo[]; a
 
 function Detalhe({ empresaId, doc, tipo, pode, aoVoltar }: { empresaId: string; doc: Doc; tipo: Tipo | undefined; pode: (acao: string) => boolean; aoVoltar: () => void }) {
   const versoes = useGet<Versao[]>(`/empresas/${empresaId}/documentos/${doc.id}/versoes`)
+  const pendencias = useGet<Pendencia[]>(`/empresas/${empresaId}/documentos/${doc.id}/pendencias`)
   const arquivo = useRef<HTMLInputElement>(null)
+  const [instrucoes, setInstrucoes] = useState('')
+  const [detalhe, setDetalhe] = useState('')
+  const aberta = pendencias.dados?.find((p) => p.status === 'aberta')
   const [emissao, setEmissao] = useState('')
   const [validade, setValidade] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
@@ -119,6 +124,24 @@ function Detalhe({ empresaId, doc, tipo, pode, aoVoltar }: { empresaId: string; 
         <p>{tipo?.nome} · {STATUS[doc.status] ?? doc.status} · validade {dataBr(doc.validade)}</p>
         {tipo?.emissorUrl ? <p className="legenda">Emitir uma nova via: <a href={tipo.emissorUrl} target="_blank" rel="noreferrer noopener">site do emissor</a></p> : null}
         {pode('arquivar') ? <Botao variante="perigo" onClick={() => void chamar('POST', `/empresas/${empresaId}/documentos/${doc.id}/arquivar`).then(aoVoltar)}>Arquivar documento</Botao> : null}
+      </Secao>
+      <Secao titulo="Atualizar documento">
+        <p className="legenda">O sistema não emite certidão nem simula renovação: abra uma pendência, emita no site do emissor e envie o arquivo novo. Ela fecha sozinha quando o arquivo é liberado.</p>
+        {pendencias.dados?.map((p) => (
+          <p key={p.id}><strong>{p.status === 'aberta' ? 'Em aberto' : p.resultado === 'sucesso' ? 'Atualizado' : 'Falhou'}:</strong> <bdi>{p.instrucoes}</bdi>{p.detalhe ? <> · <bdi>{p.detalhe}</bdi></> : null}</p>
+        ))}
+        {pode('editar') && !aberta ? (
+          <div className="pilha">
+            <Campo rotulo="Instruções (o que fazer e onde)" value={instrucoes} onChange={(e) => setInstrucoes(e.target.value)} maxLength={1000} />
+            <Botao disabled={!instrucoes.trim()} onClick={() => void chamar('POST', `/empresas/${empresaId}/documentos/${doc.id}/pendencias`, { instrucoes: instrucoes.trim() }).then(() => { setInstrucoes(''); pendencias.recarregar(); aoVoltar() })}>Abrir pendência de atualização</Botao>
+          </div>
+        ) : null}
+        {pode('editar') && aberta ? (
+          <div className="pilha">
+            <Campo rotulo="Motivo da falha (se não foi possível atualizar)" value={detalhe} onChange={(e) => setDetalhe(e.target.value)} maxLength={500} />
+            <Botao variante="secundario" disabled={!detalhe.trim()} onClick={() => void chamar('POST', `/empresas/${empresaId}/pendencias/${aberta.id}/falha`, { detalhe: detalhe.trim() }).then(() => { setDetalhe(''); aoVoltar() })}>Registrar falha</Botao>
+          </div>
+        ) : null}
       </Secao>
       <Secao titulo="Versões (nada é sobrescrito)">
         <div className="lista">
