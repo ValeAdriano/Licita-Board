@@ -14,6 +14,8 @@ from psycopg.rows import dict_row
 from worker.documentos import Antivirus, Armazenamento, processar_versao
 from worker.email import Enviador, mensagem_alerta, mensagem_operacional, mensagem_recuperacao
 from worker.pesquisa.agenda import agendar, vigiar
+from worker.pesquisa.coleta import coletar
+from worker.pesquisa.http import ClienteHttp, ErroPermanente
 from worker.push import REDE, TTL_SEGUNDOS, EnviadorPush, Inscricao, carga_generica
 from worker.settings import Settings
 
@@ -56,6 +58,7 @@ class Handlers:
             "email_recuperacao": self.email_recuperacao,
             "email_alerta": self.email_alerta,
             "email_operacional": self.email_operacional,
+            "coletar_fonte": self.coletar_fonte,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -146,6 +149,32 @@ class Handlers:
             return  # conta inativa: nada a enviar (a resposta da API já foi neutra)
         link = f"{self._s.app_url.rstrip('/')}/redefinir-senha#token={token}"
         self._enviador.enviar(mensagem_recuperacao(dest["email"], link))
+
+    def coletar_fonte(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # Só a execução do banco manda: fonte, janela e parâmetros nunca vêm do payload.
+        execucao_id = str(job["payload"]["execucao_id"])
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                "select f.hosts_permitidos, f.parametros from ops.execucoes e "
+                "join ops.fontes f on f.id = e.fonte_id where e.id = %s and f.ativa",
+                (execucao_id,),
+            )
+            f = cur.fetchone()
+        if f is None:
+            raise ErroPermanente("execução inexistente ou fonte desativada")
+        if not self._s.robo_contato and self._s.env != "dev":
+            raise ErroPermanente("VV_ROBO_CONTATO é obrigatório fora de dev")
+        ua = f"VV-Licitacoes-Robo/1.0 (+{self._s.robo_contato or 'contato-nao-configurado'})"
+        rps = float(f["parametros"].get("requisicoes_por_segundo", 2))
+        http = ClienteHttp(ua, list(f["hosts_permitidos"]), rps)
+        coletar(
+            conn,
+            execucao_id,
+            http,
+            dt.datetime.now(dt.UTC),
+            ultima_tentativa=job["tentativas"] >= job["max_tentativas"],
+            heartbeat=self._s.pesquisa_heartbeat_url,
+        )
 
     def email_operacional(self, conn: psycopg.Connection[Any], job: Job) -> None:
         with conn.cursor(row_factory=dict_row) as cur:

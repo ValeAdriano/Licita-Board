@@ -1,0 +1,127 @@
+{
+ "data": [
+  {
+   "valorTotalHomologado": null,
+   "orgaoEntidade": {
+    "cnpj": "78200482000110",
+    "esferaId": "M",
+    "razaoSocial": "MUNICIPIO DE SARANDI",
+    "poderId": "N"
+   },
+   "dataInclusao": "2026-11-02T10:44:03",
+   "dataAtualizacao": "2026-11-02T10:44:03",
+   "anoCompra": 2026,
+   "srp": false,
+   "sequencialCompra": 298,
+   "emendaParlamentar": null,
+   "numeroCompra": "53",
+   "processo": "2102026",
+   "objetoCompra": "Contratação de serviços de personagens natalinos para o Natal Sarandi 2026, para atender à demanda da Secretaria Municipal da Cultura e Juventude do Município de Sarandi/PR.",
+   "informacaoComplementar": null,
+   "dataAberturaProposta": "2026-11-03T13:00:00",
+   "dataEncerramentoProposta": "2026-11-18T09:00:00",
+   "dataPublicacaoPncp": "2026-11-02T10:44:03",
+   "dataAtualizacaoGlobal": "2026-11-02T10:45:05",
+   "unidadeOrgao": {
+    "ufNome": "Paraná",
+    "ufSigla": "PR",
+    "municipioNome": "Sarandi",
+    "codigoUnidade": "988461",
+    "nomeUnidade": "MPR-PREFEITURA MUNICIPAL DE SARANDI",
+    "codigoIbge": "4126256"
+   },
+   "orgaoSubRogado": null,
+   "unidadeSubRogada": null,
+   "amparoLegal": {
+    "nome": "Lei 14.133/2021, Art. 28, I",
+    "descricao": "pregão: modalidade de licitação obrigatória para aquisição de bens e serviços comuns",
+    "codigo": 1
+   },
+   "linkSistemaOrigem": "https://cnetmobile.estaleiro.serpro.gov.br/comprasnet-web/public/compras/acompanhamento-compra?compra=98846105000532026",
+   "linkProcessoEletronico": "https://sarandi.oxy.elotech.com.br/portaltransparencia/1/licitacoes",
+   "justificativaPresencial": null,
+   "numeroControlePNCP": "78200482000110-1-000298/2026",
+   "valorTotalEstimado": 177500.0,
+   "modalidadeId": 6,
+   "modalidadeNome": "Pregão - Eletrônico",
+   "modoDisputaId": 1,
+   "modoDisputaNome": "Aberto",
+   "tipoInstrumentoConvocatorioCodigo": 1,
+   "tipoInstrumentoConvocatorioNome": "Edital",
+   "fontesOrcamentarias": [
+    {
+     "codigo": 2,
+     "nome": "Municipal",
+     "descricao": "Recurso orçamentário municipal disponível e devidamente vinculado à despesa que será realizada.",
+     "dataInclusao": "2026-11-02T10:44:04"
+    }
+   ],
+   "situacaoCompraId": 1,
+   "situacaoCompraNome": "Divulgada no PNCP"
+  },
+  {
+   "valorTotalHomologado": null,
+   "orgaoEntidade": {
+    "cnpj": "80257355000108",
+    "esferaId": "E",
+    "razaoSocial": "UNIVERSIDADE ESTADUAL DE PONTA GROSSA",
+    "poderId": "E"
+   },
+   "dataInclusao": "2026-11-03T09:08:24",
+   "dataAtualizacao": "2026-11-03T09:08:24",
+   "anoCompra": 2026,
+   "srp": false,
+   "sequencialCompra": 484,
+   "emendaParlamentar": null,
+   "numeroCompra": "77",
+   "processo": "077/2026",
+   "objetoCompra": "Aquisição de material médico hospitalar para atender a demanda do Complexo Hospitalar da Universidade Estadual de Ponta Grossa",
+   "informacaoComplementar": null,
+   "dataAberturaProposta": "2026-11-04T08:00:00",
+   "dataEncerramentoProposta": "2026-11-18T09:00:00",
+   "dataPublicacaoPncp": "2026-11-03T09:08:24",
+   "dataAtualizacaoGlobal": "2026-11-03T09:09:38",
+   "unidadeOrgao": {
+    "ufNome": "Paraná",
+    "ufSigla": "PR",
+    "municipioNome": "Ponta Grossa",
+    "codigoUnidade": "451164",
+    "nomeUnidade": "UNIVERSIDADE ESTADUAL DE PONTA GROSSA - PR",
+    "codigoIbge": "4119905"
+   },
+   "orgaoSubRogado": null,
+   "unidadeSubRogada": null,
+   "amparoLegal": {
+    "nome": "Lei 14.133/2021, Art. 28, I",
+    "descricao": "pregão: modalidade de licitação obrigatória para aquisição de bens e serviços comuns",
+    "codigo": 1
+   },
+   "linkSistemaOrigem": "https://cnetmobile.estaleiro.serpro.gov.br/comprasnet-web/public/compras/acompanhamento-compra?compra=45116405000772026",
+   "linkProcessoEletronico": "https://www.eprotocolo.pr.gov.br",
+   "justificativaPresencial": null,
+   "numeroControlePNCP": "80257355000108-1-000484/2026",
+   "valorTotalEstimado": 494828.96,
+   "modalidadeId": 6,
+   "modalidadeNome": "Pregão - Eletrônico",
+   "modoDisputaId": 1,
+   "modoDisputaNome": "Aberto",
+   "tipoInstrumentoConvocatorioCodigo": 1,
+   "tipoInstrumentoConvocatorioNome": "Edital",
+   "fontesOrcamentarias": [
+    {
+     "codigo": 3,
+     "nome": "Estadual",
+     "descricao": "Recurso orçamentário estadual disponível e devidamente vinculado à despesa que será realizada.",
+     "dataInclusao": "2026-11-03T09:08:25"
+    }
+   ],
+   "situacaoCompraId": 1,
+   "situacaoCompraNome": "Divulgada no PNCP"
+  }
+ ],
+ "totalRegistros": 2,
+ "totalPaginas": 1,
+ "numeroPagina": 1,
+ "paginasRestantes": 0,
+ "empty": false
+}

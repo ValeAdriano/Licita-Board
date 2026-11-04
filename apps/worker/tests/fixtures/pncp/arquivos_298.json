@@ -1,0 +1,16 @@
+[
+ {
+  "uri": "https://pncp.gov.br/pncp-api/v1/orgaos/78200482000110/compras/2026/298/arquivos/1",
+  "url": "https://pncp.gov.br/pncp-api/v1/orgaos/78200482000110/compras/2026/298/arquivos/1",
+  "tipoDocumentoId": 2,
+  "statusAtivo": true,
+  "cnpj": "78200482000110",
+  "anoCompra": 2026,
+  "sequencialCompra": 298,
+  "dataPublicacaoPncp": "2026-11-02T10:44:04",
+  "sequencialDocumento": 1,
+  "titulo": "Prestacao de servicos de personagens natalinos..pdf",
+  "tipoDocumentoNome": "Edital",
+  "tipoDocumentoDescricao": "Edital"
+ }
+]
