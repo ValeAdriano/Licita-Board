@@ -2,6 +2,7 @@ import datetime as dt
 import hashlib
 import logging
 import secrets
+import shutil
 import threading
 import time
 from collections.abc import Callable
@@ -14,8 +15,11 @@ from psycopg.rows import dict_row
 from worker.documentos import Antivirus, Armazenamento, processar_versao
 from worker.email import Enviador, mensagem_alerta, mensagem_operacional, mensagem_recuperacao
 from worker.pesquisa.agenda import agendar, vigiar
+from worker.pesquisa.arquivos import baixar, extrair_texto
 from worker.pesquisa.coleta import coletar
 from worker.pesquisa.http import ClienteHttp, ErroPermanente
+from worker.pesquisa.relevancia import avaliar_edital
+from worker.pesquisa.texto import Tesseract
 from worker.push import REDE, TTL_SEGUNDOS, EnviadorPush, Inscricao, carga_generica
 from worker.settings import Settings
 
@@ -59,6 +63,7 @@ class Handlers:
             "email_alerta": self.email_alerta,
             "email_operacional": self.email_operacional,
             "coletar_fonte": self.coletar_fonte,
+            "avaliar_relevancia": self.avaliar_relevancia,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -66,6 +71,8 @@ class Handlers:
         # Sem S3 e antivírus configurados, a quarentena espera: nada é liberado sem verificação.
         if self._s3 is not None and self._antivirus is not None:
             tipos["verificar_arquivo"] = self.verificar_arquivo
+            tipos["baixar_arquivo_edital"] = self.baixar_arquivo_edital
+            tipos["extrair_texto"] = self.extrair_texto
         return tipos
 
     def verificar_arquivo(self, conn: psycopg.Connection[Any], job: Job) -> None:
@@ -149,6 +156,33 @@ class Handlers:
             return  # conta inativa: nada a enviar (a resposta da API já foi neutra)
         link = f"{self._s.app_url.rstrip('/')}/redefinir-senha#token={token}"
         self._enviador.enviar(mensagem_recuperacao(dest["email"], link))
+
+    def baixar_arquivo_edital(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        assert self._s3 is not None and self._antivirus is not None  # noqa: S101
+        arquivo_id = str(job["payload"]["arquivo_id"])
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                "select f.hosts_permitidos, f.parametros from pub.edital_arquivos a "
+                "join pub.editais e on e.id = a.edital_id join ops.fontes f on f.id = e.fonte_id "
+                "where a.id = %s",
+                (arquivo_id,),
+            )
+            f = cur.fetchone()
+        if f is None:
+            return
+        ua = f"VV-Licitacoes-Robo/1.0 (+{self._s.robo_contato or 'contato-nao-configurado'})"
+        rps = float(f["parametros"].get("requisicoes_por_segundo", 2))
+        http = ClienteHttp(ua, list(f["hosts_permitidos"]), rps)
+        baixar(conn, arquivo_id, http, self._s3, self._antivirus)  # type: ignore[arg-type]
+
+    def extrair_texto(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        assert self._s3 is not None  # noqa: S101
+        ocr = Tesseract() if shutil.which("tesseract") else None
+        agora = dt.datetime.now(dt.UTC)
+        extrair_texto(conn, str(job["payload"]["arquivo_id"]), self._s3, ocr, agora)  # type: ignore[arg-type]
+
+    def avaliar_relevancia(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        avaliar_edital(conn, str(job["payload"]["edital_id"]))
 
     def coletar_fonte(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Só a execução do banco manda: fonte, janela e parâmetros nunca vêm do payload.

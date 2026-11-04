@@ -12,6 +12,9 @@ dependencies = [
     "pydantic-settings>=2.16.2",
     "pywebpush>=2.5.0",
     "uvicorn>=0.54.0",
+    "pypdfium2>=5.14.0",
+    "openpyxl>=3.1.5",
+    "pillow>=13.0.0",
 ]
 
 [dependency-groups]
@@ -46,7 +49,13 @@ ignore = ["PLR2004"]
 # SQL em string: quebrar linha só piora a leitura.
 "src/worker/pesquisa/repositorio.py" = ["E501"]
 "src/worker/pesquisa/coleta.py" = ["E501", "PLR0913", "PLR0917"]
+"src/worker/pesquisa/arquivos.py" = ["E501"]
+"src/worker/pesquisa/http.py" = ["PLR0913", "PLR0917"]
+"src/worker/pesquisa/relevancia.py" = ["E501"]
 "tests/test_coleta.py" = ["S101", "PLR2004", "E501"]
+"tests/test_relevancia.py" = ["S101", "PLR2004", "E501"]
+"tests/test_avaliacao.py" = ["S101", "PLR2004", "E501", "F811", "S608"]
+"tests/test_texto.py" = ["S101", "PLR2004", "E501", "F811", "S608"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -55,7 +64,7 @@ mypy_path = "src"
 packages = ["worker"]
 
 [[tool.mypy.overrides]]
-module = ["pywebpush", "py_vapid", "magic", "boto3", "botocore"]
+module = ["pywebpush", "py_vapid", "magic", "boto3", "botocore", "openpyxl", "openpyxl.*", "pypdfium2"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

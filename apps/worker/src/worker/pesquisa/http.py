@@ -42,6 +42,10 @@ class _SemRedirect(urllib.request.HTTPRedirectHandler):
         return None  # nunca segue redirecionamento (SSRF para outro host)
 
 
+# Último pedido por host, compartilhado no processo: a taxa vale entre jobs, não só dentro de um.
+_ULTIMO_POR_HOST: dict[str, float] = {}
+
+
 class ClienteHttp:
     def __init__(
         self,
@@ -50,20 +54,52 @@ class ClienteHttp:
         requisicoes_por_segundo: float = 2.0,
         dormir: Callable[[float], None] = time.sleep,
         monotonico: Callable[[], float] = time.monotonic,
+        ultimo_por_host: dict[str, float] | None = None,
     ) -> None:
         self._ua = user_agent
         self._hosts = hosts
         self._intervalo = 1.0 / max(requisicoes_por_segundo, 0.1)
         self._dormir = dormir
         self._mono = monotonico
-        self._ultimo = 0.0
+        self._ultimo = _ULTIMO_POR_HOST if ultimo_por_host is None else ultimo_por_host
         self._abridor = urllib.request.build_opener(_SemRedirect)
 
-    def _esperar_vez(self) -> None:
-        falta = self._intervalo - (self._mono() - self._ultimo)
+    def _esperar_vez(self, url: str) -> None:
+        host = urllib.parse.urlsplit(url).hostname or ""
+        falta = self._intervalo - (self._mono() - self._ultimo.get(host, -1e9))
         if falta > 0:
             self._dormir(falta)
-        self._ultimo = self._mono()
+        self._ultimo[host] = self._mono()
+
+    def get_bytes(self, url: str, limite: int) -> bytes:
+        """Baixa arquivo (https, host permitido, sem redirecionar); acima de `limite` é recusado."""
+        if not host_permitido(url, self._hosts):
+            raise ErroPermanente("host não permitido")
+        espera = 1.0
+        ultimo_erro = "sem resposta"
+        for tentativa in range(TENTATIVAS):
+            self._esperar_vez(url)
+            req = urllib.request.Request(url, headers={"User-Agent": self._ua})  # noqa: S310
+            try:
+                with self._abridor.open(req, timeout=60) as r:
+                    declarado = int(r.headers.get("Content-Length") or 0)
+                    if declarado > limite:
+                        raise ErroPermanente("arquivo maior que o limite")
+                    corpo = r.read(limite + 1)
+                if len(corpo) > limite:
+                    raise ErroPermanente("arquivo maior que o limite")
+                return bytes(corpo)
+            except urllib.error.HTTPError as e:
+                if e.code == 429 or e.code >= 500:
+                    ultimo_erro = f"http {e.code}"
+                else:
+                    raise ErroPermanente(f"http {e.code}") from e
+            except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+                ultimo_erro = type(e).__name__
+            if tentativa < TENTATIVAS - 1:
+                self._dormir(min(espera, 30.0))
+                espera *= 2
+        raise ErroTransitorio(ultimo_erro)
 
     def get_json(self, url: str, params: dict[str, Any] | None = None) -> Any:
         if not host_permitido(url, self._hosts):
@@ -77,7 +113,7 @@ class ClienteHttp:
         espera = 1.0
         ultimo_erro = "sem resposta"
         for tentativa in range(TENTATIVAS):
-            self._esperar_vez()
+            self._esperar_vez(url)
             req = urllib.request.Request(  # noqa: S310 - https e host conferidos acima
                 url, headers={"User-Agent": self._ua, "Accept": "application/json"}
             )

@@ -34,7 +34,7 @@ def _limpar() -> None:
         "pub.edital_itens, pub.editais, pub.orgaos, ops.execucoes, ops.fonte_checagens cascade"
     )
     _admin(
-        "delete from ops.jobs where tipo in ('coletar_fonte','baixar_arquivo_edital','avaliar_relevancia','email_operacional')"
+        "delete from ops.jobs where tipo in ('coletar_fonte','baixar_arquivo_edital','avaliar_relevancia','email_operacional','extrair_texto','indexar_trechos')"
     )
     _admin("delete from core.notificacoes where tipo = 'pesquisa_alerta'")
     _admin("alter table core.notificacoes enable trigger user")

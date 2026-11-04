@@ -136,7 +136,7 @@ class _Resp:
 
 
 def _cliente(respostas: list[Any], dormidas: list[float]) -> ClienteHttp:
-    c = ClienteHttp("VV-teste", ["pncp.gov.br"], 1000, dormir=dormidas.append)
+    c = ClienteHttp("VV-teste", ["pncp.gov.br"], 1000, dormir=dormidas.append, ultimo_por_host={})
     fila = iter(respostas)
 
     def abrir(*_a: Any, **_k: Any) -> Any:
@@ -178,3 +178,25 @@ def test_4xx_e_redirecionamento_nao_repetem() -> None:
 
 def test_resposta_vazia_e_204() -> None:
     assert _cliente([_Resp(b"")], []).get_json("https://pncp.gov.br/x") is None
+
+
+def test_taxa_vale_entre_clientes_do_mesmo_processo() -> None:
+    agora = [100.0]
+    dormidas: list[float] = []
+    estado: dict[str, float] = {}
+
+    def novo() -> ClienteHttp:
+        c = ClienteHttp(
+            "VV",
+            ["pncp.gov.br"],
+            2,
+            dormir=dormidas.append,
+            monotonico=lambda: agora[0],
+            ultimo_por_host=estado,
+        )
+        c._abridor.open = lambda *_a, **_k: _Resp(b"{}")  # type: ignore[method-assign]
+        return c
+
+    novo().get_json("https://pncp.gov.br/a")
+    novo().get_json("https://pncp.gov.br/b")  # outro cliente, mesmo instante: precisa esperar 0,5 s
+    assert dormidas == [0.5]

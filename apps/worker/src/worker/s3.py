@@ -26,3 +26,6 @@ class ArmazenamentoS3:
 
     def apagar(self, chave: str) -> None:
         self._c.delete_object(Bucket=self._bucket, Key=chave)
+
+    def gravar(self, chave: str, dados: bytes) -> None:
+        self._c.put_object(Bucket=self._bucket, Key=chave, Body=dados)

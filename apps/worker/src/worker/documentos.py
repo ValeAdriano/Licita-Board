@@ -72,14 +72,20 @@ class Veredito:
         )
 
 
-def verificar(dados: bytes, antivirus: Antivirus) -> Veredito:
+def verificar(
+    dados: bytes,
+    antivirus: Antivirus,
+    maximo: int = TAMANHO_MAXIMO,
+    tipos: set[str] | frozenset[str] = TIPOS_PERMITIDOS,
+) -> Veredito:
     """Tamanho, tipo real, antivírus e SHA-256, nessa ordem; o primeiro problema bloqueia."""
     tamanho = len(dados)
     sha = hashlib.sha256(dados).hexdigest()
-    if tamanho == 0 or tamanho > TAMANHO_MAXIMO:
-        return Veredito("bloqueado", None, tamanho, sha, "tamanho fora do limite (até 25 MB)")
+    if tamanho == 0 or tamanho > maximo:
+        limite = f"{maximo // (1024 * 1024)} MB"
+        return Veredito("bloqueado", None, tamanho, sha, f"tamanho fora do limite (até {limite})")
     tipo = magic.from_buffer(dados, mime=True)
-    if tipo not in TIPOS_PERMITIDOS:
+    if tipo not in tipos:
         return Veredito("bloqueado", tipo, tamanho, sha, f"tipo de arquivo não permitido ({tipo})")
     ameaca = antivirus.varrer(dados)
     if ameaca is not None:
