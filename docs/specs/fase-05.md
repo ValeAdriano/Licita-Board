@@ -1,8 +1,8 @@
 # Spec · Fase 05 · Agenda, gerenciamento de editais e prazos jurídicos
 
-- **Status:** Rascunho
+- **Status:** Aprovada em 2026-11-05 (instrução do Adriano: "continue a desenvolver, frontend primeiro, com calendários e tudo mais, para termos um MVP funcional o quanto antes", com as recomendações da seção 11). ⚖️ Os prazos seguem **não validados pelo jurídico** e o aceite (CA-5, CA-7) continua pendente
 - **Onda:** 2 — MVP ("coração do MVP: substitui a planilha")
-- **Autor:** Claude Code (2026-11-05) · **Aprovação:** pendente (Adriano Vale)
+- **Autor:** Claude Code (2026-11-05) · **Aprovação:** Adriano Vale, 2026-11-05
 - **Validação jurídica:** **pendente e bloqueante para o aceite** (regras de prazo da Lei 14.133 e da LC 123, contagem de dias úteis, 30+ casos de teste do jurídico VV)
 - **Fontes:** Prompt Mestre Fase 05 (5.1 a 5.6); Plano, Fase 05; Fase 04 (`pub.editais`, `pub.edital_itens`, `pub.edital_versoes`, `pub.edital_eventos`, `priv.oportunidades`); Fase 03 (`checklist_documental`, `data_sessao` por parâmetro); ADR-014 (fila), ADR-017 (arquivos); `docs/threat-model.md` (T6, T1)
 
