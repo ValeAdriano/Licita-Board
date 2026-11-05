@@ -4,6 +4,7 @@ import { useAcesso } from '../acesso/contexto'
 import { useGet } from '../acesso/useGet'
 import { reais } from '../precos/formato'
 import { BannerFontes } from '../pesquisa/BannerFontes'
+import { AssinaturaRelatorio } from './AssinaturaRelatorio'
 
 interface Indicadores {
   hoje: string; oportunidadesNovas: number | null; disputasFuturas: number | null; propostasPendentes: number | null; analisesPendentes: number | null
@@ -50,6 +51,7 @@ export function Painel({ empresaId }: { empresaId: string }) {
   return (
     <section className="flex flex-col gap-4" aria-label="Painel">
       {pode('editais', 'visualizar') ? <BannerFontes /> : null}
+      <AssinaturaRelatorio empresaId={empresaId} />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {cartoes.filter((x): x is { titulo: string; valor: string; to: string; alerta?: boolean } => x.valor !== null).map((x) => <Cartao key={x.titulo} {...x} />)}
       </div>

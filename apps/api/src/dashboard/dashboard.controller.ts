@@ -1,11 +1,14 @@
-import { Controller, Get, Param, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Put, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { type Transaction, sql } from 'kysely';
 import { celula } from '../agenda/csv.js';
-import { type RequisicaoVV, dadosDe, sessaoDe } from '../auth/requisicao.js';
+import { z } from 'zod';
+import { type RequisicaoVV, dadosDe, sessaoDe, validar } from '../auth/requisicao.js';
 import { Permissao } from '../auth/sessao.guard.js';
 import { ContextoService } from '../db/contexto.service.js';
 import type { Database } from '../db/db.module.js';
+
+const assinaturaSchema = z.object({ ativo: z.boolean() }).strict();
 
 // Dashboard e relatórios (spec fase-12). Cada indicador vem de contagem/soma direta dos registros da empresa e só é calculado quando a pessoa
 // tem a permissão do módulo de origem (senão vem `null`, nunca zero enganoso). Dinheiro como texto decimal (regra 14); nada é estimado.
@@ -15,6 +18,22 @@ export class DashboardController {
 
   private q<T>(req: RequisicaoVV, fn: (tx: Transaction<Database>) => Promise<T>): Promise<T> {
     return this.contexto.comContexto(dadosDe(req, sessaoDe(req).token), fn);
+  }
+
+  // Relatório diário por e-mail (12.2): opt-in da PRÓPRIA pessoa nesta empresa. O envio é do worker; a API só liga e desliga.
+  @Permissao('agenda', 'visualizar')
+  @Get('empresas/:empresa/relatorio-diario')
+  async assinatura(@Req() req: RequisicaoVV, @Param('empresa') empresa: string) {
+    const r = await this.q(req, (tx) => sql<{ ativo: boolean }>`select priv.minha_assinatura_relatorio(${empresa}::uuid) as ativo`.execute(tx));
+    return { ativo: r.rows[0]?.ativo ?? false };
+  }
+
+  @Permissao('agenda', 'visualizar')
+  @Put('empresas/:empresa/relatorio-diario')
+  @HttpCode(204)
+  async definirAssinatura(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Body() corpo: unknown) {
+    const d = validar(assinaturaSchema, corpo);
+    await this.q(req, (tx) => sql`select priv.definir_relatorio_diario(${empresa}::uuid, ${d.ativo})`.execute(tx));
   }
 
   @Permissao('agenda', 'visualizar')

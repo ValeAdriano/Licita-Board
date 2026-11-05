@@ -44,6 +44,9 @@ from worker.preco import calcular_precificacao
 from worker.proposta import Gravador, gerar_proposta, hoje_local
 from worker.push import REDE, TTL_SEGUNDOS, EnviadorPush, Inscricao, carga_generica
 from worker.recurso import ler as ler_recurso_terceiro
+from worker.relatorio_diario import coletar as coletar_relatorio
+from worker.relatorio_diario import compor as compor_relatorio
+from worker.relatorio_diario import enfileirar as enfileirar_relatorios
 from worker.settings import Settings
 from worker.sugestao import sugerir as sugerir_pecas_edital
 from worker.tese import conferir as conferir_tese
@@ -105,6 +108,7 @@ class Handlers:
             "analisar_vencedora": self.analisar_vencedora,
             "sugerir_pecas": self.sugerir_pecas,
             "validar_tese": self.validar_tese,
+            "relatorio_diario": self.relatorio_diario,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -281,6 +285,31 @@ class Handlers:
     def validar_tese(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Confere as citações da tese contra a base verificada (sem IA); a empresa do job é a dona da tese (T2).
         conferir_tese(conn, str(job["payload"]["tese_id"]), job.get("empresa_id"))
+
+    def relatorio_diario(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # Só o id da assinatura vem no payload; ela precisa ser da empresa do job, estar ativa e a pessoa ainda ter vínculo (T2).
+        agora = dt.datetime.now(dt.UTC)
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                "select a.id, a.usuario_id, a.empresa_id, u.email::text as email, e.razao_social as empresa from priv.relatorio_diario_assinaturas a "
+                "join core.usuarios u on u.id = a.usuario_id and u.ativo and u.deleted_at is null join core.empresas e on e.id = a.empresa_id "
+                "where a.id = %s and a.ativo and exists (select 1 from core.vinculos v where v.usuario_id = a.usuario_id and v.empresa_id = a.empresa_id and v.ativo and v.deleted_at is null)",
+                (job["payload"]["assinatura_id"],),
+            )
+            a = cur.fetchone()
+        if a is None or str(a["empresa_id"]) != str(job.get("empresa_id")):
+            return
+        hoje = hoje_local(agora)
+        secoes = coletar_relatorio(conn, a["usuario_id"], a["empresa_id"], agora)
+        if secoes:
+            self._enviador.enviar(
+                compor_relatorio(a["email"], a["empresa"], secoes, hoje, self._s.app_url)
+            )
+        conn.execute(
+            "update priv.relatorio_diario_assinaturas set ultimo_envio = %s where id = %s",
+            (hoje, a["id"]),
+        )
+        conn.commit()
 
     def gerar_proposta(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Só o id da proposta vem no payload; a empresa do job tem de ser a dona dela (T2). Nunca envia ao portal (regra 17).
@@ -525,6 +554,10 @@ def consumir(
                                 cruzar_documentos(conn, agora)
                                 alertas_da_agenda(conn, agora)
                                 alertas_dos_contratos(conn, agora.astimezone(FUSO).date())
+                                if (
+                                    agora.astimezone(FUSO).hour >= 7
+                                ):  # relatório diário: depois das 7h de Brasília
+                                    enfileirar_relatorios(conn, agora.astimezone(FUSO).date())
                                 ultima_hora_agenda = hora
                         except Exception as e:
                             conn.rollback()

@@ -39,7 +39,7 @@ Legenda: ✅ feito · 🟡 parcial · ⚪ não iniciado. **Construído** = códi
 | 08 Propostas | 70 | 🟡 proposta, `.docx`/PDF final | modelo oficial/papel timbrado, declarações (8.4), checklist (8.5), comprovante de envio | modelos oficiais, papel timbrado |
 | 09 Disputas/resultados | 35 | 🟡 núcleo | documentos posteriores (9.5), alerta em tempo real | — |
 | 10 Jurídico | 45 + 65 | 🟡 ~95%: 10.1–10.9 prontos (teses, indicadores e reautenticação incluídos) | upload de PDF do recurso, checklist numérico da concorrente, busca automática de sugestões, modelos em papel timbrado | ⚖️ base de fontes, modelos de peça e prazos do jurídico |
-| 11 Contratos | 60 | 🟡 ~90%: núcleo + notificações dos alertas, "contratada" → cadastro pré-preenchido, anexos por etapa, pedido de reajuste/reequilíbrio | e-mail dos alertas, upload direto na tela do contrato | — |
+| 11 Contratos | 60 | 🟡 ~95%: núcleo + notificações dos alertas (e e-mail pelo relatório diário), "contratada" → cadastro pré-preenchido, anexos por etapa, pedido de reajuste/reequilíbrio | upload direto na tela do contrato | — |
 | 12 Dashboard | 45 | 🟡 núcleo | relatório diário por e-mail, margens e preços anteriores, busca avançada, Excel/PDF | — |
 | 13 Integrações | 80+ | ⚪ sem spec | tudo | decisão de escopo do Adriano |
 

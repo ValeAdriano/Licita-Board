@@ -75,6 +75,20 @@ describe('dashboard: indicadores, permissões e A x B', () => {
     expect(((await http().get(`/empresas/${empB}/relatorios/comercial`).set(bearer(b)).expect(200)).body as { taxaSucessoPct: string | null }).taxaSucessoPct).toBeNull();
   });
 
+  it('relatório diário por e-mail: opt-in da própria pessoa; B não liga nem vê a assinatura de A', async () => {
+    const u = `/empresas/${empA}/relatorio-diario`;
+    expect((await http().get(u).set(bearer(limitado)).expect(200)).body).toEqual({ ativo: false });
+    await http().put(u).set(bearer(limitado)).send({ ativo: 'sim' }).expect(400);
+    await http().put(u).set(bearer(limitado)).send({ ativo: true }).expect(204);
+    expect((await http().get(u).set(bearer(limitado)).expect(200)).body).toEqual({ ativo: true });
+    expect((await http().get(u).set(bearer(a)).expect(200)).body).toEqual({ ativo: false }); // a assinatura é de cada pessoa
+    await http().get(u).set(bearer(b)).expect(404);
+    await http().put(u).set(bearer(b)).send({ ativo: true }).expect(404);
+    await http().put(`/empresas/${empB}/relatorio-diario`).set(bearer(limitado)).send({ ativo: true }).expect(404); // sem vínculo em B
+    await http().put(u).set(bearer(limitado)).send({ ativo: false }).expect(204);
+    expect((await http().get(u).set(bearer(limitado)).expect(200)).body).toEqual({ ativo: false });
+  });
+
   it('CSV de resultados: só com agenda/exportar, BOM, separador ; e valores do banco', async () => {
     const r = await http().get(`/empresas/${empA}/relatorios/resultados.csv`).set(bearer(limitado)).expect(200);
     expect(r.headers['content-type']).toContain('text/csv');
