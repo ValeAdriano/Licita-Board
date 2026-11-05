@@ -6,7 +6,7 @@ import shutil
 import threading
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 from zoneinfo import ZoneInfo
 
 import psycopg
@@ -35,6 +35,7 @@ from worker.pesquisa.importacao import importar
 from worker.pesquisa.relevancia import avaliar_edital
 from worker.pesquisa.texto import Tesseract
 from worker.preco import calcular_precificacao
+from worker.proposta import Gravador, gerar_proposta, hoje_local
 from worker.push import REDE, TTL_SEGUNDOS, EnviadorPush, Inscricao, carga_generica
 from worker.settings import Settings
 
@@ -85,6 +86,7 @@ class Handlers:
             "email_agenda": self.email_agenda,
             "analisar_item": self.analisar_item,
             "calcular_preco": self.calcular_preco,
+            "gerar_proposta": self.gerar_proposta,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -201,6 +203,17 @@ class Handlers:
         ocr = Tesseract() if shutil.which("tesseract") else None
         agora = dt.datetime.now(dt.UTC)
         extrair_texto(conn, str(job["payload"]["arquivo_id"]), self._s3, ocr, agora)  # type: ignore[arg-type]
+
+    def gerar_proposta(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # Só o id da proposta vem no payload; a empresa do job tem de ser a dona dela (T2). Nunca envia ao portal (regra 17).
+        agora = dt.datetime.now(dt.UTC)
+        gerar_proposta(
+            conn,
+            str(job["payload"]["proposta_id"]),
+            cast("Gravador | None", self._s3),
+            hoje_local(agora),
+            job.get("empresa_id"),
+        )
 
     def calcular_preco(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Só o id da precificação vem no payload; a empresa do job tem de ser a dona dela (T2). Dinheiro só em Decimal.

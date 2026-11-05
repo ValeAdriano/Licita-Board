@@ -176,6 +176,25 @@ begin
 end;
 $$;
 
+-- Cena da Fase 08: depois de cena_analise(), uma proposta (rascunho) em CADA empresa.
+create or replace function tests.cena_proposta()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_letra text;
+  v_emp uuid;
+begin
+  foreach v_letra in array array['A', 'B'] loop
+    v_emp := tests.empresa_id(v_letra);
+    insert into priv.propostas (empresa_id, acompanhamento_id, versao, conteudo, total)
+    values (v_emp, (select id from priv.acompanhamentos where empresa_id = v_emp), 1, '[]'::jsonb, 0);
+  end loop;
+end;
+$$;
+
 -- Token fictício e determinístico da sessão de teste de um usuário.
 create or replace function tests.token(p_ident text, p_sessao text default 'sessao-teste')
 returns text
