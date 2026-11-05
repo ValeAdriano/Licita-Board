@@ -154,6 +154,28 @@ begin
 end;
 $$;
 
+-- Cena da Fase 07: depois de cena_analise(), uma precificação com uma linha de custo em CADA empresa.
+create or replace function tests.cena_preco()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_letra text;
+  v_emp uuid;
+  v_prec uuid;
+begin
+  foreach v_letra in array array['A', 'B'] loop
+    v_emp := tests.empresa_id(v_letra);
+    insert into priv.precificacoes (empresa_id, participacao_id, quantidade)
+    values (v_emp, (select id from priv.participacoes where empresa_id = v_emp), 10) returning id into v_prec;
+    insert into priv.preco_linhas (empresa_id, precificacao_id, nome, tipo, categoria, forma, valor)
+    values (v_emp, v_prec, 'Aquisição ' || v_letra, 'aquisicao', 'custo', 'por_unidade', 100);
+  end loop;
+end;
+$$;
+
 -- Token fictício e determinístico da sessão de teste de um usuário.
 create or replace function tests.token(p_ident text, p_sessao text default 'sessao-teste')
 returns text
