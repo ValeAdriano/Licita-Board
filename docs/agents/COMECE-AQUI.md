@@ -49,7 +49,8 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 | 07 Formação de preços | núcleo no main: calculadora por código (Decimal), custos com sigilo (`ver_custos_margens`), alçada, aprovação | histórico PNCP, empate ficto na tela, reautenticação, cenários; 🧾 tributos e ⚖️ empate/inexequibilidade pendentes |
 | 08 Propostas | no main: versões, validação 8.6, fluxo, .docx e PDF finais com hash e bloqueio, download | modelo oficial e papel timbrado, declarações (8.4), checklist (8.5), comprovante de envio |
 | 09 Disputas e resultados | núcleo no main: resultado por item, status ampliados, gatilho de recurso na agenda, histórico pesquisável | documentos posteriores (9.5), viabilidade recursal (10.4), alerta em tempo real |
-| 10 em diante | não iniciadas (sem spec) | — |
+| 10 Jurídico | núcleo no main: base jurídica verificada (nasce vazia), peças com fluxo e aprovação, conferência de citações, final .docx/PDF com hash, protocolo humano, resultado | minuta por IA, sugestões automáticas, análise da vencedora e parecer (10.4), teses e indicadores; ⚖️ fontes, modelos e prazos do jurídico |
+| 11 em diante | não iniciadas (sem spec) | — |
 
 ## 5. Próximos passos sugeridos (ordem)
 

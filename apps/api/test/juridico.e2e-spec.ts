@@ -1,0 +1,102 @@
+import type { INestApplication } from '@nestjs/common';
+import request from 'supertest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { SENHA, admin, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
+
+// Jurídico da Fase 10: base verificada, fluxo da peça com permissões, aprovação, protocolo humano, final imutável e A x B.
+describe('jurídico: fluxo e A x B', () => {
+  let app: INestApplication;
+  const http = () => request.agent(servidor(app)).set('X-Forwarded-For', ipNovo());
+  const bearer = (t: string) => ({ Authorization: `Bearer ${t}` });
+  async function entrar(email: string): Promise<string> {
+    const login = await http().post('/auth/login').send({ email, senha: SENHA, plataforma: 'ios' }).expect(200);
+    const t0 = (login.body as { token: string }).token;
+    const cad = await http().post('/auth/mfa/cadastrar').set(bearer(t0)).send({ senha: SENHA }).expect(200);
+    const conf = await http().post('/auth/mfa/confirmar').set(bearer(t0)).send({ codigo: totpDaUri((cad.body as { uri: string }).uri) }).expect(200);
+    await admin.query(`update core.fatores_mfa set verificado_em = now() - interval '2 days' where usuario_id = (select id from core.usuarios where email = $1)`, [email]);
+    return (conf.body as { token: string }).token;
+  }
+
+  let empA: string; let empB: string; let a: string; let b: string; let redator: string; let leitor: string;
+  let acomp: string; let evento: string; let peca: string; let base165: string;
+
+  beforeAll(async () => {
+    app = await subirApp();
+    empA = await criarEmpresa('Jurídico A'); empB = await criarEmpresa('Jurídico B');
+    const [eA, eB, eR, eL] = await Promise.all([criarUsuario('ju-a'), criarUsuario('ju-b'), criarUsuario('ju-r'), criarUsuario('ju-l')]);
+    await vincular(eA, empA); await vincular(eB, empB);
+    await vincular(eR, empA, 'JURIDICO', ['juridico:visualizar', 'juridico:elaborar_peca', 'agenda:visualizar']);
+    await vincular(eL, empA, 'OPERADOR', ['juridico:visualizar', 'agenda:visualizar']);
+    [a, b, redator, leitor] = await Promise.all([entrar(eA), entrar(eB), entrar(eR), entrar(eL)]);
+    const fonte = (await admin.query<{ id: string }>(`select id from ops.fontes where slug = 'pncp'`)).rows[0]?.id;
+    const orgao = (await admin.query<{ id: string }>(`insert into pub.orgaos (cnpj, razao_social, uf, codigo_ibge) values ($1, 'Órgão Jurídico', 'PR', '4106902') returning id`, [cnpjFicticio()])).rows[0]?.id;
+    const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, numero_edital, objeto, hash_conteudo) values ($1, $2, $3, '3/2026', 'Objeto', repeat('1', 64)) returning id`, [fonte, `JU-${crypto.randomUUID()}`, orgao])).rows[0]?.id;
+    acomp = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1, $2) returning id`, [empA, edital])).rows[0]?.id ?? '';
+    evento = (await admin.query<{ id: string }>(`insert into priv.agenda_eventos (empresa_id, acompanhamento_id, tipo, data_limite_legal) values ($1, $2, 'impugnacao', now() + interval '5 days') returning id`, [empA, acomp])).rows[0]?.id ?? '';
+  });
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('base jurídica nasce vazia; cadastro exige link https; verificar é de quem aprova', async () => {
+    expect(((await http().get(`/empresas/${empA}/juridico/base`).set(bearer(leitor)).expect(200)).body as unknown[])).toHaveLength(0);
+    const e = { tipo: 'lei', numero: '14.133/2021', dispositivo: 'art. 165', titulo: 'Lei 14.133/2021, art. 165', linkOficial: 'https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14133.htm' };
+    await http().post(`/empresas/${empA}/juridico/base`).set(bearer(leitor)).send(e).expect(404); // só visualizar
+    await http().post(`/empresas/${empA}/juridico/base`).set(bearer(redator)).send({ ...e, linkOficial: 'http://inseguro.exemplo' }).expect(400);
+    base165 = ((await http().post(`/empresas/${empA}/juridico/base`).set(bearer(redator)).send(e).expect(201)).body as { id: string }).id;
+    await http().post(`/empresas/${empA}/juridico/base/${base165}/verificar`).set(bearer(redator)).expect(404); // redator não verifica
+    await http().post(`/empresas/${empA}/juridico/base/${base165}/verificar`).set(bearer(a)).expect(204);
+    const l = (await http().get(`/empresas/${empA}/juridico/base`).set(bearer(leitor)).expect(200)).body as { id: string; verificadaEm: string | null }[];
+    expect(l.find((x) => x.id === base165)?.verificadaEm).not.toBeNull();
+  });
+
+  it('cria a peça ligada ao evento da agenda; minuta enfileira a conferência; descarte exige justificativa', async () => {
+    await http().post(`/empresas/${empA}/juridico/acompanhamentos/${acomp}/pecas`).set(bearer(leitor)).send({ tipo: 'impugnacao', titulo: 'Impugnação' }).expect(404);
+    const r = await http().post(`/empresas/${empA}/juridico/acompanhamentos/${acomp}/pecas`).set(bearer(redator)).send({ tipo: 'impugnacao', titulo: 'Impugnação ao item 3', eventoId: evento }).expect(201);
+    peca = (r.body as { id: string }).id;
+    const jobs = Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'processar_peca'`)).rows[0]?.count);
+    await http().put(`/empresas/${empA}/juridico/pecas/${peca}/minuta`).set(bearer(redator)).send({ minuta: 'Violação do art. 165 da Lei 14.133/2021 pela cláusula 7.2.', clausulas: 'Cláusula 7.2, página 12' }).expect(202);
+    expect(Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'processar_peca'`)).rows[0]?.count)).toBe(jobs + 1);
+    const lista = (await http().get(`/empresas/${empA}/juridico/pecas`).set(bearer(leitor)).expect(200)).body as { id: string; status: string; prazoLegal: string | null }[];
+    expect(lista.map((p) => [p.id, p.status, p.prazoLegal !== null])).toEqual([[peca, 'minuta', true]]); // prazo vem do evento da agenda
+    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/descartar`).set(bearer(redator)).send({ justificativa: 'curta' }).expect(400);
+    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/revisao`).set(bearer(redator)).expect(400); // o worker ainda não validou
+  });
+
+  it('fluxo: revisão só validada; aprovar só com aprovar_peca; protocolo é humano e marca o evento; final imutável', async () => {
+    await admin.query(`update priv.pecas set validada_em = now(), bloqueada = false where id = $1`, [peca]); // worker simulado
+    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/revisao`).set(bearer(redator)).expect(204);
+    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/aprovar`).set(bearer(redator)).expect(404);
+    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/aprovar`).set(bearer(a)).expect(202);
+    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/protocolo`).set(bearer(redator)).send({ numero: '2026/1', quando: '2026-11-10T10:00:00-03:00' }).expect(400); // sem documento final
+    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/download`).set(bearer(leitor)).send({}).expect(404);
+    await admin.query(`update priv.pecas set status = 'final', arquivo_chave = 'pecas/x.docx', arquivo_sha256 = repeat('d', 64), gerado_em = now() where id = $1`, [peca]); // worker simulado
+    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/devolver`).set(bearer(a)).expect(400); // final não volta
+    await http().put(`/empresas/${empA}/juridico/pecas/${peca}/minuta`).set(bearer(redator)).send({ minuta: 'alterada' }).expect(400);
+    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/protocolo`).set(bearer(redator)).send({ numero: '2026/1', quando: '2026-11-10T10:00:00-03:00', comprovante: 'Comprovante do portal' }).expect(204);
+    expect((await admin.query<{ status: string }>(`select status from priv.agenda_eventos where id = $1`, [evento])).rows[0]?.status).toBe('protocolado');
+    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/resultado`).set(bearer(redator)).send({ resultado: 'indeferido', observacao: 'Mantido o edital' }).expect(204);
+    const d = (await http().get(`/empresas/${empA}/juridico/pecas/${peca}`).set(bearer(leitor)).expect(200)).body as { status: string; resultado: string; protocoloNumero: string };
+    expect([d.status, d.resultado, d.protocoloNumero]).toEqual(['respondida', 'indeferido', '2026/1']);
+    const dl = await http().post(`/empresas/${empA}/juridico/pecas/${peca}/download`).set(bearer(leitor)).send({ formato: 'pdf' });
+    expect(dl.status).toBe(404); // final sem PDF ainda
+    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/pdf`).set(bearer(leitor)).expect(202);
+  });
+
+  it('A x B: B não lê nem altera nada do jurídico de A', async () => {
+    await http().get(`/empresas/${empA}/juridico/base`).set(bearer(b)).expect(404);
+    await http().get(`/empresas/${empA}/juridico/pecas`).set(bearer(b)).expect(404);
+    await http().get(`/empresas/${empA}/juridico/pecas/${peca}`).set(bearer(b)).expect(404);
+    await http().post(`/empresas/${empA}/juridico/acompanhamentos/${acomp}/pecas`).set(bearer(b)).send({ tipo: 'recurso', titulo: 'Invasor' }).expect(404);
+    for (const acao of ['descartar', 'revisao', 'devolver', 'aprovar', 'protocolo', 'resultado', 'pdf', 'download', 'validar']) {
+      await http().post(`/empresas/${empA}/juridico/pecas/${peca}/${acao}`).set(bearer(b)).send({}).expect(404);
+    }
+    await http().post(`/empresas/${empA}/juridico/base/${base165}/verificar`).set(bearer(b)).expect(404);
+    await http().delete(`/empresas/${empA}/juridico/base/${base165}`).set(bearer(b)).expect(404);
+    // empresa de B na rota com ids de A: nada é encontrado nem revelado
+    await http().get(`/empresas/${empB}/juridico/pecas/${peca}`).set(bearer(b)).expect(404);
+    expect(((await http().get(`/empresas/${empB}/juridico/pecas`).set(bearer(b)).expect(200)).body as unknown[])).toHaveLength(0);
+    await http().post(`/empresas/${empB}/juridico/pecas/${peca}/download`).set(bearer(b)).send({}).expect(404);
+    await http().post(`/empresas/${empB}/juridico/pecas/${peca}/aprovar`).set(bearer(b)).expect(400);
+  });
+});

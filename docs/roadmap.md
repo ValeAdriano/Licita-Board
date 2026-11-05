@@ -18,7 +18,7 @@ Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada
 | 4 | 06 | IA para análise técnica (veículos) | ~100 h | [fase-06](specs/fase-06.md) · Aprovada | 🟡 no main (requisitos, matriz por código, evidência verificável, aprovação, extração por IA pronta, com a chave cadastrada pela interface; desligada até a empresa cadastrá-la); falta primeiro uso real da IA, ficha técnica privada, alternativas e gabarito |
 | 5 | 07 | Formação de preços | ~50 h | [fase-07](specs/fase-07.md) · Aprovada | 🟡 núcleo no main (calculadora por código em Decimal, custos com sigilo por permissão, alçada); falta histórico PNCP, empate ficto na tela, reautenticação; 🧾 tributos e ⚖️ percentuais pendentes |
 | 5 | 08 | Propostas, declarações e habilitação | ~70 h | [fase-08](specs/fase-08.md) · Aprovada | 🟡 propostas no main (preço aprovado → validação 8.6 → conferência → aprovação → .docx final com hash, imutável); PDF pronto (LibreOffice no worker); falta modelo oficial/papel timbrado, declarações e checklist |
-| 5 | 10a | Jurídico pré-disputa (10.2–10.3) | ~45 h | — | ⚪ |
+| 5 | 10a | Jurídico pré-disputa (10.2–10.3) | ~45 h | [fase-10](specs/fase-10.md) · Aprovada | 🟡 núcleo no main (base jurídica verificada, peças com fluxo, conferência de citações, final com hash e PDF, protocolo humano); falta minuta por IA, sugestões automáticas, viabilidade recursal (10b) |
 | 6 | 09 | Disputas e resultados | ~35 h | [fase-09](specs/fase-09.md) · Aprovada | 🟡 núcleo no main (resultado por item, 20 status, gatilho da intenção de recurso, histórico pesquisável); falta documentos posteriores (9.5) e viabilidade recursal (Fase 10.4) |
 | 6 | 10b | Jurídico pós-disputa (10.4–10.9) | ~65 h | — | ⚪ |
 | 7 | 11 | Contratos, entregas e financeiro | ~60 h | — | ⚪ |

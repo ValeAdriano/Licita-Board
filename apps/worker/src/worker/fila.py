@@ -28,6 +28,7 @@ from worker.email import (
     mensagem_recuperacao,
 )
 from worker.extracao import extrair
+from worker.peca import processar as processar_peca
 from worker.pesquisa.agenda import agendar, vigiar
 from worker.pesquisa.arquivos import baixar, extrair_texto
 from worker.pesquisa.cobertura import apurar
@@ -91,6 +92,7 @@ class Handlers:
             "gerar_proposta": self.gerar_proposta,
             "extrair_requisitos": self.extrair_requisitos,
             "testar_chave_ia": self.testar_chave_ia,
+            "processar_peca": self.processar_peca,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -216,6 +218,17 @@ class Handlers:
     def testar_chave_ia(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Teste barato da chave cadastrada pela empresa (1 mensagem mínima). O resultado vai para priv.empresa_ia; a chave nunca é logada.
         testar_chave(conn, str(job["payload"]["empresa_id"]), job.get("empresa_id"), self._s)
+
+    def processar_peca(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # Só o id da peça vem no payload; a empresa do job tem de ser a dona dela (T2). Nunca protocola (regra 17).
+        agora = dt.datetime.now(dt.UTC)
+        processar_peca(
+            conn,
+            str(job["payload"]["peca_id"]),
+            cast("Gravador | None", self._s3),
+            hoje_local(agora),
+            job.get("empresa_id"),
+        )
 
     def gerar_proposta(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Só o id da proposta vem no payload; a empresa do job tem de ser a dona dela (T2). Nunca envia ao portal (regra 17).

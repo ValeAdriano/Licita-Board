@@ -214,6 +214,27 @@ begin
 end;
 $$;
 
+-- Cena da Fase 10: depois de cena_analise(), uma entrada da base jurídica e uma peça em CADA empresa.
+create or replace function tests.cena_juridico()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_letra text;
+  v_emp uuid;
+begin
+  foreach v_letra in array array['A', 'B'] loop
+    v_emp := tests.empresa_id(v_letra);
+    insert into priv.base_juridica (empresa_id, tipo, numero, dispositivo, titulo, link_oficial)
+    values (v_emp, 'lei', '14.133/2021', 'art. 165', 'Lei 14.133/2021, art. 165 (' || v_letra || ')', 'https://www.planalto.gov.br/exemplo');
+    insert into priv.pecas (empresa_id, acompanhamento_id, tipo, titulo)
+    values (v_emp, (select id from priv.acompanhamentos where empresa_id = v_emp), 'impugnacao', 'Peça ' || v_letra);
+  end loop;
+end;
+$$;
+
 -- Token fictício e determinístico da sessão de teste de um usuário.
 create or replace function tests.token(p_ident text, p_sessao text default 'sessao-teste')
 returns text
