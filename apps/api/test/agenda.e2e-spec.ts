@@ -84,6 +84,14 @@ describe('agenda: fluxo e A x B', () => {
     expect(ev.find((e) => e.id === evento)?.origemPrazo).toBe('manual');
   });
 
+  it('exporta .ics da empresa (anexo text/calendar) e B não baixa o de A', async () => {
+    const r = await http().get(`/empresas/${empA}/agenda/calendario.ics?acompanhamento=${acomp}`).set(bearer(a)).expect(200);
+    expect(r.headers['content-type']).toContain('text/calendar');
+    expect(r.headers['content-disposition']).toContain('attachment');
+    expect(r.text).toContain(`UID:${evento}@vv-licitacoes`);
+    await http().get(`/empresas/${empA}/agenda/calendario.ics`).set(bearer(b)).expect(404);
+  });
+
   it('A x B: B não lê, não altera nem descobre nada da agenda de A', async () => {
     await http().get(`/empresas/${empA}/agenda/eventos`).set(bearer(b)).expect(404);
     await http().get(`/empresas/${empA}/agenda/acompanhamentos`).set(bearer(b)).expect(404);

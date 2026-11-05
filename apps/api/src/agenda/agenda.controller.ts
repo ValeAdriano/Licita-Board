@@ -1,10 +1,12 @@
-import { Body, Controller, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { type Transaction, sql } from 'kysely';
 import { z } from 'zod';
 import { type RequisicaoVV, dadosDe, sessaoDe, validar } from '../auth/requisicao.js';
 import { Permissao } from '../auth/sessao.guard.js';
 import { ContextoService } from '../db/contexto.service.js';
 import type { Database } from '../db/db.module.js';
+import { type EventoIcs, gerarIcs } from './ics.js';
 
 const instante = z.iso.datetime({ offset: true });
 const PRIORIDADES = ['baixa', 'normal', 'alta', 'urgente'] as const;
@@ -55,7 +57,20 @@ export class AgendaController {
   @Permissao('agenda', 'visualizar')
   @Get('empresas/:empresa/agenda/eventos')
   eventos(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Query() consulta: unknown) {
-    const f = validar(filtroEventos, consulta);
+    return this.listarEventos(req, empresa, validar(filtroEventos, consulta));
+  }
+
+  // Exportação .ics (mesmos filtros da lista). Instantâneo: o calendário externo não acompanha recálculos.
+  @Permissao('agenda', 'visualizar')
+  @Get('empresas/:empresa/agenda/calendario.ics')
+  async calendario(@Req() req: RequisicaoVV, @Res({ passthrough: true }) res: Response, @Param('empresa') empresa: string, @Query() consulta: unknown) {
+    const eventos = await this.listarEventos(req, empresa, validar(filtroEventos, consulta));
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="agenda-vv-licitacoes.ics"');
+    return gerarIcs(eventos as unknown as EventoIcs[], new Date());
+  }
+
+  private listarEventos(req: RequisicaoVV, empresa: string, f: z.infer<typeof filtroEventos>) {
     const status = f.status ? f.status.split(',') : null;
     const tipo = f.tipo ? f.tipo.split(',') : null;
     return this.q(req, async (tx) => (await sql`

@@ -54,6 +54,7 @@ export default function Agenda() {
         acoes={
           <>
             <span className="flex items-center gap-2 text-sm text-tertiary"><Etiqueta cor="aviso">EM DESENVOLVIMENTO</Etiqueta> Importar e exportar Excel</span>
+            <Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/agenda/calendario.ics?${(statusParam ? `status=${statusParam}` : 'status=' + ABERTOS.join(',')) + `&de=${encodeURIComponent(inicioDoDia(somarDias(hoje, -30)))}${tipo ? `&tipo=${tipo}` : ''}${responsavel ? `&responsavel=${responsavel}` : ''}`}`)}>Baixar .ics</Botao>
             <Botao variante="secundario" disabled>Importar planilha</Botao>
           </>
         }
