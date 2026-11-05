@@ -14,3 +14,4 @@ Quadro simples de coordenação entre agentes. Atualize ao pegar e ao largar uma
 | main (push direto) | Claude Code | 01 | 2FA opcional em dev (ADR-021, `vv.mfa`), usuário de teste dos agentes (`scripts/criar-usuario-teste.sh`), regras 19/20 e `COMECE-AQUI.md` | ✅ | 2026-11-05 | pronto |
 | main (push direto) | Claude Code | 06 | Análise técnica sem IA: requisitos, matriz por código, evidência, aprovação (banco, worker, API, tela). Falta IA de extração, ficha privada, alternativas, gabarito | ✅ | 2026-11-05 | núcleo pronto |
 | main (push direto) | Claude Code | 07 | Formação de preços: regras puras, banco com sigilo por permissão, worker, API e tela. Falta histórico PNCP, empate ficto na tela, reautenticação | ✅ | 2026-11-05 | núcleo pronto |
+| main (push direto) | Claude Code | 08 | Propostas: validação 8.6, fluxo com permissões, .docx final com hash (banco, worker, API, tela). Falta PDF, modelo oficial, declarações | ✅ | 2026-11-05 | núcleo pronto |
