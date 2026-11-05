@@ -56,6 +56,7 @@ export function Itens({ empresaId, d, responsaveis, podeCadastrar, podeEditar, a
               </div>
               {i.participacaoId ? (
                 <span className="flex flex-wrap items-center gap-2">
+                  {pode('precos', 'ver_custos_margens') ? <Link to={`/agenda/participacoes/${i.participacaoId}/preco`}>Preço</Link> : null}
                   {pode('analises', 'visualizar') ? <Link to={`/agenda/participacoes/${i.participacaoId}/analise`}>Análise técnica</Link> : null}
                   {podeEditar ? <Botao variante="secundario" onClick={() => setEditando(i)}>Editar</Botao> : null}
                 </span>

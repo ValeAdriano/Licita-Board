@@ -3,6 +3,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { AcessoModule } from './acesso/acesso.module.js';
 import { AgendaModule } from './agenda/agenda.module.js';
 import { AnalisesModule } from './analises/analises.module.js';
+import { PrecosModule } from './precos/precos.module.js';
 import { DocumentosModule } from './documentos/documentos.module.js';
 import { PesquisaModule } from './pesquisa/pesquisa.module.js';
 import { PushModule } from './push/push.module.js';
@@ -39,6 +40,7 @@ export class AppModule {
         PesquisaModule,
         AgendaModule,
         AnalisesModule,
+        PrecosModule,
       ],
       controllers: [HealthController],
       providers: [{ provide: CONFIG, useValue: config }],

@@ -4,6 +4,7 @@ import { AMBIENTE, CADASTRO_ABERTO } from './config'
 import Acompanhamento from './pages/Acompanhamento'
 import Agenda from './pages/Agenda'
 import Analise from './pages/Analise'
+import Preco from './pages/Preco'
 import Auditoria from './pages/Auditoria'
 import Cadastrar from './pages/Cadastrar'
 import Cadastros from './pages/Cadastros'
@@ -61,6 +62,7 @@ export function Rotas() {
             <Route path="agenda" element={<Agenda />} />
             <Route path="agenda/acompanhamentos/:id" element={<Acompanhamento />} />
             <Route path="agenda/participacoes/:id/analise" element={<Analise />} />
+            <Route path="agenda/participacoes/:id/preco" element={<Preco />} />
             <Route path="cadastros" element={<Cadastros />} />
             <Route path="oportunidades" element={<PaginaOportunidades />} />
             <Route path="editais/:id" element={<PaginaEdital />} />

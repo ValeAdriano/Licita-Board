@@ -16,7 +16,7 @@ Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada
 | 2 | 05 | Agenda e prazos jurídicos ★ MVP | ~70 h | [fase-05](specs/fase-05.md) · Aprovada | 🟡 no main (modo rápido): banco, cálculo de prazos, API e telas (calendário, prazos, acompanhamento); alertas e "Prazo perdido" prontos; exportação CSV pronta; falta importar planilha; aceite depende da planilha e dos 30 casos do jurídico |
 | 3 | 04 | Motor de pesquisa (PNCP) | ~90 h | [fase-04](specs/fase-04.md) · Aprovada | 🟡 PNCP no main (modo rápido): coleta, arquivos, texto, relevância, API e telas; falta Compras.gov.br, embeddings, e2e A x B e a amostra de 50 editais |
 | 4 | 06 | IA para análise técnica (veículos) | ~100 h | [fase-06](specs/fase-06.md) · Aprovada | 🟡 núcleo sem IA no main (requisitos, matriz por código, evidência verificável, aprovação); falta IA de extração (depende de provedor/custo), ficha técnica privada, alternativas e gabarito |
-| 5 | 07 | Formação de preços | ~50 h | — | ⚪ |
+| 5 | 07 | Formação de preços | ~50 h | [fase-07](specs/fase-07.md) · Aprovada | 🟡 núcleo no main (calculadora por código em Decimal, custos com sigilo por permissão, alçada); falta histórico PNCP, empate ficto na tela, reautenticação; 🧾 tributos e ⚖️ percentuais pendentes |
 | 5 | 08 | Propostas, declarações e habilitação | ~70 h | — | ⚪ |
 | 5 | 10a | Jurídico pré-disputa (10.2–10.3) | ~45 h | — | ⚪ |
 | 6 | 09 | Disputas e resultados | ~35 h | — | ⚪ |

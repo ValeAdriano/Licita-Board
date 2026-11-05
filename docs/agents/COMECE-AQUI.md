@@ -45,7 +45,8 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 | 05 Agenda ★ MVP | calendário, prazos, acompanhamento, **alertas D-5/D-3/D-1/dia, escalonamento, prazo perdido automático, .ics, documentos que vencem antes da disputa, diff de versões do edital, reavaliação ao retificar (abertura a reconfirmar)** | importar planilha (exportação CSV pronta; configuração de feriados próprios e D-N pronta), diff de versões na tela, parâmetro D-N por empresa, feriados municipais; **regras de prazo NÃO validadas pelo jurídico** |
 | UI (ADR-020) | Untitled UI em todo o front | `Table` do Untitled UI em Equipe/Auditoria/Empresas, modo escuro, conferir 360 px em todas as telas |
 | 06 Análise técnica | núcleo sem IA no main: requisitos, matriz por código, citação do edital conferida automaticamente, ficha conferida por pessoa, aprovação | extração por IA (decisão de provedor/custo do Adriano), texto da ficha privada, alternativas (6.4), gabarito de 20 editais |
-| 07 em diante | não iniciadas (07 sem spec ainda) | — |
+| 07 Formação de preços | núcleo no main: calculadora por código (Decimal), custos com sigilo (`ver_custos_margens`), alçada, aprovação | histórico PNCP, empate ficto na tela, reautenticação, cenários; 🧾 tributos e ⚖️ empate/inexequibilidade pendentes |
+| 08 em diante | não iniciadas (sem spec) | — |
 
 ## 5. Próximos passos sugeridos (ordem)
 
