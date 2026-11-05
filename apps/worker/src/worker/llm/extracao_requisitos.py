@@ -110,6 +110,11 @@ class Anthropic:
     ) -> None:
         self._chave, self.modelo, self._abrir, self._max = chave, modelo, abrir, max_saida
 
+    def testar(self) -> None:
+        """Pedido mínimo (1 token) só para saber se a chave vale; levanta ErroLLM se não."""
+        self._max = 1
+        self.completar("Responda apenas: ok", "ok")
+
     def completar(self, sistema: str, usuario: str) -> Resposta:
         corpo = json.dumps(
             {

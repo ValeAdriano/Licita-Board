@@ -5,11 +5,12 @@ import { Documentos } from '../features/acesso/cadastros/Documentos'
 import { Contas } from '../features/acesso/cadastros/Contas'
 import { EmpresaFicha } from '../features/acesso/cadastros/EmpresaFicha'
 import { PalavrasChave } from '../features/acesso/cadastros/PalavrasChave'
+import { ChaveIa } from '../features/acesso/cadastros/ChaveIa'
 import { Produtos } from '../features/acesso/cadastros/Produtos'
 import { Representantes } from '../features/acesso/cadastros/Representantes'
 import { Abas, CabecalhoPagina, Pagina } from '../ui'
 
-type Aba = 'empresa' | 'contas' | 'representantes' | 'documentos' | 'atestados' | 'produtos' | 'palavras'
+type Aba = 'empresa' | 'contas' | 'representantes' | 'documentos' | 'atestados' | 'produtos' | 'palavras' | 'ia'
 
 // Cadastros da empresa selecionada (Fase 02): ficha, contas, representantes, produtos e palavras-chave.
 // O front só esconde o que a pessoa não pode usar; quem decide é a API (guard + RLS).
@@ -29,6 +30,7 @@ function CadastrosDaEmpresa({ empresa }: { empresa: Vinculo }) {
     { id: 'atestados', rotulo: 'Atestados', visivel: pode('documentos', 'visualizar') },
     { id: 'produtos', rotulo: 'Produtos', visivel: pode('produtos', 'visualizar') },
     { id: 'palavras', rotulo: 'Palavras-chave', visivel: pode('produtos', 'visualizar') },
+    { id: 'ia', rotulo: 'IA', visivel: pode('configuracoes', 'visualizar') },
   ]
   const visiveis = abas.filter((a) => a.visivel)
   const [aba, setAba] = useState<Aba | null>(null)
@@ -46,6 +48,7 @@ function CadastrosDaEmpresa({ empresa }: { empresa: Vinculo }) {
       {ativa === 'atestados' ? <Atestados empresaId={id} pode={(a) => pode('documentos', a)} /> : null}
       {ativa === 'produtos' ? <Produtos empresaId={id} pode={(a) => pode('produtos', a)} /> : null}
       {ativa === 'palavras' ? <PalavrasChave empresaId={id} pode={(a) => pode('produtos', a)} /> : null}
+      {ativa === 'ia' ? <ChaveIa empresaId={id} /> : null}
     </Pagina>
   )
 }

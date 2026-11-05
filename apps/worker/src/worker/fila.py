@@ -18,6 +18,7 @@ from worker.agenda_alertas import processar as alertas_da_agenda
 from worker.agenda_documentos import cruzar_todos as cruzar_documentos
 from worker.agenda_retificacao import reavaliar as reavaliar_retificacoes
 from worker.analise import analisar
+from worker.chave_ia import cliente_da_empresa, testar_chave
 from worker.documentos import Antivirus, Armazenamento, processar_versao
 from worker.email import (
     Enviador,
@@ -27,7 +28,6 @@ from worker.email import (
     mensagem_recuperacao,
 )
 from worker.extracao import extrair
-from worker.llm.extracao_requisitos import Anthropic
 from worker.pesquisa.agenda import agendar, vigiar
 from worker.pesquisa.arquivos import baixar, extrair_texto
 from worker.pesquisa.cobertura import apurar
@@ -90,6 +90,7 @@ class Handlers:
             "calcular_preco": self.calcular_preco,
             "gerar_proposta": self.gerar_proposta,
             "extrair_requisitos": self.extrair_requisitos,
+            "testar_chave_ia": self.testar_chave_ia,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -209,9 +210,12 @@ class Handlers:
 
     def extrair_requisitos(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Só o id da extração vem no payload; a empresa do job tem de ser a dona dela (T2). Sem chave, a IA fica desligada.
-        chave = self._s.anthropic_api_key.get_secret_value()
-        cliente = Anthropic(chave, self._s.llm_modelo) if chave else None
+        cliente = cliente_da_empresa(conn, job.get("empresa_id"), self._s)
         extrair(conn, str(job["payload"]["extracao_id"]), cliente, job.get("empresa_id"))
+
+    def testar_chave_ia(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # Teste barato da chave cadastrada pela empresa (1 mensagem mínima). O resultado vai para priv.empresa_ia; a chave nunca é logada.
+        testar_chave(conn, str(job["payload"]["empresa_id"]), job.get("empresa_id"), self._s)
 
     def gerar_proposta(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Só o id da proposta vem no payload; a empresa do job tem de ser a dona dela (T2). Nunca envia ao portal (regra 17).

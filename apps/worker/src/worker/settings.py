@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     # IA de extração de requisitos (Fase 06, decisão do Adriano em 2026-11-05): chave do provedor (Anthropic). Vazia = IA DESLIGADA.
     # A chave só vem do ambiente (.env fora do git), nunca de código; o modelo é configurável.
     anthropic_api_key: SecretStr = SecretStr("")
+    # Chave-mestra (KEK): só o worker e a API a têm. O worker decifra a chave de IA cadastrada pela empresa (ADR-017).
+    kek: SecretStr = SecretStr("")
     llm_modelo: str = "claude-sonnet-5-5"
     # URL pública do app, base dos links enviados por e-mail.
     app_url: str = "http://localhost:5173"
