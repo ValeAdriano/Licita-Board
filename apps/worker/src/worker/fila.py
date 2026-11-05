@@ -13,8 +13,16 @@ import psycopg
 from psycopg.rows import dict_row
 
 from worker.agenda import calcular_acompanhamento, garantir_feriados
+from worker.agenda_alertas import TIPO as TIPO_EVENTO
+from worker.agenda_alertas import processar as alertas_da_agenda
 from worker.documentos import Antivirus, Armazenamento, processar_versao
-from worker.email import Enviador, mensagem_alerta, mensagem_operacional, mensagem_recuperacao
+from worker.email import (
+    Enviador,
+    mensagem_agenda,
+    mensagem_alerta,
+    mensagem_operacional,
+    mensagem_recuperacao,
+)
 from worker.pesquisa.agenda import agendar, vigiar
 from worker.pesquisa.arquivos import baixar, extrair_texto
 from worker.pesquisa.cobertura import apurar
@@ -70,6 +78,7 @@ class Handlers:
             "importar_edital": self.importar_edital,
             "apurar_cobertura": self.apurar_cobertura,
             "calcular_prazos": self.calcular_prazos,
+            "email_agenda": self.email_agenda,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -190,6 +199,34 @@ class Handlers:
     def calcular_prazos(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Só o id do acompanhamento vem no payload; empresa e datas são lidas do banco (T2).
         calcular_acompanhamento(conn, str(job["payload"]["acompanhamento_id"]))
+
+    def email_agenda(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # Só ids no payload: destinatário, prazo e órgão são relidos do banco (e o usuário precisa ainda ter acesso).
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                "select u.email::text as email, ev.tipo, ev.data_limite_legal, ev.acompanhamento_id, g.razao_social as orgao "
+                "from priv.agenda_eventos ev join priv.acompanhamentos a on a.id = ev.acompanhamento_id "
+                "join pub.editais e on e.id = a.edital_id join pub.orgaos g on g.id = e.orgao_id, core.usuarios u "
+                "where ev.id = %s and u.id = %s and u.ativo and u.deleted_at is null and exists ("
+                "select 1 from core.vinculos v join core.permissoes p on p.vinculo_id = v.id "
+                "where v.usuario_id = u.id and v.empresa_id = ev.empresa_id and v.ativo and v.deleted_at is null "
+                "and p.modulo = 'agenda' and p.acao = 'visualizar')",
+                (job["payload"]["evento_id"], job["payload"]["usuario_id"]),
+            )
+            r = cur.fetchone()
+        if r is None or r["data_limite_legal"] is None:
+            return
+        limite = (
+            r["data_limite_legal"]
+            .astimezone(dt.timezone(dt.timedelta(hours=-3)))
+            .strftime("%d/%m/%Y %H:%M")
+        )
+        self._enviador.enviar(
+            mensagem_agenda(
+                r["email"], str(TIPO_EVENTO.get(r["tipo"], r["tipo"])), r["orgao"], str(job["payload"]["marco"]),
+                limite, str(r["acompanhamento_id"]), self._s.app_url,
+            )
+        )  # fmt: skip
 
     def apurar_cobertura(self, conn: psycopg.Connection[Any], job: Job) -> None:
         apurar(conn, dt.date.fromisoformat(str(job["payload"]["mes"])))
@@ -350,6 +387,7 @@ def consumir(
     handlers = {t: h for t, h in todos.items() if (t in PESADOS) == pesado}
     prioritarios = {t: h for t, h in handlers.items() if t in PRIORIDADE_PESADOS}
     ultimo_alerta: dt.date | None = None
+    ultima_hora_agenda = ""
     while not parar.is_set():
         try:
             with psycopg.connect(settings.database_url.get_secret_value()) as conn:
@@ -365,6 +403,12 @@ def consumir(
                             agora = dt.datetime.now(dt.UTC)
                             agendar(conn, agora)
                             vigiar(conn, agora)
+                            hora = agora.astimezone(FUSO).strftime("%Y%m%d%H")
+                            if (
+                                hora != ultima_hora_agenda
+                            ):  # alertas da agenda e prazo perdido: uma vez por hora
+                                alertas_da_agenda(conn, agora)
+                                ultima_hora_agenda = hora
                         except Exception as e:
                             conn.rollback()
                             log.error(

@@ -91,3 +91,28 @@ def mensagem_operacional(para: str, codigo: str, fonte: str, app_url: str) -> Me
         "Enquanto a fonte estiver com problema, oportunidades novas podem estar faltando.\n"
     )
     return Mensagem(para=para, assunto="Pesquisa de editais · atenção · VV Licitações", texto=texto)
+
+
+_ROTULO_MARCO = {
+    "D-1": "vence amanhã",
+    "D0": "vence hoje",
+    "escalonado": "está sem andamento",
+    "perdido": "foi perdido",
+}
+
+
+def mensagem_agenda(
+    para: str, tipo: str, orgao: str, marco: str, limite: str, acompanhamento: str, app_url: str
+) -> Mensagem:
+    """Aviso de prazo da agenda. Órgão e tipo são dado público/fixo; o link leva ao app (a sessão decide o acesso)."""
+    texto = (
+        f"Atenção: o prazo de {tipo} ({orgao}) {_ROTULO_MARCO.get(marco, 'está próximo')}.\n"
+        f"Limite: {limite} (horário de Brasília).\n\n"
+        f"Abra no VV Licitações: {app_url.rstrip('/')}/agenda/acompanhamentos/{acompanhamento}\n"
+        "Confira sempre o edital: os prazos seguem regras ainda em validação pelo jurídico.\n"
+    )
+    return Mensagem(
+        para=para,
+        assunto=f"Prazo {_ROTULO_MARCO.get(marco, 'próximo')} · VV Licitações",
+        texto=texto,
+    )
