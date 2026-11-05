@@ -50,6 +50,8 @@ def cena() -> Any:
     _admin("alter table priv.agenda_evento_historico disable trigger agenda_historico_imutavel")
     _admin("delete from priv.agenda_evento_historico")
     _admin("delete from priv.agenda_eventos")
+    _admin("delete from priv.agenda_feriados")
+    _admin("delete from priv.agenda_parametros")
     _admin("delete from priv.acompanhamentos")
     _admin("alter table priv.agenda_evento_historico enable trigger agenda_historico_imutavel")
     _admin("alter table core.empresas disable trigger user")
@@ -160,3 +162,55 @@ def test_fato_gerador_cria_o_prazo_com_a_regra_certa(cena: Any) -> None:
     assert _evento(ac, "regularizacao_fiscal_me_epp")[0] == datetime(
         2026, 4, 27, 23, 59
     )  # 21/04 é feriado
+
+
+def test_feriado_proprio_da_empresa_desloca_o_prazo_e_some_o_aviso(cena: Any) -> None:
+    conn, emp, ac = cena
+    _admin(
+        "insert into priv.agenda_feriados (empresa_id, data, nome, abrangencia, uf, codigo_ibge) values (%s, '2026-12-14', 'Feriado do município (teste)', 'municipio', 'PR', '4106902')",
+        emp,
+    )
+    calcular_acompanhamento(conn, ac, AGORA)
+    esc = _evento(ac, "esclarecimento")
+    assert esc[0] == datetime(
+        2026, 12, 10, 23, 59
+    )  # 14/12 (segunda) deixou de contar como dia útil
+    assert "feriados municipais" not in (esc[4] or "")
+
+
+def test_feriado_de_outra_empresa_nao_vale(cena: Any) -> None:
+    conn, _emp, ac = cena
+    outra = str(uuid.uuid4())
+    _admin(
+        "insert into core.empresas (id, razao_social, cnpj) values (%s, 'Outra', '12ABC34501DE35')",
+        outra,
+    )
+    try:
+        _admin(
+            "insert into priv.agenda_feriados (empresa_id, data, nome, abrangencia, uf, codigo_ibge) values (%s, '2026-12-14', 'Só da outra', 'municipio', 'PR', '4106902')",
+            outra,
+        )
+        calcular_acompanhamento(conn, ac, AGORA)
+        assert _evento(ac, "esclarecimento")[0] == datetime(2026, 12, 11, 23, 59)
+    finally:
+        _admin("alter table core.empresas disable trigger user")
+        _admin("delete from priv.agenda_feriados where empresa_id = %s", outra)
+        _admin("delete from core.empresas where id = %s", outra)
+        _admin("alter table core.empresas enable trigger user")
+
+
+def test_parametro_dias_internos_da_empresa(cena: Any) -> None:
+    conn, emp, ac = cena
+    calcular_acompanhamento(conn, ac, AGORA)
+    padrao = _admin(
+        "select data_interna_recomendada from priv.agenda_eventos where acompanhamento_id = %s and tipo = 'esclarecimento'",
+        ac,
+    )[0][0]
+    _admin("insert into priv.agenda_parametros (empresa_id, dias_internos) values (%s, 4)", emp)
+    calcular_acompanhamento(conn, ac, AGORA)
+    novo = _admin(
+        "select data_interna_recomendada from priv.agenda_eventos where acompanhamento_id = %s and tipo = 'esclarecimento'",
+        ac,
+    )[0][0]
+    assert novo < padrao
+    assert (padrao - novo).days >= 2  # 4 dias úteis antes em vez de 2

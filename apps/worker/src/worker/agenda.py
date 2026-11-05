@@ -65,8 +65,23 @@ def _regras(conn: psycopg.Connection[Any], hoje: date) -> dict[str, tuple[Regra,
     }  # fmt: skip
 
 
+def _dias_internos(conn: psycopg.Connection[Any], empresa: Any) -> int:
+    """Dias úteis antes do limite para a data interna: parâmetro da empresa ou o padrão (D-2)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "select dias_internos from priv.agenda_parametros where empresa_id = %s", (empresa,)
+        )
+        r = cur.fetchone()
+    return int(r[0]) if r else DIAS_INTERNOS
+
+
 def _nao_uteis(
-    conn: psycopg.Connection[Any], uf: str | None, ibge: str | None, ini: date, fim: date
+    conn: psycopg.Connection[Any],
+    empresa: Any,
+    uf: str | None,
+    ibge: str | None,
+    ini: date,
+    fim: date,
 ) -> tuple[dict[date, str], str | None]:
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
@@ -75,9 +90,17 @@ def _nao_uteis(
             (ini, fim, uf, ibge),
         )
         linhas = cur.fetchall()
+        # Feriados próprios da empresa (cadastrados na tela da agenda) somam aos oficiais; só valem para ela.
         cur.execute(
-            "select count(*) as n from pub.feriados where abrangencia = 'municipio' and codigo_ibge = %s",
-            (ibge,),
+            "select data, nome from priv.agenda_feriados where empresa_id = %s and deleted_at is null and data between %s and %s "
+            "and (abrangencia = 'uf' and uf = %s or abrangencia = 'municipio' and codigo_ibge = %s)",
+            (empresa, ini, fim, uf, ibge),
+        )
+        proprios = cur.fetchall()
+        cur.execute(
+            "select (select count(*) from pub.feriados where abrangencia = 'municipio' and codigo_ibge = %s) "
+            "+ (select count(*) from priv.agenda_feriados where empresa_id = %s and deleted_at is null and abrangencia = 'municipio' and codigo_ibge = %s) as n",
+            (ibge, empresa, ibge),
         )
         municipais = cur.fetchone()
     aviso = (
@@ -85,7 +108,7 @@ def _nao_uteis(
         if municipais and municipais["n"]
         else "feriados municipais deste órgão não cadastrados: só nacionais e estaduais contaram"
     )
-    return {r["data"]: r["nome"] for r in linhas}, aviso
+    return {r["data"]: r["nome"] for r in [*linhas, *proprios]}, aviso
 
 
 def _gravar(
@@ -193,9 +216,15 @@ def calcular_acompanhamento(
     )
     garantir_feriados(conn, range(min(anos) - 1, max(anos) + 2))
     nao_uteis, aviso_municipal = _nao_uteis(
-        conn, a["uf"], a["codigo_ibge"], date(min(anos) - 1, 1, 1), date(max(anos) + 1, 12, 31)
+        conn,
+        a["empresa_id"],
+        a["uf"],
+        a["codigo_ibge"],
+        date(min(anos) - 1, 1, 1),
+        date(max(anos) + 1, 12, 31),
     )
     regras = _regras(conn, agora.date())
+    dias_internos = _dias_internos(conn, a["empresa_id"])
     mudaram = 0
     if abertura is not None:
         provisorio = not a["abertura_confirmada"]
@@ -229,7 +258,7 @@ def calcular_acompanhamento(
                     abertura,
                     edital_prazo[tipo],
                     a["clausula_prazos"],
-                    DIAS_INTERNOS,
+                    dias_internos,
                 )
                 mudaram += _gravar(
                     conn,
@@ -247,7 +276,7 @@ def calcular_acompanhamento(
     for f in fatos:
         if f["tipo"] in regras and f["base_data"] is not None:
             regra, rid = regras[f["tipo"]]
-            res = calcular(regra, f["base_data"], nao_uteis, abertura, None, None, DIAS_INTERNOS)
+            res = calcular(regra, f["base_data"], nao_uteis, abertura, None, None, dias_internos)
             mudaram += _gravar(
                 conn,
                 a["empresa_id"],

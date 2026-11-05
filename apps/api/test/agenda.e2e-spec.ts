@@ -101,6 +101,25 @@ describe('agenda: fluxo e A x B', () => {
     await http().get(`/empresas/${empA}/agenda/eventos.csv`).set(bearer(b)).expect(404);
   });
 
+  it('configuração da agenda: feriado próprio, parâmetro D-N e A x B', async () => {
+    const f = { data: '2026-12-14', nome: 'Feriado municipal (teste)', abrangencia: 'municipio', uf: 'PR', codigoIbge: '4106902' };
+    const criado = await http().post(`/empresas/${empA}/agenda/feriados`).set(bearer(a)).send(f).expect(201);
+    await http().post(`/empresas/${empA}/agenda/feriados`).set(bearer(a)).send(f).expect(409);
+    await http().post(`/empresas/${empA}/agenda/feriados`).set(bearer(a)).send({ ...f, data: '2026-12-15', codigoIbge: null }).expect(400);
+    await http().post(`/empresas/${empA}/agenda/feriados`).set(bearer(leitor)).send({ ...f, data: '2026-12-16' }).expect(404);
+    await http().post(`/empresas/${empA}/agenda/parametros`).set(bearer(a)).send({ diasInternos: 11 }).expect(400);
+    await http().post(`/empresas/${empA}/agenda/parametros`).set(bearer(leitor)).send({ diasInternos: 3 }).expect(404);
+    await http().post(`/empresas/${empA}/agenda/parametros`).set(bearer(a)).send({ diasInternos: 3 }).expect(204);
+    const cfg = (await http().get(`/empresas/${empA}/agenda/configuracao`).set(bearer(a)).expect(200)).body as { diasInternos: number; feriados: { id: string }[] };
+    expect(cfg.diasInternos).toBe(3);
+    expect(cfg.feriados.map((x) => x.id)).toEqual([(criado.body as { id: string }).id]);
+    await http().get(`/empresas/${empA}/agenda/configuracao`).set(bearer(b)).expect(404);
+    await http().delete(`/empresas/${empA}/agenda/feriados/${(criado.body as { id: string }).id}`).set(bearer(b)).expect(404);
+    const cfgB = (await http().get(`/empresas/${empB}/agenda/configuracao`).set(bearer(b)).expect(200)).body as { diasInternos: number; feriados: unknown[] };
+    expect([cfgB.diasInternos, cfgB.feriados.length]).toEqual([2, 0]); // B não herda nada de A
+    await http().delete(`/empresas/${empA}/agenda/feriados/${(criado.body as { id: string }).id}`).set(bearer(a)).expect(204);
+  });
+
   it('A x B: B não lê, não altera nem descobre nada da agenda de A', async () => {
     await http().get(`/empresas/${empA}/agenda/eventos`).set(bearer(b)).expect(404);
     await http().get(`/empresas/${empA}/agenda/acompanhamentos`).set(bearer(b)).expect(404);

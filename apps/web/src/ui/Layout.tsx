@@ -12,11 +12,11 @@ export function Pagina({ larga, children }: { larga?: boolean; children: ReactNo
 export function CabecalhoPagina({ titulo, subtitulo, acoes }: { titulo: string; subtitulo?: ReactNode; acoes?: ReactNode }) {
   return (
     <div className="flex flex-col gap-4 border-b border-secondary pb-5 sm:flex-row sm:items-start sm:justify-between">
-      <div className="min-w-0">
+      <div className="min-w-0 sm:flex-1">
         <h1 className="text-display-xs font-semibold text-primary">{titulo}</h1>
         {subtitulo ? <p className="mt-1 text-md text-tertiary [overflow-wrap:anywhere]">{subtitulo}</p> : null}
       </div>
-      {acoes ? <div className="flex shrink-0 flex-wrap gap-3">{acoes}</div> : null}
+      {acoes ? <div className="flex flex-wrap items-center gap-3 sm:max-w-[60%] sm:justify-end">{acoes}</div> : null}
     </div>
   )
 }

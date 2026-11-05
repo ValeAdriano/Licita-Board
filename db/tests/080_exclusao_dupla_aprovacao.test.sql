@@ -168,7 +168,7 @@ select results_eq(
 select results_eq(
   $$ select conrelid::regclass::text from pg_constraint
       where contype = 'f' and confrelid = 'core.empresas'::regclass and confdeltype = 'c' order by 1 $$,
-  $$ values ('core.convites'::text), ('core.notificacoes'::text), ('core.procuracoes'::text), ('core.representantes'::text), ('core.revelacoes_dados'::text), ('ops.jobs'::text), ('priv.acompanhamentos'::text), ('priv.agenda_alertas'), ('priv.agenda_evento_historico'), ('priv.agenda_eventos'), ('priv.atestados_tecnicos'), ('priv.documentos'::text), ('priv.fichas_tecnicas'::text), ('priv.importacoes'::text), ('priv.oportunidades'::text), ('priv.palavras_chave'::text), ('priv.palavras_chave_filtros'::text), ('priv.participacoes'), ('priv.produtos'::text) $$,
+  $$ values ('core.convites'::text), ('core.notificacoes'::text), ('core.procuracoes'::text), ('core.representantes'::text), ('core.revelacoes_dados'::text), ('ops.jobs'::text), ('priv.acompanhamentos'::text), ('priv.agenda_alertas'), ('priv.agenda_evento_historico'), ('priv.agenda_eventos'), ('priv.agenda_feriados'), ('priv.agenda_parametros'), ('priv.atestados_tecnicos'), ('priv.documentos'::text), ('priv.fichas_tecnicas'::text), ('priv.importacoes'::text), ('priv.oportunidades'::text), ('priv.palavras_chave'::text), ('priv.palavras_chave_filtros'::text), ('priv.participacoes'), ('priv.produtos'::text) $$,
   'lista fechada de FKs com cascade para core.empresas (nova cascade exige decisão explícita aqui)');
 
 select * from finish();

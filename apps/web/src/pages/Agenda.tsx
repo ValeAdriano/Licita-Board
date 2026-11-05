@@ -4,12 +4,13 @@ import { useAcesso } from '../features/acesso/contexto'
 import { useGet } from '../features/acesso/useGet'
 import { Acompanhados } from '../features/agenda/Acompanhados'
 import { Calendario } from '../features/agenda/Calendario'
+import { Configuracao } from '../features/agenda/Configuracao'
 import { ABERTOS, inicioDoDia, hojeSP, somarDias, TIPO_EVENTO } from '../features/agenda/comum'
 import { ListaEventos } from '../features/agenda/ListaEventos'
 import { Resumo } from '../features/agenda/Resumo'
 import { Abas, Aviso, Botao, CabecalhoPagina, Etiqueta, Pagina, Selecao } from '../ui'
 
-type Aba = 'calendario' | 'prazos' | 'acompanhados'
+type Aba = 'calendario' | 'prazos' | 'acompanhados' | 'configuracao'
 const SITUACOES = [
   { valor: 'abertos', rotulo: 'Em aberto' }, { valor: 'todos', rotulo: 'Todos' }, { valor: 'prazo_perdido', rotulo: 'Prazo perdido' },
   { valor: 'concluidos', rotulo: 'Concluídos (protocolado, respondido, dispensado)' },
@@ -55,10 +56,9 @@ export default function Agenda() {
         subtitulo={empresa.empresa}
         acoes={
           <>
-            <span className="flex items-center gap-2 text-sm text-tertiary"><Etiqueta cor="aviso">EM DESENVOLVIMENTO</Etiqueta> Importar planilha</span>
             <Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/agenda/calendario.ics?${exportacao}`)}>Baixar .ics</Botao>
             {pode('agenda', 'exportar') ? <Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/agenda/eventos.csv?${exportacao}`)}>Exportar planilha</Botao> : null}
-            <Botao variante="secundario" disabled>Importar planilha</Botao>
+            <span className="flex items-center gap-2"><Botao variante="secundario" disabled>Importar planilha</Botao><Etiqueta cor="aviso">EM DESENVOLVIMENTO</Etiqueta></span>
           </>
         }
       />
@@ -68,11 +68,12 @@ export default function Agenda() {
         rotulo="Agenda"
         ativa={aba}
         aoMudar={(a) => setParams(a === 'calendario' ? {} : { aba: a })}
-        abas={[{ id: 'calendario', rotulo: 'Calendário' }, { id: 'prazos', rotulo: 'Prazos' }, { id: 'acompanhados', rotulo: 'Editais acompanhados' }]}
+        abas={[{ id: 'calendario', rotulo: 'Calendário' }, { id: 'prazos', rotulo: 'Prazos' }, { id: 'acompanhados', rotulo: 'Editais acompanhados' }, { id: 'configuracao', rotulo: 'Configuração' }]}
       />
-      {aba !== 'acompanhados' ? filtros : null}
+      {aba === 'calendario' || aba === 'prazos' ? filtros : null}
       {aba === 'calendario' ? <Calendario key={empresaId + base} empresaId={empresaId} filtro={base} /> : null}
       {aba === 'prazos' ? <ListaEventos key={empresaId + base + janela} empresaId={empresaId} filtro={base + janela} /> : null}
+      {aba === 'configuracao' ? <Configuracao key={empresaId} empresaId={empresaId} /> : null}
       {aba === 'acompanhados' ? <Acompanhados key={empresaId} empresaId={empresaId} /> : null}
     </Pagina>
   )

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { type Transaction, sql } from 'kysely';
 import { z } from 'zod';
@@ -18,6 +18,11 @@ const filtroEventos = z.object({
   de: instante.optional(), ate: instante.optional(), status: z.string().max(200).optional(), tipo: z.string().max(200).optional(),
   responsavel: z.uuid().optional(), acompanhamento: z.uuid().optional(),
 }).strict();
+const feriadoSchema = z.object({
+  data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), nome: z.string().trim().min(2).max(120), tipo: z.enum(['feriado', 'ponto_facultativo']).default('feriado'),
+  abrangencia: z.enum(['uf', 'municipio']), uf: z.string().regex(/^[A-Z]{2}$/), codigoIbge: z.string().regex(/^\d{7}$/).nullable().optional(),
+}).strict();
+const parametrosSchema = z.object({ diasInternos: z.number().int().min(0).max(10) }).strict();
 const aberturaSchema = z.object({
   data: instante, origem: z.enum(['edital', 'portal', 'manual']), clausula: z.string().trim().max(300).nullable().optional(),
   prazoEsclarecimento: instante.nullable().optional(), prazoImpugnacao: instante.nullable().optional(), clausulaPrazos: z.string().trim().max(300).nullable().optional(),
@@ -69,6 +74,48 @@ export class AgendaController {
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="agenda-vv-licitacoes.ics"');
     return gerarIcs(eventos as unknown as EventoIcs[], new Date());
+  }
+
+  // Configuração da agenda da empresa: parâmetro D-N, feriados próprios e os municípios dos editais que ela acompanha.
+  @Permissao('agenda', 'visualizar')
+  @Get('empresas/:empresa/agenda/configuracao')
+  configuracao(@Req() req: RequisicaoVV, @Param('empresa') empresa: string) {
+    return this.q(req, async (tx) => {
+      const p = (await sql<{ d: number }>`select dias_internos as d from priv.agenda_parametros where empresa_id = ${empresa}::uuid`.execute(tx)).rows[0];
+      const feriados = (await sql`
+        select id, data::text as data, nome, tipo, abrangencia, uf, codigo_ibge as "codigoIbge"
+          from priv.agenda_feriados where empresa_id = ${empresa}::uuid and deleted_at is null order by data limit 500`.execute(tx)).rows;
+      const orgaos = (await sql`
+        select distinct g.uf, g.municipio, g.codigo_ibge as "codigoIbge"
+          from priv.acompanhamentos a join pub.editais e on e.id = a.edital_id join pub.orgaos g on g.id = e.orgao_id
+         where a.empresa_id = ${empresa}::uuid and a.deleted_at is null and g.uf is not null order by g.uf, g.municipio limit 200`.execute(tx)).rows;
+      return { diasInternos: p?.d ?? 2, padraoDiasInternos: 2, feriados, orgaos };
+    });
+  }
+
+  @Permissao('agenda', 'editar')
+  @Post('empresas/:empresa/agenda/feriados')
+  @HttpCode(201)
+  async cadastrarFeriado(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Body() corpo: unknown) {
+    const d = validar(feriadoSchema, corpo);
+    const r = await this.q(req, (tx) => sql<{ id: string }>`
+      select priv.cadastrar_feriado_agenda(${empresa}::uuid, ${d.data}::date, ${d.nome}, ${d.tipo}, ${d.abrangencia}, ${d.uf}, ${d.codigoIbge ?? null}) as id`.execute(tx));
+    return { id: r.rows[0]?.id, status: 'recalculando' };
+  }
+
+  @Permissao('agenda', 'editar')
+  @Delete('empresas/:empresa/agenda/feriados/:id')
+  @HttpCode(204)
+  async removerFeriado(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
+    await this.q(req, (tx) => sql`select priv.remover_feriado_agenda(${empresa}::uuid, ${id}::uuid)`.execute(tx));
+  }
+
+  @Permissao('agenda', 'aprovar')
+  @Post('empresas/:empresa/agenda/parametros')
+  @HttpCode(204)
+  async definirParametros(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Body() corpo: unknown) {
+    const d = validar(parametrosSchema, corpo);
+    await this.q(req, (tx) => sql`select priv.definir_dias_internos(${empresa}::uuid, ${d.diasInternos}::int)`.execute(tx));
   }
 
   // Exportação em CSV (Excel pt-BR) com os mesmos filtros da lista.
