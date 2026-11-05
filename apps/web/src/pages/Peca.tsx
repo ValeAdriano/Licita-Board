@@ -6,6 +6,7 @@ import { useReautenticacao } from '../features/acesso/useReautenticacao'
 import { useAcesso } from '../features/acesso/contexto'
 import { useGet } from '../features/acesso/useGet'
 import { dataHoraSP } from '../features/agenda/comum'
+import { TesesDaPeca } from '../features/juridico/TesesDaPeca'
 import { MinutaIa } from '../features/juridico/MinutaIa'
 import { RESULTADO_PECA, STATUS_PECA, TIPO_PECA, type Peca } from '../features/juridico/tipos'
 import { AreaTexto, Aviso, Botao, CabecalhoPagina, Campo, Cartao, Etiqueta, Legenda, Pagina, Selecao } from '../ui'
@@ -47,6 +48,7 @@ function Conteudo({ empresaId, p, pode, recarregar }: { empresaId: string; p: Pe
       {p.prazoLegal ? <Aviso tipo="atencao" texto={`Prazo legal na agenda: ${dataHoraSP(p.prazoLegal)}${p.prazoInterno ? ` (data interna ${dataHoraSP(p.prazoInterno)})` : ''}. ⚖️ A regra do prazo ainda não foi validada pelo jurídico: confira o edital.`} /> : null}
       {p.recursoId ? <Link to={`/juridico/recursos/${p.recursoId}`}>Ver o recurso de terceiro e as alegações →</Link> : null}
       {['triagem', 'minuta'].includes(p.status) && pode('juridico', 'elaborar_peca') ? <MinutaIa empresaId={empresaId} pecaId={p.id} temMinuta={(p.minuta ?? '').trim().length > 0} aoConcluir={recarregar} /> : null}
+      {editavel && ['triagem', 'minuta', 'revisao'].includes(p.status) ? <TesesDaPeca empresaId={empresaId} pecaId={p.id} aoInserir={(t) => setMinuta((m) => (m.trim() ? `${m.trimEnd()}\n\n${t}` : t))} /> : null}
       <Cartao>
         <h2>Minuta{p.minutaOrigem === 'ia' ? <> <Etiqueta cor="aviso">Rascunho da IA: revise</Etiqueta></> : p.minutaOrigem === 'ia_revisada' ? <> <Etiqueta cor="cinza">Nasceu de rascunho da IA, revisado</Etiqueta></> : null}</h2>
         <Legenda>Cite apenas fontes da base jurídica VERIFICADA. O sistema confere cada citação (lei, artigo, acórdão, súmula, Constituição) ao salvar e bloqueia a minuta se alguma não estiver na base. Separe os parágrafos com uma linha em branco.</Legenda>

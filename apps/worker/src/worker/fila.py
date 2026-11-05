@@ -46,6 +46,7 @@ from worker.push import REDE, TTL_SEGUNDOS, EnviadorPush, Inscricao, carga_gener
 from worker.recurso import ler as ler_recurso_terceiro
 from worker.settings import Settings
 from worker.sugestao import sugerir as sugerir_pecas_edital
+from worker.tese import conferir as conferir_tese
 
 log = logging.getLogger("worker.fila")
 
@@ -103,6 +104,7 @@ class Handlers:
             "validar_parecer": self.validar_parecer,
             "analisar_vencedora": self.analisar_vencedora,
             "sugerir_pecas": self.sugerir_pecas,
+            "validar_tese": self.validar_tese,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -275,6 +277,10 @@ class Handlers:
         sugerir_pecas_edital(
             conn, str(job["payload"]["execucao_id"]), cliente, agora, job.get("empresa_id")
         )
+
+    def validar_tese(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # Confere as citações da tese contra a base verificada (sem IA); a empresa do job é a dona da tese (T2).
+        conferir_tese(conn, str(job["payload"]["tese_id"]), job.get("empresa_id"))
 
     def gerar_proposta(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Só o id da proposta vem no payload; a empresa do job tem de ser a dona dela (T2). Nunca envia ao portal (regra 17).

@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, ValidationError
 from worker.llm.extracao_requisitos import ErroLLM
 from worker.rules.citacoes import Entrada
 
-VERSAO_PROMPT = "min-v4"
+VERSAO_PROMPT = "min-v5"
 LIMITE_EDITAL = 50_000  # caracteres do edital enviados por pedido
 ROTULO = {
     "esclarecimento": "pedido de esclarecimento",
@@ -72,6 +72,7 @@ def montar_usuario(
     recurso: dict[str, Any] | None = None,
     parecer: dict[str, Any] | None = None,
     sugestao: dict[str, Any] | None = None,
+    teses: list[dict[str, Any]] | None = None,
 ) -> tuple[str, bool]:
     """(pedido, edital truncado?). `fontes` = só entradas VERIFICADAS (tipo, numero, orgao, dispositivo, titulo, ementa)."""
     texto, truncado = "", False
@@ -106,6 +107,14 @@ def montar_usuario(
             "(apenas citações da lista de fontes); se uma alegação a rebater não tem prova indicada, escreva o argumento e marque [A CONFIRMAR: prova]. "
             f"Alegações marcadas para concordar ou sem relevância já foram retiradas da lista.\n<alegacoes>\n{pontos}\n</alegacoes>\n\n"
             f"Recorrente: {recurso['recorrente']}\n<recurso>\n{recurso['texto'][:30000]}\n</recurso>\n"
+        )
+    if teses:
+        lista_teses = "\n".join(
+            f"T{i} | {t['titulo']} | {t['texto']}" for i, t in enumerate(teses, 1)
+        )
+        bloco_recurso += (
+            "\nTeses APROVADAS pela equipe jurídica para este tipo de peça (aproveite as que couberem; não as altere nem acrescente citações): \n"
+            f"<teses>\n{lista_teses}\n</teses>\n"
         )
     if sugestao:
         bloco_recurso += (
