@@ -1,4 +1,4 @@
-import { Bell01, Building07, ClipboardCheck, FileSearch01, Home01, LogOut01, SearchLg, User01, Users01 } from '@untitledui/icons'
+import { Bell01, Building07, CalendarDate, ClipboardCheck, FileSearch01, Home01, LogOut01, SearchLg, User01, Users01 } from '@untitledui/icons'
 import { Outlet, useLocation } from 'react-router'
 import { NavList } from '@/components/application/app-navigation/base-components/nav-list'
 import { MobileNavigationHeader } from '@/components/application/app-navigation/base-components/mobile-header'
@@ -19,6 +19,7 @@ function Conteudo({ aoNavegar }: { aoNavegar?: () => void }) {
   const itens: NavItemType[] = [
     { label: 'Início', href: '/', icon: Home01 },
     { label: 'Notificações', href: '/notificacoes', icon: Bell01, badge: naoLidas > 0 ? <Badge color="brand" size="sm" type="pill-color">{naoLidas}</Badge> : undefined },
+    ...(pode('agenda', 'visualizar') ? [{ label: 'Agenda', href: '/agenda', icon: CalendarDate }] : []),
     ...(pode('empresas', 'visualizar') ? [{ label: 'Cadastros', href: '/cadastros', icon: ClipboardCheck }] : []),
     ...(pode('editais', 'visualizar') ? [{ label: 'Oportunidades', href: '/oportunidades', icon: SearchLg }] : []),
     ...(pode('usuarios', 'visualizar') ? [{ label: 'Equipe', href: '/equipe', icon: Users01 }] : []),
@@ -27,7 +28,7 @@ function Conteudo({ aoNavegar }: { aoNavegar?: () => void }) {
     { label: 'Conta', href: '/conta', icon: User01 },
   ]
   // Detalhe de edital pertence à área de Oportunidades.
-  const ativo = pathname.startsWith('/editais') ? '/oportunidades' : pathname
+  const ativo = pathname.startsWith('/editais') ? '/oportunidades' : pathname.startsWith('/agenda') ? '/agenda' : pathname
   return (
     <div className="flex h-full flex-col justify-between overflow-y-auto bg-primary" onClick={aoNavegar ? (e) => (e.target as HTMLElement).closest('a') && aoNavegar() : undefined}>
       <div>

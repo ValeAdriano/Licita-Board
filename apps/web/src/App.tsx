@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { useSessao, type Fase } from './auth/sessao'
 import { AMBIENTE, CADASTRO_ABERTO } from './config'
+import Acompanhamento from './pages/Acompanhamento'
+import Agenda from './pages/Agenda'
 import Auditoria from './pages/Auditoria'
 import Cadastrar from './pages/Cadastrar'
 import Cadastros from './pages/Cadastros'
@@ -55,6 +57,8 @@ export function Rotas() {
           <Route element={<Layout />}>
             <Route index element={<Inicio />} />
             <Route path="notificacoes" element={<Notificacoes />} />
+            <Route path="agenda" element={<Agenda />} />
+            <Route path="agenda/acompanhamentos/:id" element={<Acompanhamento />} />
             <Route path="cadastros" element={<Cadastros />} />
             <Route path="oportunidades" element={<PaginaOportunidades />} />
             <Route path="editais/:id" element={<PaginaEdital />} />

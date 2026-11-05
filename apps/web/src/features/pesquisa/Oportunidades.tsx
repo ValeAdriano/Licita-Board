@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { chamar } from '../../api/cliente'
 import { Abas, Aviso, Botao, Campo, Etiqueta } from '../../ui'
 import { Caixa } from '../acesso/cadastros/comum'
 import { useEnvio } from '../acesso/conta/useEnvio'
+import { useAcesso } from '../acesso/contexto'
 import { useGet } from '../acesso/useGet'
 import { BannerFontes } from './BannerFontes'
 import { BENEFICIO, FAIXA, moeda, quando } from './formato'
@@ -80,6 +81,13 @@ function Cartao({ o, empresaId, podeTriar, aoMudar }: { o: Op; empresaId: string
   const [descartando, setDescartando] = useState(false)
   const [motivo, setMotivo] = useState('')
   const { enviando, erro, enviar } = useEnvio()
+  const { pode } = useAcesso()
+  const navegar = useNavigate()
+  const acompanhar = () =>
+    enviar(async () => {
+      const r = await chamar<{ id: string }>('POST', `/empresas/${empresaId}/oportunidades/${o.id}/acompanhar`)
+      void navegar(`/agenda/acompanhamentos/${r.id}`)
+    })
   const triar = (triagem: string, m?: string) =>
     enviar(async () => {
       await chamar('POST', `/empresas/${empresaId}/oportunidades/${o.id}/triagem`, { triagem, motivo: m ?? null })
@@ -111,6 +119,7 @@ function Cartao({ o, empresaId, podeTriar, aoMudar }: { o: Op; empresaId: string
       </div>
       {podeTriar && !descartando ? (
         <div className="flex gap-4 flex-row items-center flex-wrap">
+          {pode('agenda', 'cadastrar') ? <Botao carregando={enviando} onClick={() => void acompanhar()}>Acompanhar na agenda</Botao> : null}
           <Botao variante="secundario" carregando={enviando} onClick={() => void triar('interesse')}>Tenho interesse</Botao>
           <Botao variante="secundario" onClick={() => void triar('vista')}>Marcar como vista</Botao>
           <Botao variante="texto" onClick={() => setDescartando(true)}>Descartar…</Botao>

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { chamar } from '../api/cliente'
+import { useAcesso } from '../features/acesso/contexto'
 import { useGet } from '../features/acesso/useGet'
 import { useEnvio } from '../features/acesso/conta/useEnvio'
 import { BannerFontes } from '../features/pesquisa/BannerFontes'
@@ -25,6 +26,9 @@ const CAMPO: Record<string, string> = { itens: 'itens', arquivos: 'arquivos', ob
 export default function PaginaEdital() {
   const { id } = useParams()
   const e = useGet<Edital>(id ? `/editais/${id}` : null)
+  const { empresa, pode } = useAcesso()
+  const navegar = useNavigate()
+  const acomp = useEnvio()
   if (e.erro) return <p className="px-4 py-10 text-center text-sm text-tertiary">Edital não encontrado ou sem permissão.</p>
   if (!e.dados) return <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Carregando…</p>
   const d = e.dados
@@ -37,11 +41,15 @@ export default function PaginaEdital() {
         subtitulo={`${d.municipio ?? '—'}/${d.uf ?? '—'} · ${d.modalidade ?? '—'} · nº ${d.numeroEdital ?? '—'} · versão ${d.versaoAtual}${d.origem === 'manual' ? ' · importado manualmente' : ''}`}
         acoes={
           <>
+            {empresa && pode('agenda', 'cadastrar') ? (
+              <Botao carregando={acomp.enviando} onClick={() => void acomp.enviar(async () => { const r = await chamar<{ id: string }>('POST', `/empresas/${empresa.empresaId}/acompanhamentos`, { editalId: d.id }); void navegar(`/agenda/acompanhamentos/${r.id}`) })}>Acompanhar na agenda</Botao>
+            ) : null}
             {d.linkOrigem ? <Botao variante="secundario" onClick={() => window.open(d.linkOrigem ?? '', '_blank', 'noopener,noreferrer')}>Registro oficial no PNCP</Botao> : null}
             {d.linkPortal ? <Botao variante="secundario" onClick={() => window.open(d.linkPortal ?? '', '_blank', 'noopener,noreferrer')}>Portal de origem</Botao> : null}
           </>
         }
       />
+      <Aviso texto={acomp.erro} />
       <Cartao>
         <p><bdi>{d.objeto}</bdi></p>
         <Legenda>
