@@ -76,6 +76,12 @@ def minutar(
                 "texto": rec["texto"],
                 "alegacoes": cur.fetchall(),
             }
+        sugestao = None
+        cur.execute(
+            "select duvida, impacto, pedido, trecho_edital from priv.sugestoes_pecas where peca_id = %s and empresa_id = %s",
+            (m["peca_id"], m["empresa_id"]),
+        )
+        sugestao = cur.fetchone()
         parecer = None
         cur.execute(
             "select id, concorrente from priv.pareceres_recursais where peca_id = %s and empresa_id = %s",
@@ -108,6 +114,7 @@ def minutar(
         fontes,
         recurso,
         parecer,
+        sugestao,
     )
     try:
         resp = cliente.completar(SISTEMA, usuario)

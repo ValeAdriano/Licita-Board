@@ -45,6 +45,7 @@ from worker.proposta import Gravador, gerar_proposta, hoje_local
 from worker.push import REDE, TTL_SEGUNDOS, EnviadorPush, Inscricao, carga_generica
 from worker.recurso import ler as ler_recurso_terceiro
 from worker.settings import Settings
+from worker.sugestao import sugerir as sugerir_pecas_edital
 
 log = logging.getLogger("worker.fila")
 
@@ -101,6 +102,7 @@ class Handlers:
             "ler_recurso": self.ler_recurso,
             "validar_parecer": self.validar_parecer,
             "analisar_vencedora": self.analisar_vencedora,
+            "sugerir_pecas": self.sugerir_pecas,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -265,6 +267,14 @@ class Handlers:
         # A IA só SUGERE achados com citação literal; a classificação e a recomendação são humanas. Sem chave, fica "desligada".
         cliente = cliente_da_empresa(conn, job.get("empresa_id"), self._s)
         analisar_parecer(conn, str(job["payload"]["parecer_id"]), cliente, job.get("empresa_id"))
+
+    def sugerir_pecas(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # A IA só SUGERE esclarecimentos/impugnações (trecho literal conferido, fundamento só da base verificada); a empresa do job é a dona (T2).
+        agora = dt.datetime.now(dt.UTC)
+        cliente = cliente_da_empresa(conn, job.get("empresa_id"), self._s)
+        sugerir_pecas_edital(
+            conn, str(job["payload"]["execucao_id"]), cliente, agora, job.get("empresa_id")
+        )
 
     def gerar_proposta(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Só o id da proposta vem no payload; a empresa do job tem de ser a dona dela (T2). Nunca envia ao portal (regra 17).

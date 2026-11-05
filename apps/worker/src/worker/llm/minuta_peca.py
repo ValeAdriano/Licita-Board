@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, ValidationError
 from worker.llm.extracao_requisitos import ErroLLM
 from worker.rules.citacoes import Entrada
 
-VERSAO_PROMPT = "min-v3"
+VERSAO_PROMPT = "min-v4"
 LIMITE_EDITAL = 50_000  # caracteres do edital enviados por pedido
 ROTULO = {
     "esclarecimento": "pedido de esclarecimento",
@@ -71,6 +71,7 @@ def montar_usuario(
     fontes: list[dict[str, str | None]],
     recurso: dict[str, Any] | None = None,
     parecer: dict[str, Any] | None = None,
+    sugestao: dict[str, Any] | None = None,
 ) -> tuple[str, bool]:
     """(pedido, edital truncado?). `fontes` = só entradas VERIFICADAS (tipo, numero, orgao, dispositivo, titulo, ementa)."""
     texto, truncado = "", False
@@ -105,6 +106,12 @@ def montar_usuario(
             "(apenas citações da lista de fontes); se uma alegação a rebater não tem prova indicada, escreva o argumento e marque [A CONFIRMAR: prova]. "
             f"Alegações marcadas para concordar ou sem relevância já foram retiradas da lista.\n<alegacoes>\n{pontos}\n</alegacoes>\n\n"
             f"Recorrente: {recurso['recorrente']}\n<recurso>\n{recurso['texto'][:30000]}\n</recurso>\n"
+        )
+    if sugestao:
+        bloco_recurso += (
+            "\nA equipe aceitou a seguinte sugestão como base da peça (use-a; não amplie além dela): "
+            f"dúvida/ilegalidade: {sugestao['duvida']}; impacto: {sugestao['impacto'] or '(não informado)'}; pedido: {sugestao['pedido'] or '(não informado)'}; "
+            f"trecho do edital: “{sugestao['trecho_edital']}”.\n"
         )
     if parecer:
         pontos = "\n".join(
