@@ -5,6 +5,7 @@ import { AreaTexto, Aviso, Botao, Caixa, Campo, Etiqueta, Legenda, Modal, Seleca
 import { useEnvio } from '../acesso/conta/useEnvio'
 import { useAcesso } from '../acesso/contexto'
 import { BENEFICIO, moeda } from '../pesquisa/formato'
+import { RegistrarResultado } from '../resultados/RegistrarResultado'
 import { PRIORIDADE, SITUACAO, STATUS_PART } from './comum'
 import type { Detalhe, ItemPart } from './tiposAcompanhamento'
 
@@ -18,6 +19,7 @@ export function Itens({ empresaId, d, responsaveis, podeCadastrar, podeEditar, a
   const { pode } = useAcesso()
   const [marcados, setMarcados] = useState<Set<string>>(new Set())
   const [editando, setEditando] = useState<ItemPart | null>(null)
+  const [resultadoDe, setResultadoDe] = useState<string | null>(null)
   const { enviando, erro, enviar } = useEnvio()
   const livres = d.itens.filter((i) => !i.participacaoId && !i.retirado)
   const alternar = (id: string, v: boolean) => { const n = new Set(marcados); if (v) n.add(id); else n.delete(id); setMarcados(n) }
@@ -58,6 +60,7 @@ export function Itens({ empresaId, d, responsaveis, podeCadastrar, podeEditar, a
                 <span className="flex flex-wrap items-center gap-2">
                   {pode('precos', 'ver_custos_margens') ? <Link to={`/agenda/participacoes/${i.participacaoId}/preco`}>Preço</Link> : null}
                   {pode('analises', 'visualizar') ? <Link to={`/agenda/participacoes/${i.participacaoId}/analise`}>Análise técnica</Link> : null}
+                  {podeEditar ? <Botao variante="secundario" onClick={() => setResultadoDe(i.participacaoId)}>Resultado</Botao> : null}
                   {podeEditar ? <Botao variante="secundario" onClick={() => setEditando(i)}>Editar</Botao> : null}
                 </span>
               ) : null}
@@ -65,6 +68,7 @@ export function Itens({ empresaId, d, responsaveis, podeCadastrar, podeEditar, a
           </div>
         ))}
       </div>
+      {resultadoDe ? <RegistrarResultado empresaId={empresaId} participacaoId={resultadoDe} aoFechar={() => setResultadoDe(null)} aoSalvar={() => { setResultadoDe(null); aoMudar() }} /> : null}
       {editando ? <EditarParticipacao empresaId={empresaId} item={editando} responsaveis={responsaveis} aoFechar={() => setEditando(null)} aoSalvar={() => { setEditando(null); aoMudar() }} /> : null}
     </section>
   )

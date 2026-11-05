@@ -30,8 +30,10 @@ export const STATUS_ACOMP: Record<string, string> = {
 }
 export const PRIORIDADE: Record<string, string> = { baixa: 'Baixa', normal: 'Normal', alta: 'Alta', urgente: 'Urgente' }
 export const STATUS_PART: Record<string, string> = {
-  avaliando: 'Avaliando', vai_participar: 'Vai participar', nao_vai: 'Não vai', proposta_enviada: 'Proposta enviada', em_disputa: 'Em disputa',
-  arrematada: 'Arrematada', habilitacao: 'Habilitação', vencida: 'Vencida', perdida: 'Perdida', desclassificada: 'Desclassificada', cancelada: 'Cancelada',
+  avaliando: 'Avaliando', aguardando_analise: 'Aguardando análise', vai_participar: 'Vai participar', nao_vai: 'Não vai', proposta_preparada: 'Proposta preparada',
+  proposta_cadastrada: 'Proposta cadastrada', proposta_enviada: 'Proposta enviada', em_disputa: 'Em disputa', arrematada: 'Arrematada', habilitacao: 'Em habilitação',
+  em_fase_recursal: 'Em fase recursal', adjudicada: 'Adjudicada', homologada: 'Homologada', contratada: 'Contratada', vencida: 'Vencida', perdida: 'Perdida',
+  inabilitada: 'Inabilitada', desclassificada: 'Desclassificada', fracassada: 'Fracassada', deserta: 'Deserta', revogada: 'Revogada', anulada: 'Anulada', cancelada: 'Cancelada',
 }
 export const SITUACAO: Record<string, string> = { a_confirmar: 'A confirmar', pendente: 'Pendente', em_andamento: 'Em andamento', ok: 'OK', nao_se_aplica: 'Não se aplica' }
 export const FATOS: Record<string, string> = {

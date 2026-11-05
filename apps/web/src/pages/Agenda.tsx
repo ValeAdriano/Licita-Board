@@ -8,9 +8,10 @@ import { Configuracao } from '../features/agenda/Configuracao'
 import { ABERTOS, inicioDoDia, hojeSP, somarDias, TIPO_EVENTO } from '../features/agenda/comum'
 import { ListaEventos } from '../features/agenda/ListaEventos'
 import { Resumo } from '../features/agenda/Resumo'
+import { Historico } from '../features/resultados/Historico'
 import { Abas, Aviso, Botao, CabecalhoPagina, Etiqueta, Pagina, Selecao } from '../ui'
 
-type Aba = 'calendario' | 'prazos' | 'acompanhados' | 'configuracao'
+type Aba = 'calendario' | 'prazos' | 'acompanhados' | 'resultados' | 'configuracao'
 const SITUACOES = [
   { valor: 'abertos', rotulo: 'Em aberto' }, { valor: 'todos', rotulo: 'Todos' }, { valor: 'prazo_perdido', rotulo: 'Prazo perdido' },
   { valor: 'concluidos', rotulo: 'Concluídos (protocolado, respondido, dispensado)' },
@@ -68,11 +69,12 @@ export default function Agenda() {
         rotulo="Agenda"
         ativa={aba}
         aoMudar={(a) => setParams(a === 'calendario' ? {} : { aba: a })}
-        abas={[{ id: 'calendario', rotulo: 'Calendário' }, { id: 'prazos', rotulo: 'Prazos' }, { id: 'acompanhados', rotulo: 'Editais acompanhados' }, { id: 'configuracao', rotulo: 'Configuração' }]}
+        abas={[{ id: 'calendario', rotulo: 'Calendário' }, { id: 'prazos', rotulo: 'Prazos' }, { id: 'acompanhados', rotulo: 'Editais acompanhados' }, { id: 'resultados', rotulo: 'Resultados' }, { id: 'configuracao', rotulo: 'Configuração' }]}
       />
       {aba === 'calendario' || aba === 'prazos' ? filtros : null}
       {aba === 'calendario' ? <Calendario key={empresaId + base} empresaId={empresaId} filtro={base} /> : null}
       {aba === 'prazos' ? <ListaEventos key={empresaId + base + janela} empresaId={empresaId} filtro={base + janela} /> : null}
+      {aba === 'resultados' ? <Historico key={empresaId} empresaId={empresaId} /> : null}
       {aba === 'configuracao' ? <Configuracao key={empresaId} empresaId={empresaId} /> : null}
       {aba === 'acompanhados' ? <Acompanhados key={empresaId} empresaId={empresaId} /> : null}
     </Pagina>

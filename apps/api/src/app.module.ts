@@ -5,6 +5,7 @@ import { AgendaModule } from './agenda/agenda.module.js';
 import { AnalisesModule } from './analises/analises.module.js';
 import { PrecosModule } from './precos/precos.module.js';
 import { PropostasModule } from './propostas/propostas.module.js';
+import { ResultadosModule } from './resultados/resultados.module.js';
 import { DocumentosModule } from './documentos/documentos.module.js';
 import { PesquisaModule } from './pesquisa/pesquisa.module.js';
 import { PushModule } from './push/push.module.js';
@@ -43,6 +44,7 @@ export class AppModule {
         AnalisesModule,
         PrecosModule,
         PropostasModule,
+        ResultadosModule,
       ],
       controllers: [HealthController],
       providers: [{ provide: CONFIG, useValue: config }],

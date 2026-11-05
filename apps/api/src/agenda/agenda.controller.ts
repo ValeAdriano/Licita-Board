@@ -35,7 +35,7 @@ const acompSchema = z.object({
 }).strict();
 const partSchema = z.object({
   responsavelId: z.uuid().nullable().optional(), prioridade: z.enum(PRIORIDADES).optional(),
-  status: z.enum(['avaliando', 'vai_participar', 'nao_vai', 'proposta_enviada', 'em_disputa', 'arrematada', 'habilitacao', 'vencida', 'perdida', 'desclassificada', 'cancelada']).optional(),
+  status: z.enum(['avaliando', 'aguardando_analise', 'vai_participar', 'nao_vai', 'proposta_preparada', 'proposta_cadastrada', 'proposta_enviada', 'em_disputa', 'arrematada', 'habilitacao', 'em_fase_recursal', 'adjudicada', 'homologada', 'contratada', 'vencida', 'perdida', 'inabilitada', 'desclassificada', 'fracassada', 'deserta', 'revogada', 'anulada', 'cancelada']).optional(),
   situacaoDocumentacao: z.enum(SITUACAO).optional(), situacaoProposta: z.enum(SITUACAO).optional(), situacaoJuridica: z.enum(SITUACAO).optional(),
   atendimentoTecnico: z.string().trim().max(2000).nullable().optional(), marca: z.string().trim().max(120).nullable().optional(),
   modelo: z.string().trim().max(120).nullable().optional(), versao: z.string().trim().max(120).nullable().optional(),
