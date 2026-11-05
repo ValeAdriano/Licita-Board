@@ -116,6 +116,44 @@ begin
 end;
 $$;
 
+-- Cena da Fase 06 para os testes de isolamento: um edital com 1 item, e em CADA empresa (A e B) um acompanhamento, uma
+-- participação, um produto, um requisito, uma análise e uma linha de matriz. Rodar depois de criar_empresas_ab().
+create or replace function tests.cena_analise()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_org uuid;
+  v_ed uuid;
+  v_it uuid;
+  v_cat uuid := (select id from pub.categorias where slug = 'veiculos');
+  v_letra text;
+  v_emp uuid;
+  v_ac uuid;
+  v_part uuid;
+  v_prod uuid;
+  v_req uuid;
+  v_an uuid;
+begin
+  insert into pub.orgaos (cnpj, razao_social, uf, codigo_ibge) values ('11222333000181', 'Órgão Fictício', 'PR', '4106902') returning id into v_org;
+  insert into pub.editais (fonte_id, id_externo, orgao_id, objeto, hash_conteudo)
+  values ((select id from ops.fontes where slug = 'pncp'), 'AN-1', v_org, 'Objeto', repeat('a', 64)) returning id into v_ed;
+  insert into pub.edital_itens (edital_id, numero_item, descricao) values (v_ed, 1, 'Item 1') returning id into v_it;
+  foreach v_letra in array array['A', 'B'] loop
+    v_emp := tests.empresa_id(v_letra);
+    insert into priv.acompanhamentos (empresa_id, edital_id) values (v_emp, v_ed) returning id into v_ac;
+    insert into priv.participacoes (empresa_id, acompanhamento_id, item_id) values (v_emp, v_ac, v_it) returning id into v_part;
+    insert into priv.produtos (empresa_id, categoria_id, codigo_interno, descricao) values (v_emp, v_cat, 'P-' || v_letra, 'Produto ' || v_letra) returning id into v_prod;
+    insert into priv.requisitos_item (empresa_id, participacao_id, nome, operador, valor_numero, citacao_edital)
+    values (v_emp, v_part, 'Potência mínima ' || v_letra, '>=', 100, 'potência mínima de 100 cv') returning id into v_req;
+    insert into priv.analises_item (empresa_id, participacao_id, produto_id) values (v_emp, v_part, v_prod) returning id into v_an;
+    insert into priv.analise_linhas (empresa_id, analise_id, requisito_id, resultado) values (v_emp, v_an, v_req, 'A CONFIRMAR');
+  end loop;
+end;
+$$;
+
 -- Token fictício e determinístico da sessão de teste de um usuário.
 create or replace function tests.token(p_ident text, p_sessao text default 'sessao-teste')
 returns text

@@ -17,6 +17,7 @@ from worker.agenda_alertas import TIPO as TIPO_EVENTO
 from worker.agenda_alertas import processar as alertas_da_agenda
 from worker.agenda_documentos import cruzar_todos as cruzar_documentos
 from worker.agenda_retificacao import reavaliar as reavaliar_retificacoes
+from worker.analise import analisar
 from worker.documentos import Antivirus, Armazenamento, processar_versao
 from worker.email import (
     Enviador,
@@ -81,6 +82,7 @@ class Handlers:
             "apurar_cobertura": self.apurar_cobertura,
             "calcular_prazos": self.calcular_prazos,
             "email_agenda": self.email_agenda,
+            "analisar_item": self.analisar_item,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -197,6 +199,10 @@ class Handlers:
         ocr = Tesseract() if shutil.which("tesseract") else None
         agora = dt.datetime.now(dt.UTC)
         extrair_texto(conn, str(job["payload"]["arquivo_id"]), self._s3, ocr, agora)  # type: ignore[arg-type]
+
+    def analisar_item(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # Só o id da análise vem no payload; a empresa do job tem de ser a dona dela (T2). Quem classifica é código puro.
+        analisar(conn, str(job["payload"]["analise_id"]), job.get("empresa_id"))
 
     def calcular_prazos(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Só o id do acompanhamento vem no payload; empresa e datas são lidas do banco (T2).
