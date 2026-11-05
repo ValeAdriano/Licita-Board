@@ -3,6 +3,7 @@
 Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada fase.
 
 **Fase atual (2026-11-05):** Fases 00 a 04 construídas no `main` em modo rápido (rodam no Docker); a **spec da Fase 05 está em rascunho** aguardando aprovação. Stack: Docker + Postgres + API NestJS + front React (Untitled UI, PWA) + worker Python (ADR-011 a 020).
+**Visão por marcos, MVP e sprints:** [`roadmap-marcos.md`](roadmap-marcos.md).
 **Próximo passo:** Adriano aprova (ou ajusta) a spec da Fase 05 (`docs/specs/fase-05.md`) e decide o Compras.gov.br na Fase 04. Em paralelo, dependem de fora do código: planilha atual da agenda e 30+ casos de prazo do jurídico (Fase 05), 50 editais da amostra (Fase 04), VPS, bucket S3 e ensaio de restauração (Fases 00 e 01), decisões do jurídico e do contador.
 
 > A revisão 1 (Supabase) foi removida do repositório no PR 11; o estado anterior está na tag `revisao-1-supabase`.

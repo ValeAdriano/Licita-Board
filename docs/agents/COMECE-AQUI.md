@@ -35,6 +35,8 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 - CSP estrita: sem `data:` em imagens, sem `style=` inline; o hash do `<style>` do react-aria está no Caddyfile (ADR-020).
 - Coleta PNCP está **desligada** para poupar disco: `update ops.fontes set ativa = true where slug = 'pncp'` religa.
 
+Plano de marcos, MVP e sprints: [`../roadmap-marcos.md`](../roadmap-marcos.md) (próximo sprint: S5 · Endurecimento).
+
 ## 4. Estado por fase (resumo; o detalhe está em [`../roadmap.md`](../roadmap.md) e nas specs)
 
 | Fase | Estado | Falta |
