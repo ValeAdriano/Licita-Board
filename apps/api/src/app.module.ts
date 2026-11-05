@@ -2,6 +2,7 @@ import { DynamicModule, Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { AcessoModule } from './acesso/acesso.module.js';
 import { AgendaModule } from './agenda/agenda.module.js';
+import { AnalisesModule } from './analises/analises.module.js';
 import { DocumentosModule } from './documentos/documentos.module.js';
 import { PesquisaModule } from './pesquisa/pesquisa.module.js';
 import { PushModule } from './push/push.module.js';
@@ -37,6 +38,7 @@ export class AppModule {
         DocumentosModule,
         PesquisaModule,
         AgendaModule,
+        AnalisesModule,
       ],
       controllers: [HealthController],
       providers: [{ provide: CONFIG, useValue: config }],
