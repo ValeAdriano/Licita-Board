@@ -13,7 +13,7 @@ export interface Detalhe {
   id: string; status: string; prioridade: string; dataAbertura: string | null; aberturaOrigem: string; aberturaConfirmada: boolean; aberturaClausula: string | null
   portal: string | null; linkDisputa: string | null; linkDocumentos: string | null; prazoEsclarecimentoEdital: string | null; prazoImpugnacaoEdital: string | null
   clausulaPrazos: string | null; confiabilidade: string; observacoes: string | null; ultimaConferenciaEm: string | null; responsavelId: string | null
-  editalVersaoVista: number; editalId: string; numeroEdital: string | null; processo: string | null; modalidade: string | null; objeto: string; editalVersaoAtual: number
+  editalVersaoVista: number; aberturaReconfirmar: boolean; editalId: string; numeroEdital: string | null; processo: string | null; modalidade: string | null; objeto: string; editalVersaoAtual: number
   linkOrigem: string | null; encerramentoPropostasPncp: string | null; situacaoEdital: string | null; orgao: string; uf: string | null; municipio: string | null; codigoIbge: string | null
   itens: ItemPart[]; eventos: EventoDet[]; historico: Historico[]
 }

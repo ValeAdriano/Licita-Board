@@ -110,7 +110,7 @@ export class AgendaController {
     return this.q(req, async (tx) => (await sql`
       select a.id, a.status, a.prioridade, a.data_abertura as "dataAbertura", a.abertura_confirmada as "aberturaConfirmada", a.confiabilidade,
              a.responsavel_id as "responsavelId", u.nome as responsavel, e.id as "editalId", e.numero_edital as "numeroEdital", left(e.objeto, 200) as objeto,
-             e.versao_atual > a.edital_versao_vista as "editalAlterado", g.razao_social as orgao, g.uf, g.municipio,
+             e.versao_atual > a.edital_versao_vista as "editalAlterado", a.abertura_reconfirmar as "aberturaReconfirmar", g.razao_social as orgao, g.uf, g.municipio,
              (select count(*)::int from priv.participacoes p where p.acompanhamento_id = a.id and p.deleted_at is null) as "itens",
              (select min(x.data_limite_legal) from priv.agenda_eventos x where x.acompanhamento_id = a.id and x.tipo <> 'disputa'
                  and x.status in ('sugerido', 'em_elaboracao', 'em_revisao', 'aprovado') and x.data_limite_legal >= now()) as "proximoPrazo",
@@ -132,7 +132,7 @@ export class AgendaController {
                a.abertura_clausula as "aberturaClausula", a.portal, a.link_disputa as "linkDisputa", a.link_documentos as "linkDocumentos",
                a.prazo_esclarecimento_edital as "prazoEsclarecimentoEdital", a.prazo_impugnacao_edital as "prazoImpugnacaoEdital", a.clausula_prazos as "clausulaPrazos",
                a.confiabilidade, a.observacoes, a.ultima_conferencia_em as "ultimaConferenciaEm", a.responsavel_id as "responsavelId",
-               a.edital_versao_vista as "editalVersaoVista", e.id as "editalId", e.numero_edital as "numeroEdital", e.processo, e.modalidade, e.objeto,
+               a.edital_versao_vista as "editalVersaoVista", a.abertura_reconfirmar as "aberturaReconfirmar", e.id as "editalId", e.numero_edital as "numeroEdital", e.processo, e.modalidade, e.objeto,
                e.versao_atual as "editalVersaoAtual", e.link_origem as "linkOrigem", e.data_encerramento_propostas as "encerramentoPropostasPncp", e.situacao as "situacaoEdital",
                g.razao_social as orgao, g.uf, g.municipio, g.codigo_ibge as "codigoIbge"
           from priv.acompanhamentos a join pub.editais e on e.id = a.edital_id join pub.orgaos g on g.id = e.orgao_id

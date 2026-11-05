@@ -42,13 +42,13 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 | 02 Empresas e produtos | no main | A x B de `priv`, decisões do jurídico |
 | 03 Documentos e certidões | no main | tela do checklist, A x B, retenção |
 | 04 Pesquisa PNCP | no main, dados reais no Docker | Compras.gov.br (decisão), embeddings, ZIP, upload manual, amostra de 50 editais |
-| 05 Agenda ★ MVP | calendário, prazos, acompanhamento, **alertas D-5/D-3/D-1/dia, escalonamento, prazo perdido automático, .ics, documentos que vencem antes da disputa, diff de versões do edital** | job de reavaliação ao retificar, importar planilha (exportação CSV pronta), diff de versões na tela, parâmetro D-N por empresa, feriados municipais; **regras de prazo NÃO validadas pelo jurídico** |
+| 05 Agenda ★ MVP | calendário, prazos, acompanhamento, **alertas D-5/D-3/D-1/dia, escalonamento, prazo perdido automático, .ics, documentos que vencem antes da disputa, diff de versões do edital, reavaliação ao retificar (abertura a reconfirmar)** | importar planilha (exportação CSV pronta), diff de versões na tela, parâmetro D-N por empresa, feriados municipais; **regras de prazo NÃO validadas pelo jurídico** |
 | UI (ADR-020) | Untitled UI em todo o front | `Table` do Untitled UI em Equipe/Auditoria/Empresas, modo escuro, conferir 360 px em todas as telas |
 | 06 em diante | não iniciadas | — |
 
 ## 5. Próximos passos sugeridos (ordem)
 
-1. Fase 05: job `reavaliar_acompanhamento` (retificação do edital notifica o responsável e marca "abertura a reconfirmar"; o diff já existe) → feriados municipais pela tela → parâmetro D-N por empresa → importar planilha (bloqueado: falta o layout da planilha atual da operação; exportação CSV já existe) → diff de versões → feriados municipais pela tela.
+1. Fase 05: feriados municipais pela tela → parâmetro D-N por empresa → importar planilha (bloqueado: falta o layout da planilha atual da operação; exportação CSV já existe).
 2. Fase 05 e anteriores: A x B (pgTAP e e2e) das tabelas `priv` novas **antes de uso real** (regra 13).
 3. Fase 04: decidir Compras.gov.br com o Adriano (recomendação: só conferência cruzada).
 4. UI: `Table` nas telas restantes, modo escuro, revisão em 360 px.

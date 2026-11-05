@@ -17,6 +17,7 @@ export function Acompanhados({ empresaId }: { empresaId: string }) {
             <strong className="text-md text-primary [overflow-wrap:anywhere]"><bdi>{a.orgao}</bdi></strong>
             <Etiqueta cor="cinza">{STATUS_ACOMP[a.status] ?? a.status}</Etiqueta>
             {a.prioridade !== 'normal' ? <Etiqueta cor={a.prioridade === 'urgente' ? 'erro' : 'marca'}>{PRIORIDADE[a.prioridade]}</Etiqueta> : null}
+            {a.aberturaReconfirmar ? <Etiqueta cor="erro">Reconfirmar abertura</Etiqueta> : null}
             {a.editalAlterado ? <Etiqueta cor="aviso">Edital retificado: confira</Etiqueta> : null}
             {a.prazosPerdidos > 0 ? <Etiqueta cor="erro">{a.prazosPerdidos} prazo(s) perdido(s)</Etiqueta> : null}
           </span>

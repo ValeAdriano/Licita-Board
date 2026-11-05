@@ -48,6 +48,7 @@ export default function Acompanhamento() {
         }
       />
       <Cartao><p className="text-sm text-secondary [overflow-wrap:anywhere]"><bdi>{d.objeto}</bdi></p></Cartao>
+      {d.aberturaReconfirmar ? <Aviso tipo="atencao" texto="A retificação mudou datas do edital: a abertura confirmada pode não valer mais. Reconfirme a data de abertura abaixo (os prazos calculados dependem dela)." /> : null}
       {d.editalVersaoAtual > d.editalVersaoVista ? <RetificacaoAviso empresaId={empresaId} d={d} podeEditar={podeEditar} aoMudar={mudou} /> : null}
       {recalculando ? <Aviso tipo="info" texto="Recalculando os prazos… eles aparecem em instantes." /> : null}
       <Abertura empresaId={empresaId} d={d} podeEditar={podeEditar} aoMudar={mudou} />

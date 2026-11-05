@@ -16,6 +16,7 @@ from worker.agenda import calcular_acompanhamento, garantir_feriados
 from worker.agenda_alertas import TIPO as TIPO_EVENTO
 from worker.agenda_alertas import processar as alertas_da_agenda
 from worker.agenda_documentos import cruzar_todos as cruzar_documentos
+from worker.agenda_retificacao import reavaliar as reavaliar_retificacoes
 from worker.documentos import Antivirus, Armazenamento, processar_versao
 from worker.email import (
     Enviador,
@@ -408,6 +409,7 @@ def consumir(
                             if (
                                 hora != ultima_hora_agenda
                             ):  # alertas da agenda e prazo perdido: uma vez por hora
+                                reavaliar_retificacoes(conn)
                                 cruzar_documentos(conn, agora)
                                 alertas_da_agenda(conn, agora)
                                 ultima_hora_agenda = hora

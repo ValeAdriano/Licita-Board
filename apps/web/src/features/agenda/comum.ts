@@ -11,7 +11,7 @@ export interface EventoAgenda {
 
 export interface Acompanhado {
   id: string; status: string; prioridade: string; dataAbertura: string | null; aberturaConfirmada: boolean; confiabilidade: string
-  responsavelId: string | null; responsavel: string | null; editalId: string; numeroEdital: string | null; objeto: string; editalAlterado: boolean
+  responsavelId: string | null; responsavel: string | null; editalId: string; numeroEdital: string | null; objeto: string; editalAlterado: boolean; aberturaReconfirmar: boolean
   orgao: string; uf: string | null; municipio: string | null; itens: number; proximoPrazo: string | null; prazosPerdidos: number
 }
 

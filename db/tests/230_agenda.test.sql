@@ -1,7 +1,7 @@
 -- Fase 05 · agenda: isolamento A x B, justificativa obrigatória, histórico imutável, abertura só por função.
 begin;
 set local search_path = tap;
-select plan(16);
+select plan(20);
 
 select tests.criar_empresas_ab();
 select tests.criar_usuario('so_ver');
@@ -23,10 +23,17 @@ select is((select abertura_confirmada from priv.acompanhamentos), false, 'a aber
 select is((select priv.acompanhar_edital(tests.empresa_id('A'), (select id from pub.editais))), (select id from g where nome = 'acomp'), 'acompanhar de novo é idempotente');
 select throws_ok($$ update priv.acompanhamentos set data_abertura = now() $$, '42501', null, 'a data de abertura não se altera por update direto');
 select lives_ok($$ select priv.confirmar_abertura(tests.empresa_id('A'), (select id from g where nome = 'acomp'), timestamptz '2026-12-15 10:00-03', 'edital', 'item 4.1', null, null, null) $$, 'confirma a abertura por função');
+select is((select abertura_reconfirmar from priv.acompanhamentos), false, 'abertura confirmada por pessoa: nada a reconfirmar');
+select tests.sair();
+update priv.acompanhamentos set abertura_reconfirmar = true;  -- o worker marca ao retificar a data (aqui, como dono)
+select tests.autenticar_como('usuario_a');
+select lives_ok($$ select priv.confirmar_abertura(tests.empresa_id('A'), (select id from g where nome = 'acomp'), timestamptz '2026-12-16 10:00-03', 'edital', 'item 4.1', null, null, null) $$, 'confirma de novo depois da retificação');
+select is((select abertura_reconfirmar from priv.acompanhamentos), false, 'a pessoa que reconfirma a abertura desmarca "a reconfirmar"');
+select throws_ok($$ update priv.acompanhamentos set abertura_reconfirmar = true $$, '42501', null, 'a API não marca "a reconfirmar" (só o worker)');
 select lives_ok($$ select priv.promover_oportunidade(tests.empresa_id('A'), (select id from priv.oportunidades)) $$, 'promove a oportunidade a participação');
 select is((select count(*)::int from priv.participacoes), 1, 'uma linha por item (não por edital)');
 select tests.sair();
-select is((select count(*)::int from ops.jobs where tipo = 'calcular_prazos'), 2, 'cada mudança enfileira o recálculo');
+select is((select count(*)::int from ops.jobs where tipo = 'calcular_prazos'), 3, 'cada mudança enfileira o recálculo');
 
 select tests.autenticar_como('usuario_b');
 select is((select count(*)::int from priv.acompanhamentos), 0, 'B não vê acompanhamento de A');
