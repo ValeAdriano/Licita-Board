@@ -8,11 +8,13 @@ import uuid
 import zipfile
 from datetime import UTC, date, datetime
 from typing import Any
+from unittest.mock import patch
 
 import psycopg
 import pytest
 
 from tests.test_coleta import _admin
+from worker.pdf import PdfIndisponivel
 from worker.proposta import gerar_proposta
 
 pytestmark = pytest.mark.skipif(
@@ -26,6 +28,9 @@ ENVELOPE = '{"v":1,"dek":"AwMDAwMDAwMDAwMDWs7ANpmNfrFp5lKrYrYW7a/+lBPp+qmFUh025G
 class S3Falso:
     def __init__(self) -> None:
         self.objetos: dict[str, bytes] = {}
+
+    def ler(self, chave: str) -> bytes:
+        return self.objetos[chave]
 
     def gravar(self, chave: str, dados: bytes) -> None:
         self.objetos[chave] = dados
@@ -222,3 +227,31 @@ def test_representante_sem_poder_e_documento_vencido_bloqueiam(cena: Any) -> Non
 def test_proposta_de_outra_empresa_e_ignorada(cena: Any) -> None:
     assert gerar_proposta(cena["conn"], cena["prop"], cena["s3"], HOJE, str(uuid.uuid4())) is None
     assert _prop(cena)[3] is None
+
+
+def test_final_gera_o_pdf_e_pedir_depois_converte_so_se_faltar(cena: Any) -> None:
+    _roda(cena)
+    _admin(
+        "update priv.propostas set status = 'aprovada', aprovado_por = (select id from core.usuarios limit 1), aprovado_em = now() where id = %s",
+        cena["prop"],
+    )
+    with patch(
+        "worker.proposta.docx_para_pdf",
+        side_effect=PdfIndisponivel("sem soffice"),
+    ):
+        assert _roda(cena) == "final"  # sem LibreOffice: o final vale, só não há PDF
+    assert (
+        _admin("select arquivo_pdf_chave from priv.propostas where id = %s", cena["prop"])[0][0]
+        is None
+    )
+    with patch("worker.proposta.docx_para_pdf", return_value=b"%PDF-1.7 teste"):
+        assert _roda(cena) == "final"  # pedir o PDF depois grava só o PDF
+    chave, sha = _admin(
+        "select arquivo_pdf_chave, arquivo_pdf_sha256 from priv.propostas where id = %s",
+        cena["prop"],
+    )[0]
+    assert chave.endswith("proposta-v1.pdf") and cena["s3"].objetos[chave] == b"%PDF-1.7 teste"
+    assert sha == hashlib.sha256(b"%PDF-1.7 teste").hexdigest()
+    with patch("worker.proposta.docx_para_pdf") as conv:
+        _roda(cena)
+        conv.assert_not_called()  # já tem PDF: nada a fazer

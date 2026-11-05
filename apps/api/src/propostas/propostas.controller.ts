@@ -11,6 +11,7 @@ const dadosSchema = z.object({
   representanteId: z.uuid().nullable().optional(), validadeDias: z.number().int().min(1).max(3650).nullable().optional(), prazoEntregaDias: z.number().int().min(1).max(3650).nullable().optional(),
   garantiaMeses: z.number().int().min(1).max(600).nullable().optional(), condicoes: z.string().trim().max(2000).nullable().optional(), local: z.string().trim().max(120).nullable().optional(),
 }).strict();
+const downloadSchema = z.object({ formato: z.enum(['docx', 'pdf']).default('docx') }).strict();
 const criarSchema = dadosSchema.extend({ tipo: z.enum(['inicial', 'final']).default('inicial') }).strict();
 
 // Propostas (spec fase-08). A API só grava decisões humanas por função do banco; o worker VALIDA (8.6) e GERA o documento final com
@@ -30,7 +31,7 @@ export class PropostasController {
       const lista = (await sql`
         select p.id, p.versao, p.tipo, p.status, p.representante_id as "representanteId", r.nome as representante, p.validade_dias as "validadeDias", p.prazo_entrega_dias as "prazoEntregaDias",
                p.garantia_meses as "garantiaMeses", p.condicoes, p.local_assinatura as local, p.conteudo, p.total::text as total, p.total_extenso as "totalExtenso", p.validacao,
-               p.validada_em as "validadaEm", p.bloqueada, p.arquivo_sha256 as "arquivoSha256", p.gerado_em as "geradoEm", p.arquivo_chave is not null as "temArquivo",
+               p.validada_em as "validadaEm", p.bloqueada, p.arquivo_sha256 as "arquivoSha256", p.gerado_em as "geradoEm", p.arquivo_chave is not null as "temArquivo", p.arquivo_pdf_chave is not null as "temPdf",
                uc.nome as "conferidoPor", p.conferido_em as "conferidoEm", ua.nome as "aprovadoPor", p.aprovado_em as "aprovadoEm", p.created_at as "criadaEm"
           from priv.propostas p left join core.representantes r on r.id = p.representante_id left join core.usuarios uc on uc.id = p.conferido_por left join core.usuarios ua on ua.id = p.aprovado_por
          where p.acompanhamento_id = ${id}::uuid and p.empresa_id = ${empresa}::uuid and p.deleted_at is null order by p.versao desc`.execute(tx)).rows;
@@ -97,18 +98,29 @@ export class PropostasController {
     return { id: r.rows[0]?.id, status: 'validando' };
   }
 
-  // Download do documento final: permissão e propostas da própria empresa conferidos no banco; a URL vale 60 s.
+  // Download do documento final (.docx ou PDF): permissão e propostas da própria empresa conferidos no banco; a URL vale 60 s.
   @Permissao('propostas', 'visualizar')
   @Post('empresas/:empresa/propostas/:id/download')
   @HttpCode(200)
-  async baixar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
-    const r = await this.q(req, async (tx) => (await sql<{ chave: string; versao: number }>`
-      select arquivo_chave as chave, versao from priv.propostas where id = ${id}::uuid and empresa_id = ${empresa}::uuid and status = 'final' and arquivo_chave is not null`.execute(tx)).rows[0]);
-    if (!r) throw new NotFoundException();
+  async baixar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
+    const { formato } = validar(downloadSchema, corpo ?? {});
+    const r = await this.q(req, async (tx) => (await sql<{ chave: string | null; pdf: string | null; versao: number }>`
+      select arquivo_chave as chave, arquivo_pdf_chave as pdf, versao from priv.propostas where id = ${id}::uuid and empresa_id = ${empresa}::uuid and status = 'final' and arquivo_chave is not null`.execute(tx)).rows[0]);
+    const chave = formato === 'pdf' ? r?.pdf : r?.chave;
+    if (!r || !chave) throw new NotFoundException();
     try {
-      return { url: await this.s3.urlParaBaixar(r.chave, `proposta-v${String(r.versao)}.docx`), expiraEmSegundos: 60 };
+      return { url: await this.s3.urlParaBaixar(chave, `proposta-v${String(r.versao)}.${formato}`), expiraEmSegundos: 60 };
     } catch {
       throw new ServiceUnavailableException('Armazenamento indisponível.');
     }
+  }
+
+  // Pede o PDF de uma proposta final que ainda não o tem (o worker converte; o conteúdo da final não muda).
+  @Permissao('propostas', 'visualizar')
+  @Post('empresas/:empresa/propostas/:id/pdf')
+  @HttpCode(202)
+  async pedirPdf(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
+    await this.q(req, (tx) => sql`select priv.pedir_pdf_proposta(${empresa}::uuid, ${id}::uuid)`.execute(tx));
+    return { status: 'gerando_pdf' };
   }
 }

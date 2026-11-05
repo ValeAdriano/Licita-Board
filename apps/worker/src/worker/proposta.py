@@ -19,6 +19,7 @@ from psycopg.rows import dict_row
 
 from worker.agenda_documentos import _documentos
 from worker.docx import montar, paragrafo, tabela
+from worker.pdf import PdfIndisponivel, docx_para_pdf
 from worker.rules.alertas import FUSO
 from worker.rules.extenso import reais_por_extenso
 from worker.rules.proposta import Dados, ItemProposta, bloqueada, validar
@@ -43,6 +44,7 @@ MESES = (
 
 class Gravador(Protocol):
     def gravar(self, chave: str, dados: bytes) -> None: ...
+    def ler(self, chave: str) -> bytes: ...
 
 
 def reais(v: Decimal, casas: int = 2) -> str:
@@ -124,6 +126,30 @@ def _documento(
     return montar(corpo)
 
 
+def _converter(docx: bytes) -> bytes | None:
+    """PDF do .docx, ou None se o LibreOffice não está disponível/falhou (a proposta final vale sem ele; dá para pedir depois)."""
+    try:
+        return docx_para_pdf(docx)
+    except PdfIndisponivel as e:
+        log.warning("proposta final sem PDF: %s", e)
+        return None
+
+
+def _gravar_pdf(
+    conn: psycopg.Connection[Any], p: dict[str, Any], docx: bytes, s3: Gravador
+) -> None:
+    pdf = _converter(docx)
+    if pdf is None:
+        return
+    chave = p["arquivo_chave"][: -len(".docx")] + ".pdf"
+    s3.gravar(chave, pdf)
+    conn.execute(
+        "update priv.propostas set arquivo_pdf_chave = %s, arquivo_pdf_sha256 = %s where id = %s",
+        (chave, hashlib.sha256(pdf).hexdigest(), p["id"]),
+    )
+    conn.commit()
+
+
 def gerar_proposta(
     conn: psycopg.Connection[Any],
     proposta_id: str,
@@ -144,7 +170,11 @@ def gerar_proposta(
         if p is None or (empresa_job is not None and str(p["empresa_id"]) != str(empresa_job)):
             return None  # nunca confie no payload (T2)
         if p["status"] == "final":
-            return "final"  # imutável: nada a fazer
+            if p["arquivo_pdf_chave"] is None and s3 is not None:
+                _gravar_pdf(
+                    conn, p, s3.ler(p["arquivo_chave"]), s3
+                )  # só falta o PDF: o resto é imutável
+            return "final"  # imutável: nada a mudar
         cnpj_ok = bool(conn.execute("select core.cnpj_valido(%s)", (p["cnpj"],)).fetchone()[0])  # type: ignore[index]
         dia_sessao = p["data_abertura"].astimezone(FUSO).date() if p["data_abertura"] else None
         rep_ok = bool(p["representante_id"]) and bool(
@@ -191,10 +221,22 @@ def gerar_proposta(
         arquivo = _documento(p, p, snapshot, extenso, hoje)
         chave = f"propostas/{p['empresa_id']}/{p['acomp']}/proposta-v{p['versao']}.docx"
         s3.gravar(chave, arquivo)
+        pdf = _converter(arquivo)
+        chave_pdf = chave[: -len(".docx")] + ".pdf"
+        if pdf is not None:
+            s3.gravar(chave_pdf, pdf)
         conn.execute(
             "update priv.propostas set status = 'final', arquivo_chave = %s, arquivo_sha256 = %s, gerado_em = now(), validacao = %s::jsonb, validada_em = now(), "
-            "bloqueada = false, total_extenso = %s where id = %s",
-            (chave, hashlib.sha256(arquivo).hexdigest(), valid_json, extenso, p["id"]),
+            "bloqueada = false, total_extenso = %s, arquivo_pdf_chave = %s, arquivo_pdf_sha256 = %s where id = %s",
+            (
+                chave,
+                hashlib.sha256(arquivo).hexdigest(),
+                valid_json,
+                extenso,
+                chave_pdf if pdf else None,
+                hashlib.sha256(pdf).hexdigest() if pdf else None,
+                p["id"],
+            ),
         )
         conn.commit()
         log.info(

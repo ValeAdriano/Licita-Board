@@ -11,7 +11,7 @@ export interface Proposta {
   id: string; versao: number; tipo: string; status: 'rascunho' | 'conferencia' | 'aprovada' | 'final'; representanteId: string | null; representante: string | null
   validadeDias: number | null; prazoEntregaDias: number | null; garantiaMeses: number | null; condicoes: string | null; local: string | null; conteudo: ItemSnap[]
   total: string; totalExtenso: string | null; validacao: Divergencia[] | null; validadaEm: string | null; bloqueada: boolean; arquivoSha256: string | null; geradoEm: string | null
-  temArquivo: boolean; conferidoPor: string | null; conferidoEm: string | null; aprovadoPor: string | null; aprovadoEm: string | null
+  temArquivo: boolean; temPdf: boolean; conferidoPor: string | null; conferidoEm: string | null; aprovadoPor: string | null; aprovadoEm: string | null
 }
 export interface DadosPropostas { propostas: Proposta[]; representantes: { id: string; nome: string; tipo: string }[] }
 
@@ -25,7 +25,7 @@ export function Propostas({ empresaId, acompanhamentoId, d, podeCadastrar, podeE
   const n = (v: string) => (v.trim() === '' ? null : Number(v))
   return (
     <div className="flex flex-col gap-6">
-      <Aviso tipo="atencao" texto="O sistema valida a proposta e gera o documento final, mas NUNCA envia ao portal: baixe o arquivo, envie você mesmo e registre o comprovante. Texto-padrão, modelo oficial do edital e papel timbrado ainda não estão ligados (EM DESENVOLVIMENTO); PDF depende do LibreOffice no servidor." />
+      <Aviso tipo="atencao" texto="O sistema valida a proposta e gera o documento final, mas NUNCA envia ao portal: baixe o arquivo, envie você mesmo e registre o comprovante. Texto-padrão, modelo oficial do edital e papel timbrado ainda não estão ligados (EM DESENVOLVIMENTO)." />
       {podeCadastrar ? (
         <section className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-6" aria-labelledby="h-nova">
           <h2 id="h-nova">{d.propostas.length ? 'Nova proposta (outra versão)' : 'Criar proposta'}</h2>
@@ -103,7 +103,9 @@ function Cartao({ empresaId, p, d, podeCadastrar, podeEditar, podeAprovar, aoMud
         {p.status === 'conferencia' && podeAprovar ? acao('aprovar', 'Aprovar e gerar documento final', 'primario', p.bloqueada) : null}
         {(p.status === 'conferencia' || p.status === 'aprovada') && podeEditar ? acao('devolver', 'Devolver a rascunho', 'texto') : null}
         {p.status === 'aprovada' ? <Legenda>Gerando o documento… atualize em instantes.</Legenda> : null}
-        {p.status === 'final' && p.temArquivo ? <Botao carregando={enviando} onClick={() => void enviar(async () => { const r = await chamar<{ url: string }>('POST', `/empresas/${empresaId}/propostas/${p.id}/download`); window.location.assign(r.url) })}>Baixar documento (.docx)</Botao> : null}
+        {p.status === 'final' && p.temArquivo ? <Botao carregando={enviando} onClick={() => void enviar(async () => { const r = await chamar<{ url: string }>('POST', `/empresas/${empresaId}/propostas/${p.id}/download`, { formato: 'docx' }); window.location.assign(r.url) })}>Baixar Word (.docx)</Botao> : null}
+        {p.status === 'final' && p.temPdf ? <Botao carregando={enviando} onClick={() => void enviar(async () => { const r = await chamar<{ url: string }>('POST', `/empresas/${empresaId}/propostas/${p.id}/download`, { formato: 'pdf' }); window.location.assign(r.url) })}>Baixar PDF</Botao> : null}
+        {p.status === 'final' && !p.temPdf ? <Botao variante="secundario" carregando={enviando} onClick={() => void enviar(async () => { await chamar('POST', `/empresas/${empresaId}/propostas/${p.id}/pdf`); aoMudar() })}>Gerar PDF</Botao> : null}
         {p.status === 'final' && podeCadastrar ? acao('nova-versao', 'Criar nova versão (para alterar)') : null}
       </div>
     </section>

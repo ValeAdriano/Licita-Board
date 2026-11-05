@@ -78,13 +78,19 @@ describe('propostas: fluxo e A x B', () => {
     expect(d.propostas.map((p) => [p.versao, p.status, p.temArquivo])).toEqual([[2, 'rascunho', false], [1, 'final', true]]);
     await http().post(`/empresas/${empA}/propostas/${v2}/dados`).set(bearer(editor)).send({ validadeDias: 90, prazoEntregaDias: 20, garantiaMeses: 24 }).expect(202);
     const dl = await http().post(`/empresas/${empA}/propostas/${prop}/download`).set(bearer(leitor));
+    await http().post(`/empresas/${empA}/propostas/${prop}/download`).set(bearer(leitor)).send({ formato: 'pdf' }).expect(404); // final sem PDF ainda
+    await http().post(`/empresas/${empA}/propostas/${prop}/download`).set(bearer(leitor)).send({ formato: 'odt' }).expect(400);
+    const jobs = Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'gerar_proposta'`)).rows[0]?.count);
+    await http().post(`/empresas/${empA}/propostas/${prop}/pdf`).set(bearer(leitor)).expect(202); // pedir o PDF enfileira o worker
+    expect(Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'gerar_proposta'`)).rows[0]?.count)).toBe(jobs + 1);
+    await http().post(`/empresas/${empA}/propostas/${v2}/pdf`).set(bearer(leitor)).expect(404); // rascunho não tem PDF
     expect([200, 503]).toContain(dl.status); // 503 quando o armazenamento de teste não está ligado; nunca 404 para quem vê
   });
 
   it('A x B: B não lê, não cria nem altera nada de A, nem baixa a final', async () => {
     await http().get(`/empresas/${empA}/acompanhamentos/${acomp}/propostas`).set(bearer(b)).expect(404);
     await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/propostas`).set(bearer(b)).send({}).expect(404);
-    for (const acao of ['conferir', 'aprovar', 'devolver', 'validar', 'nova-versao', 'download']) {
+    for (const acao of ['conferir', 'aprovar', 'devolver', 'validar', 'nova-versao', 'download', 'pdf']) {
       await http().post(`/empresas/${empA}/propostas/${v2}/${acao}`).set(bearer(b)).send({}).expect(404);
     }
     // empresa de B na rota com ids de A: o banco não encontra

@@ -47,7 +47,7 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 | UI (ADR-020) | Untitled UI em todo o front | `Table` do Untitled UI em Equipe/Auditoria/Empresas, modo escuro, conferir 360 px em todas as telas |
 | 06 Análise técnica | núcleo sem IA no main: requisitos, matriz por código, citação do edital conferida automaticamente, ficha conferida por pessoa, aprovação | extração por IA (decisão de provedor/custo do Adriano), texto da ficha privada, alternativas (6.4), gabarito de 20 editais |
 | 07 Formação de preços | núcleo no main: calculadora por código (Decimal), custos com sigilo (`ver_custos_margens`), alçada, aprovação | histórico PNCP, empate ficto na tela, reautenticação, cenários; 🧾 tributos e ⚖️ empate/inexequibilidade pendentes |
-| 08 Propostas | no main: versões, validação 8.6, fluxo, .docx final com hash e bloqueio, download | PDF, modelo oficial e papel timbrado, declarações (8.4), checklist (8.5), comprovante de envio |
+| 08 Propostas | no main: versões, validação 8.6, fluxo, .docx e PDF finais com hash e bloqueio, download | modelo oficial e papel timbrado, declarações (8.4), checklist (8.5), comprovante de envio |
 | 09 Disputas e resultados | núcleo no main: resultado por item, status ampliados, gatilho de recurso na agenda, histórico pesquisável | documentos posteriores (9.5), viabilidade recursal (10.4), alerta em tempo real |
 | 10 em diante | não iniciadas (sem spec) | — |
 
