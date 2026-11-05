@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SENHA, admin, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
+import { SENHA, admin, lembrarMfa, stepUp, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
 
 // Propostas da Fase 08: só de preço aprovado, fluxo com permissões, final imutável, download e A x B de cada endpoint.
 describe('propostas: fluxo e A x B', () => {
@@ -12,9 +12,12 @@ describe('propostas: fluxo e A x B', () => {
     const login = await http().post('/auth/login').send({ email, senha: SENHA, plataforma: 'ios' }).expect(200);
     const t0 = (login.body as { token: string }).token;
     const cad = await http().post('/auth/mfa/cadastrar').set(bearer(t0)).send({ senha: SENHA }).expect(200);
-    const conf = await http().post('/auth/mfa/confirmar').set(bearer(t0)).send({ codigo: totpDaUri((cad.body as { uri: string }).uri) }).expect(200);
+    const uri = (cad.body as { uri: string }).uri;
+    const conf = await http().post('/auth/mfa/confirmar').set(bearer(t0)).send({ codigo: totpDaUri(uri) }).expect(200);
     await admin.query(`update core.fatores_mfa set verificado_em = now() - interval '2 days' where usuario_id = (select id from core.usuarios where email = $1)`, [email]);
-    return (conf.body as { token: string }).token;
+    const token = (conf.body as { token: string }).token;
+    lembrarMfa(token, email, uri);
+    return token;
   }
 
   let empA: string; let empB: string; let a: string; let b: string; let editor: string; let leitor: string;
@@ -63,7 +66,9 @@ describe('propostas: fluxo e A x B', () => {
     await http().post(`/empresas/${empA}/propostas/${prop}/devolver`).set(bearer(editor)).expect(204);
     await http().post(`/empresas/${empA}/propostas/${prop}/aprovar`).set(bearer(a)).expect(400); // não está em conferência
     await http().post(`/empresas/${empA}/propostas/${prop}/conferir`).set(bearer(editor)).expect(204);
-    await http().post(`/empresas/${empA}/propostas/${prop}/aprovar`).set(bearer(a)).expect(202);
+    await http().post(`/empresas/${empA}/propostas/${prop}/aprovar`).set(bearer(a)).expect(403); // sem a reautenticação (step-up) não aprova
+    const su = await stepUp(app, a, 'proposta_final'); a = su.token;
+    await http().post(`/empresas/${empA}/propostas/${prop}/aprovar`).set(bearer(a)).send({ stepUp: su.id }).expect(202);
     expect((await admin.query<{ status: string }>(`select status from priv.propostas where id = $1`, [prop])).rows[0]?.status).toBe('aprovada');
   });
 

@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SENHA, admin, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
+import { SENHA, admin, lembrarMfa, stepUp, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
 
 // Jurídico da Fase 10: base verificada, fluxo da peça com permissões, aprovação, protocolo humano, final imutável e A x B.
 describe('jurídico: fluxo e A x B', () => {
@@ -12,9 +12,12 @@ describe('jurídico: fluxo e A x B', () => {
     const login = await http().post('/auth/login').send({ email, senha: SENHA, plataforma: 'ios' }).expect(200);
     const t0 = (login.body as { token: string }).token;
     const cad = await http().post('/auth/mfa/cadastrar').set(bearer(t0)).send({ senha: SENHA }).expect(200);
-    const conf = await http().post('/auth/mfa/confirmar').set(bearer(t0)).send({ codigo: totpDaUri((cad.body as { uri: string }).uri) }).expect(200);
+    const uri = (cad.body as { uri: string }).uri;
+    const conf = await http().post('/auth/mfa/confirmar').set(bearer(t0)).send({ codigo: totpDaUri(uri) }).expect(200);
     await admin.query(`update core.fatores_mfa set verificado_em = now() - interval '2 days' where usuario_id = (select id from core.usuarios where email = $1)`, [email]);
-    return (conf.body as { token: string }).token;
+    const token = (conf.body as { token: string }).token;
+    lembrarMfa(token, email, uri);
+    return token;
   }
 
   let empA: string; let empB: string; let a: string; let b: string; let redator: string; let leitor: string;
@@ -67,7 +70,10 @@ describe('jurídico: fluxo e A x B', () => {
     await admin.query(`update priv.pecas set validada_em = now(), bloqueada = false where id = $1`, [peca]); // worker simulado
     await http().post(`/empresas/${empA}/juridico/pecas/${peca}/revisao`).set(bearer(redator)).expect(204);
     await http().post(`/empresas/${empA}/juridico/pecas/${peca}/aprovar`).set(bearer(redator)).expect(404);
-    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/aprovar`).set(bearer(a)).expect(202);
+    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/aprovar`).set(bearer(a)).expect(403); // sem a reautenticação (step-up) não aprova
+    const su = await stepUp(app, a, 'aprovar_peca'); a = su.token;
+    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/aprovar`).set(bearer(a)).send({ stepUp: su.id }).expect(202);
+    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/aprovar`).set(bearer(a)).send({ stepUp: su.id }).expect(400); // já aprovada (o token é de uso único)
     await http().post(`/empresas/${empA}/juridico/pecas/${peca}/protocolo`).set(bearer(redator)).send({ numero: '2026/1', quando: '2026-11-10T10:00:00-03:00' }).expect(400); // sem documento final
     await http().post(`/empresas/${empA}/juridico/pecas/${peca}/download`).set(bearer(leitor)).send({}).expect(404);
     await admin.query(`update priv.pecas set status = 'final', arquivo_chave = 'pecas/x.docx', arquivo_sha256 = repeat('d', 64), gerado_em = now() where id = $1`, [peca]); // worker simulado

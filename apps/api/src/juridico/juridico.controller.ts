@@ -19,6 +19,7 @@ const minutaSchema = z.object({ minuta: z.string().max(60000), clausulas: z.stri
 const protocoloSchema = z.object({ numero: z.string().trim().min(2).max(80), quando: instante, comprovante: z.string().trim().max(1000).nullable().optional() }).strict();
 const resultadoSchema = z.object({ resultado: z.enum(['deferido', 'parcialmente_deferido', 'indeferido']), observacao: z.string().trim().max(2000).nullable().optional(), quando: instante.nullable().optional() }).strict();
 const minutaIaSchema = z.object({ instrucao: z.string().trim().max(3000).nullable().optional() }).strict();
+const aprovarStepUp = z.object({ stepUp: z.uuid().nullable().optional() }).strict();
 const downloadSchema = z.object({ formato: z.enum(['docx', 'pdf']).default('docx') }).strict();
 const filtroSchema = z.object({ acompanhamento: z.uuid().optional(), status: z.string().max(200).optional() }).strict();
 
@@ -162,8 +163,10 @@ export class JuridicoController {
   @Permissao('juridico', 'aprovar_peca')
   @Post('empresas/:empresa/juridico/pecas/:id/aprovar')
   @HttpCode(202)
-  async aprovar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
-    await this.q(req, (tx) => sql`select priv.aprovar_peca(${empresa}::uuid, ${id}::uuid)`.execute(tx));
+  async aprovar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
+    const d = validar(aprovarStepUp, corpo ?? {});
+    // Aprovar exige reautenticação (step-up 'aprovar_peca'); o banco confere o token (ou dispensa só na chave de desenvolvimento, ADR-021).
+    await this.q(req, (tx) => sql`select priv.aprovar_peca(${empresa}::uuid, ${id}::uuid, ${d.stepUp ?? null}::uuid)`.execute(tx));
     return { status: 'gerando_documento' };
   }
 

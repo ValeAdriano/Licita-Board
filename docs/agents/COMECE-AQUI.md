@@ -37,6 +37,9 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 
 Plano de marcos, MVP e sprints: [`../roadmap-marcos.md`](../roadmap-marcos.md) (próximo sprint: S5 · Endurecimento).
 
+- **Reautenticação nas aprovações (S5)**: `priv.aprovar_peca/aprovar_proposta/aprovar_preco` recebem o token de step-up (`core.exigir_step_up`); a API aceita `stepUp` no corpo e o front usa `useReautenticacao` (tenta sem token; se a API responder 403 abre o modal do TOTP e repete). Em pgTAP use `tests.step_up('usuario_a', '<escopo>')`; em e2e, `lembrarMfa` no `entrar` e `stepUp(app, token, escopo)` de `test/apoio.ts` (o token de sessão muda depois do step-up).
+- **Isolamento A x B**: as 48 tabelas `priv` têm teste em `db/tests/isolamento/`; helpers `tests.cena_cadastros()`, `tests.dml_bloqueado()` e `tests.leitura()` (000_helpers). `python3 scripts/check_isolation_coverage.py` passa.
+
 ## 4. Estado por fase (resumo; o detalhe está em [`../roadmap.md`](../roadmap.md) e nas specs)
 
 | Fase | Estado | Falta |

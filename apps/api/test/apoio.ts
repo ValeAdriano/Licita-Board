@@ -1,3 +1,4 @@
+import request from 'supertest';
 import { createHmac } from 'node:crypto';
 import type { Server } from 'node:http';
 import type { INestApplication } from '@nestjs/common';
@@ -130,4 +131,21 @@ export async function vincular(email: string, empresa: string, papel = 'ADMIN_EM
                            'administrar_permissoes']) a`, [vinculo, empresa]);
   }
   return vinculo;
+}
+
+// Reautenticação (step-up) dos e2e: guarda o autenticador de cada token e gera um TOTP novo (libera o passo usado, simulando a passagem do
+// tempo) para obter o token de uso único do escopo. Devolve também o token de sessão novo (o step-up renova a sessão).
+const contasMfa = new Map<string, { email: string; uri: string }>();
+export function lembrarMfa(token: string, email: string, uri: string): void {
+  contasMfa.set(token, { email, uri });
+}
+export async function stepUp(app: INestApplication, token: string, escopo: string): Promise<{ id: string; token: string }> {
+  const c = contasMfa.get(token);
+  if (!c) throw new Error('token sem autenticador registrado (use lembrarMfa em entrar)');
+  await admin.query(`update core.fatores_mfa set ultimo_passo = 0 where usuario_id = (select id from core.usuarios where email = $1)`, [c.email]);
+  const r = await request.agent(servidor(app)).set('X-Forwarded-For', ipNovo()).post('/auth/mfa/step-up')
+    .set({ Authorization: `Bearer ${token}` }).send({ codigo: totpDaUri(c.uri), escopo }).expect(200);
+  const b = r.body as { stepUp: string; token: string };
+  contasMfa.set(b.token, c);
+  return { id: b.stepUp, token: b.token };
 }

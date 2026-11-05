@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { chamar } from '../api/cliente'
 import { useEnvio } from '../features/acesso/conta/useEnvio'
+import { useReautenticacao } from '../features/acesso/useReautenticacao'
 import { useAcesso } from '../features/acesso/contexto'
 import { useGet } from '../features/acesso/useGet'
 import { dataHoraSP } from '../features/agenda/comum'
@@ -28,6 +29,7 @@ function Conteudo({ empresaId, p, pode, recarregar }: { empresaId: string; p: Pe
   const [just, setJust] = useState('')
   const [prot, setProt] = useState({ numero: '', quando: '', comprovante: '' })
   const [res, setRes] = useState({ resultado: 'deferido', obs: '' })
+  const reaut = useReautenticacao('aprovar_peca', 'Aprovar a peça libera o documento final para protocolo. Confirme com o código do autenticador.', [`Aprovar: ${p.titulo}`])
   const [rotulo, cor] = STATUS_PECA[p.status] ?? [p.status, 'cinza' as const]
   const base = `/empresas/${empresaId}/juridico/pecas/${p.id}`
   const editavel = ['triagem', 'minuta', 'revisao'].includes(p.status) && pode('juridico', 'elaborar_peca')
@@ -66,7 +68,7 @@ function Conteudo({ empresaId, p, pode, recarregar }: { empresaId: string; p: Pe
       </Cartao>
       {['revisao', 'aprovada'].includes(p.status) && pode('juridico', 'aprovar_peca') ? (
         <Cartao><h2>Revisão e aprovação jurídica</h2><Legenda>Só quem tem permissão de aprovar peças aprova. Aprovada, o sistema gera o documento final com hash e o trava.</Legenda>
-          <div className="flex flex-wrap gap-3">{p.status === 'revisao' ? acao('aprovar', 'Aprovar e gerar documento final', 'primario', p.bloqueada) : null}{acao('devolver', 'Devolver a minuta', 'texto')}</div></Cartao>
+          <div className="flex flex-wrap gap-3">{p.status === 'revisao' ? <><Botao carregando={enviando} disabled={p.bloqueada} onClick={() => void enviar(async () => { await reaut.executar(async (stepUp) => { await chamar('POST', `${base}/aprovar`, { stepUp }); recarregar() }) })}>Aprovar e gerar documento final</Botao>{reaut.modal}</> : null}{acao('devolver', 'Devolver a minuta', 'texto')}</div></Cartao>
       ) : null}
       {['final', 'protocolada', 'respondida'].includes(p.status) ? (
         <Cartao>

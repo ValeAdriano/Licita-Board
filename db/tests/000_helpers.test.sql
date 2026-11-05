@@ -195,6 +195,106 @@ begin
 end;
 $$;
 
+-- Tentativa de DML como o usuário autenticado: devolve true se foi BLOQUEADA (permissão negada pelo grant/RLS, ou 0 linhas afetadas pelo filtro
+-- da policy) e false se alguma linha foi alterada. Serve aos testes de isolamento A x B de tabelas com ou sem DML direto para vv_api.
+create or replace function tests.dml_bloqueado(p_sql text)
+returns boolean
+language plpgsql
+as $$
+declare
+  v_n bigint;
+begin
+  execute p_sql;
+  get diagnostics v_n = row_count;
+  return v_n = 0;
+exception when insufficient_privilege then
+  return true;
+end;
+$$;
+
+-- Leitura como o usuário autenticado: nº de linhas visíveis, ou -1 se a API nem tem SELECT na tabela (tabelas só do worker). Em ambos os
+-- casos "A não lê B" vale: o teste exige <= 0 para B e <> 0 para A (0 linhas próprias é falha da cena).
+create or replace function tests.leitura(p_sql text)
+returns bigint
+language plpgsql
+as $$
+declare
+  v_n bigint;
+begin
+  execute 'select count(*) from (' || p_sql || ') x' into v_n;
+  return v_n;
+exception when insufficient_privilege then
+  return -1;
+end;
+$$;
+
+-- Token de step-up (uso único, 5 min) para a sessão atual do usuário de teste: simula o TOTP novo que a API recebe em /auth/mfa/step-up.
+create or replace function tests.step_up(p_usuario text, p_escopo text)
+returns uuid
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_id uuid;
+begin
+  insert into core.step_up_tokens (usuario_id, escopo, sessao_id, mfa_em, expira_em)
+  values (tests.usuario_id(p_usuario), p_escopo, tests.sessao_id(p_usuario), now(), now() + interval '5 minutes')
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+
+-- Cena dos cadastros (Fases 02 a 05): depois de cena_analise(), uma linha em CADA empresa (A e B) nas tabelas de documentos, atestados, fichas,
+-- agenda, importações, oportunidades e palavras-chave. Serve aos testes de isolamento dessas tabelas.
+create or replace function tests.cena_cadastros()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_letra text;
+  v_emp uuid;
+  v_doc uuid;
+  v_ver uuid;
+  v_usr uuid;
+  v_prod uuid;
+  v_ac uuid;
+  v_ev uuid;
+  v_at uuid;
+  v_edital uuid := (select id from pub.editais limit 1);
+  v_item uuid := (select id from pub.edital_itens limit 1);
+begin
+  foreach v_letra in array array['A', 'B'] loop
+    v_emp := tests.empresa_id(v_letra);
+    v_usr := (select id from core.usuarios where email like 'usuario_' || lower(v_letra) || '%' limit 1);
+    insert into priv.documentos (empresa_id, tipo_id, descricao) values (v_emp, (select id from pub.tipos_documento limit 1), 'Documento ' || v_letra) returning id into v_doc;
+    insert into priv.documento_versoes (empresa_id, documento_id, versao, arquivo_chave, nome_original) values (v_emp, v_doc, 1, 'k-' || v_letra, 'a.pdf') returning id into v_ver;
+    insert into priv.documento_alertas (empresa_id, documento_id, versao_id, marco_dias) values (v_emp, v_doc, v_ver, 30);
+    insert into priv.documento_downloads (empresa_id, documento_id, versao_id, usuario_id) values (v_emp, v_doc, v_ver, v_usr);
+    insert into priv.documento_pendencias (empresa_id, documento_id, instrucoes) values (v_emp, v_doc, 'Atualizar ' || v_letra);
+    insert into priv.atestados_tecnicos (empresa_id, documento_id, contratante, objeto) values (v_emp, v_doc, 'Contratante ' || v_letra, 'Objeto do atestado') returning id into v_at;
+    insert into priv.atestado_itens (empresa_id, atestado_id, descricao, quantidade, unidade_id) values (v_emp, v_at, 'Item do atestado', 1, (select id from pub.unidades limit 1));
+    v_prod := (select id from priv.produtos where empresa_id = v_emp limit 1);
+    insert into priv.produto_atributos (empresa_id, produto_id, atributo_id, valor_texto) values (v_emp, v_prod, (select id from pub.atributos_def where tipo = 'texto' limit 1), 'Valor ' || v_letra);
+    insert into priv.produto_precos (empresa_id, produto_id) values (v_emp, v_prod);
+    insert into priv.fichas_tecnicas (empresa_id, produto_id, versao_ficha, fabricante, modelo) values (v_emp, v_prod, 1, 'Fabricante ' || v_letra, 'Modelo 1');
+    v_ac := (select id from priv.acompanhamentos where empresa_id = v_emp limit 1);
+    insert into priv.agenda_eventos (empresa_id, acompanhamento_id, tipo) values (v_emp, v_ac, 'esclarecimento') returning id into v_ev;
+    insert into priv.agenda_alertas (empresa_id, evento_id, usuario_id, marco) values (v_emp, v_ev, v_usr, 'D-5');
+    insert into priv.agenda_evento_historico (empresa_id, evento_id, campo) values (v_emp, v_ev, 'status');
+    insert into priv.agenda_feriados (empresa_id, data, nome, abrangencia, uf) values (v_emp, date '2026-12-24', 'Recesso ' || v_letra, 'uf', 'PR');
+    insert into priv.agenda_parametros (empresa_id) values (v_emp);
+    insert into priv.importacoes (empresa_id, tipo, url) values (v_emp, 'url', 'https://exemplo.test/edital-' || v_letra);
+    insert into priv.oportunidades (empresa_id, edital_id, item_id, nota, faixa, versao_regra, edital_versao) values (v_emp, v_edital, v_item, 50, 'media', 'v1', 1);
+    insert into priv.palavras_chave (empresa_id, tipo, termo, termo_normalizado) values (v_emp, 'palavra', 'trator ' || v_letra, 'trator ' || lower(v_letra));
+    insert into priv.palavras_chave_filtros (empresa_id, tipo, uf) values (v_emp, 'uf', 'PR');
+  end loop;
+end;
+$$;
+
 -- Cena da Fase 09: depois de cena_analise(), um resultado de item em CADA empresa.
 create or replace function tests.cena_resultado()
 returns void
@@ -365,7 +465,7 @@ $$;
 revoke all on all functions in schema tests from public;
 grant execute on function tests.usuario_id(text), tests.empresa_id(text), tests.vinculo_id(text, text),
   tests.autenticar_como(text, text, int, text, interval), tests.sessao_id(text, text), tests.token(text, text),
-  tests.sair() to vv_api;
+  tests.sair(), tests.dml_bloqueado(text), tests.leitura(text), tests.step_up(text, text) to vv_api;
 
 -- KEK fictícia do banco de teste (em produção: db/scripts/registrar-kek.sh, como vv_owner).
 create or replace function tests.kek()

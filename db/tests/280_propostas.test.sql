@@ -30,10 +30,10 @@ select tests.sair();
 update priv.propostas set validada_em = now(), bloqueada = false where id = (select id from g where nome = 'v1');
 select tests.autenticar_como('so_editar');
 select lives_ok($$ select priv.conferir_proposta(tests.empresa_id('A'), (select id from g where nome = 'v1')) $$, 'quem edita confere');
-select throws_ok($$ select priv.aprovar_proposta(tests.empresa_id('A'), (select id from g where nome = 'v1')) $$, '42501', null, 'sem propostas/aprovar não aprova');
+select throws_ok($$ select priv.aprovar_proposta(tests.empresa_id('A'), (select id from g where nome = 'v1'), null) $$, '42501', null, 'sem propostas/aprovar não aprova');
 select tests.sair();
 select tests.autenticar_como('usuario_a');
-select lives_ok($$ select priv.aprovar_proposta(tests.empresa_id('A'), (select id from g where nome = 'v1')) $$, 'quem aprova aprova');
+select lives_ok($$ select priv.aprovar_proposta(tests.empresa_id('A'), (select id from g where nome = 'v1'), (select tests.step_up('usuario_a', 'proposta_final'))) $$, 'quem aprova aprova');
 select is((select status from priv.propostas where id = (select id from g where nome = 'v1')), 'aprovada', 'status aprovada');
 select tests.sair();
 

@@ -11,6 +11,7 @@ const dadosSchema = z.object({
   representanteId: z.uuid().nullable().optional(), validadeDias: z.number().int().min(1).max(3650).nullable().optional(), prazoEntregaDias: z.number().int().min(1).max(3650).nullable().optional(),
   garantiaMeses: z.number().int().min(1).max(600).nullable().optional(), condicoes: z.string().trim().max(2000).nullable().optional(), local: z.string().trim().max(120).nullable().optional(),
 }).strict();
+const aprovarStepUp = z.object({ stepUp: z.uuid().nullable().optional() }).strict();
 const downloadSchema = z.object({ formato: z.enum(['docx', 'pdf']).default('docx') }).strict();
 const criarSchema = dadosSchema.extend({ tipo: z.enum(['inicial', 'final']).default('inicial') }).strict();
 
@@ -85,8 +86,10 @@ export class PropostasController {
   @Permissao('propostas', 'aprovar')
   @Post('empresas/:empresa/propostas/:id/aprovar')
   @HttpCode(202)
-  async aprovar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
-    await this.q(req, (tx) => sql`select priv.aprovar_proposta(${empresa}::uuid, ${id}::uuid)`.execute(tx));
+  async aprovar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
+    const d = validar(aprovarStepUp, corpo ?? {});
+    // A proposta final exige reautenticação (step-up 'proposta_final'); o banco confere o token.
+    await this.q(req, (tx) => sql`select priv.aprovar_proposta(${empresa}::uuid, ${id}::uuid, ${d.stepUp ?? null}::uuid)`.execute(tx));
     return { status: 'gerando_documento' };
   }
 

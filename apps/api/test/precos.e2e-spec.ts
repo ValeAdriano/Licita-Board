@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SENHA, admin, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
+import { SENHA, admin, lembrarMfa, stepUp, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
 
 // Formação de preços da Fase 07: custos como string decimal, sigilo (ver_custos_margens), alçada e A x B de cada endpoint.
 describe('preços: fluxo, sigilo e A x B', () => {
@@ -12,9 +12,12 @@ describe('preços: fluxo, sigilo e A x B', () => {
     const login = await http().post('/auth/login').send({ email, senha: SENHA, plataforma: 'ios' }).expect(200);
     const t0 = (login.body as { token: string }).token;
     const cad = await http().post('/auth/mfa/cadastrar').set(bearer(t0)).send({ senha: SENHA }).expect(200);
-    const conf = await http().post('/auth/mfa/confirmar').set(bearer(t0)).send({ codigo: totpDaUri((cad.body as { uri: string }).uri) }).expect(200);
+    const uri = (cad.body as { uri: string }).uri;
+    const conf = await http().post('/auth/mfa/confirmar').set(bearer(t0)).send({ codigo: totpDaUri(uri) }).expect(200);
     await admin.query(`update core.fatores_mfa set verificado_em = now() - interval '2 days' where usuario_id = (select id from core.usuarios where email = $1)`, [email]);
-    return (conf.body as { token: string }).token;
+    const token = (conf.body as { token: string }).token;
+    lembrarMfa(token, email, uri);
+    return token;
   }
 
   let empA: string; let empB: string; let a: string; let b: string; let semCustos: string; let editor: string;
@@ -76,7 +79,9 @@ describe('preços: fluxo, sigilo e A x B', () => {
     // simula o worker (a API não calcula): resultado abaixo do mínimo
     await admin.query(`update priv.precificacoes set calculado_em = now(), abaixo_do_minimo = true, erro_calculo = null where id = $1`, [prec]);
     await http().post(`/empresas/${empA}/precificacoes/${prec}/aprovar`).set(bearer(a)).send({ justificativa: 'curta' }).expect(400);
-    await http().post(`/empresas/${empA}/precificacoes/${prec}/aprovar`).set(bearer(a)).send({ justificativa: 'Cliente estratégico, margem aprovada pela diretoria' }).expect(204);
+    await http().post(`/empresas/${empA}/precificacoes/${prec}/aprovar`).set(bearer(a)).send({ justificativa: 'Cliente estratégico, margem aprovada pela diretoria' }).expect(403); // abaixo do mínimo exige step-up
+    const su = await stepUp(app, a, 'preco_abaixo_minimo'); a = su.token;
+    await http().post(`/empresas/${empA}/precificacoes/${prec}/aprovar`).set(bearer(a)).send({ justificativa: 'Cliente estratégico, margem aprovada pela diretoria', stepUp: su.id }).expect(204);
     await http().post(`/empresas/${empA}/preco-linhas/${linha}/validar`).set(bearer(editor)).expect(404);
     await http().post(`/empresas/${empA}/preco-linhas/${linha}/validar`).set(bearer(a)).expect(204); // 🧾 validação do responsável
     const d = (await http().get(`/empresas/${empA}/participacoes/${part}/preco`).set(bearer(a)).expect(200)).body as { precificacao: { aprovadoEm: string | null }; linhas: { id: string; validadoEm: string | null }[] };

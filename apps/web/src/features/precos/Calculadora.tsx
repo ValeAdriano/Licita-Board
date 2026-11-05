@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { chamar } from '../../api/cliente'
 import { AreaTexto, Aviso, Botao, Campo, Etiqueta, Legenda, Selecao, Vazio } from '../../ui'
 import { useEnvio } from '../acesso/conta/useEnvio'
+import { useReautenticacao } from '../acesso/useReautenticacao'
 import { dataHoraSP } from '../agenda/comum'
 import { ehDecimal, paraDecimal, pct, reais, semZeros, TIPO_LINHA } from './formato'
 
@@ -157,6 +158,7 @@ function Aprovacao({ empresaId, p, podeAprovar, aoMudar }: { empresaId: string; 
   const { enviando, erro, enviar } = useEnvio()
   const pronto = p.calculadoEm !== null && p.erroCalculo === null && p.precoFinalUnit !== null
   const precisaJustificar = p.abaixoDoMinimo === true
+  const reaut = useReautenticacao('preco_abaixo_minimo', 'Aprovar um preço abaixo do mínimo é uma operação crítica. Confirme com o código do autenticador.', ['Aprovar preço abaixo do mínimo'])
   return (
     <section className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-6" aria-labelledby="h-apr">
       <h2 id="h-apr">Aprovação comercial</h2>
@@ -166,7 +168,7 @@ function Aprovacao({ empresaId, p, podeAprovar, aoMudar }: { empresaId: string; 
       {podeAprovar && !p.aprovadoEm ? (
         <>
           {precisaJustificar ? <AreaTexto rotulo="Justificativa (obrigatória: preço abaixo do mínimo)" value={just} onChange={setJust} maxLength={1000} /> : null}
-          <div><Botao carregando={enviando} disabled={!pronto || (precisaJustificar && just.trim().length < 10)} onClick={() => void enviar(async () => { await chamar('POST', `/empresas/${empresaId}/precificacoes/${p.id}/aprovar`, { justificativa: just.trim() || null }); aoMudar() })}>Aprovar preço</Botao></div>
+          <div><Botao carregando={enviando} disabled={!pronto || (precisaJustificar && just.trim().length < 10)} onClick={() => void enviar(async () => { await reaut.executar(async (stepUp) => { await chamar('POST', `/empresas/${empresaId}/precificacoes/${p.id}/aprovar`, { justificativa: just.trim() || null, stepUp }); aoMudar() }) })}>Aprovar preço</Botao>{reaut.modal}</div>
         </>
       ) : null}
     </section>

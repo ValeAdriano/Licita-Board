@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { chamar } from '../../api/cliente'
 import { Aviso, Botao, Campo, Etiqueta, Legenda, Selecao, Vazio } from '../../ui'
 import { useEnvio } from '../acesso/conta/useEnvio'
+import { useReautenticacao } from '../acesso/useReautenticacao'
 import { dataHoraSP } from '../agenda/comum'
 import { reais, semZeros } from '../precos/formato'
 
@@ -51,6 +52,7 @@ function Cartao({ empresaId, p, d, podeCadastrar, podeEditar, podeAprovar, aoMud
   const { enviando, erro, enviar } = useEnvio()
   const [editando, setEditando] = useState(false)
   const [f, setF] = useState({ rep: p.representanteId ?? '', validade: String(p.validadeDias ?? ''), prazo: String(p.prazoEntregaDias ?? ''), garantia: String(p.garantiaMeses ?? ''), condicoes: p.condicoes ?? '', local: p.local ?? '' })
+  const reaut = useReautenticacao('proposta_final', 'Aprovar a proposta gera o documento final com hash. Confirme com o código do autenticador.', [`Aprovar a proposta v${p.versao}`])
   const [rotulo, cor] = STATUS[p.status]
   const acao = (caminho: string, rotuloBotao: string, variante: 'primario' | 'secundario' | 'texto' = 'secundario', desabilitado = false) => (
     <Botao variante={variante} carregando={enviando} disabled={desabilitado} onClick={() => void enviar(async () => { await chamar('POST', `/empresas/${empresaId}/propostas/${p.id}/${caminho}`); aoMudar() })}>{rotuloBotao}</Botao>
@@ -100,7 +102,7 @@ function Cartao({ empresaId, p, d, podeCadastrar, podeEditar, podeAprovar, aoMud
         {p.status === 'rascunho' && podeCadastrar ? <Botao variante="secundario" onClick={() => setEditando(!editando)}>{editando ? 'Cancelar edição' : 'Editar dados'}</Botao> : null}
         {p.status === 'rascunho' && podeCadastrar ? acao('validar', 'Validar de novo') : null}
         {p.status === 'rascunho' && podeEditar ? acao('conferir', 'Enviar para conferência', 'primario', p.bloqueada || p.validadaEm === null) : null}
-        {p.status === 'conferencia' && podeAprovar ? acao('aprovar', 'Aprovar e gerar documento final', 'primario', p.bloqueada) : null}
+        {p.status === 'conferencia' && podeAprovar ? <><Botao carregando={enviando} disabled={p.bloqueada} onClick={() => void enviar(async () => { await reaut.executar(async (stepUp) => { await chamar('POST', `/empresas/${empresaId}/propostas/${p.id}/aprovar`, { stepUp }); aoMudar() }) })}>Aprovar e gerar documento final</Botao>{reaut.modal}</> : null}
         {(p.status === 'conferencia' || p.status === 'aprovada') && podeEditar ? acao('devolver', 'Devolver a rascunho', 'texto') : null}
         {p.status === 'aprovada' ? <Legenda>Gerando o documento… atualize em instantes.</Legenda> : null}
         {p.status === 'final' && p.temArquivo ? <Botao carregando={enviando} onClick={() => void enviar(async () => { const r = await chamar<{ url: string }>('POST', `/empresas/${empresaId}/propostas/${p.id}/download`, { formato: 'docx' }); window.location.assign(r.url) })}>Baixar Word (.docx)</Botao> : null}

@@ -29,10 +29,10 @@ select is((select count(*)::int from ops.jobs where tipo = 'processar_peca'), 1,
 update priv.pecas set validada_em = now(), bloqueada = false where id = (select id from g where nome = 'peca');
 select tests.autenticar_como('redator');
 select lives_ok($$ select priv.enviar_revisao_peca(tests.empresa_id('A'), (select id from g where nome = 'peca')) $$, 'validada e sem bloqueio vai à revisão');
-select throws_ok($$ select priv.aprovar_peca(tests.empresa_id('A'), (select id from g where nome = 'peca')) $$, '42501', null, 'quem só redige não aprova (aprovar_peca)');
+select throws_ok($$ select priv.aprovar_peca(tests.empresa_id('A'), (select id from g where nome = 'peca'), null) $$, '42501', null, 'quem só redige não aprova (aprovar_peca)');
 select tests.sair();
 select tests.autenticar_como('usuario_a');
-select lives_ok($$ select priv.aprovar_peca(tests.empresa_id('A'), (select id from g where nome = 'peca')) $$, 'quem tem aprovar_peca aprova');
+select lives_ok($$ select priv.aprovar_peca(tests.empresa_id('A'), (select id from g where nome = 'peca'), (select tests.step_up('usuario_a', 'aprovar_peca'))) $$, 'quem tem aprovar_peca aprova');
 select throws_ok($$ select priv.protocolar_peca(tests.empresa_id('A'), (select id from g where nome = 'peca'), '2026/123', now(), null) $$, '22023', null, 'não protocola sem o documento final');
 select tests.sair();
 

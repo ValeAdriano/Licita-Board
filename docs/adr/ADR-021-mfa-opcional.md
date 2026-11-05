@@ -12,6 +12,10 @@
 - Quem **cadastrou** TOTP continua precisando do código (a segurança de quem escolheu usar não cai). O autenticador segue disponível em Conta para quem quiser.
 - A chave é do banco, não da API: uma variável de ambiente esquecida na API não poderia afrouxar a segurança que o banco aplica (RLS é a segunda camada, ADR-013).
 
+## Extensão (2026-11-05): reautenticação nas aprovações
+
+As aprovações críticas (peça jurídica `aprovar_peca`, proposta final `proposta_final`, preço abaixo do mínimo `preco_abaixo_minimo`) exigem o token de step-up de uso único (`core.exigir_step_up`, migration `20261123100000`). A mesma chave `vv.mfa = 'opcional'` dispensa o token **somente de quem não cadastrou TOTP**; quem tem autenticador sempre precisa do código. As versões antigas das funções (sem token) foram removidas.
+
 ## Consequências
 
 - **Produção NÃO deve ter a chave.** Ligar `vv.mfa` em produção é decisão do Adriano e exige registrar o risco aceito em T5.8.

@@ -19,7 +19,7 @@ const linhaSchema = z.object({
   nome: z.string().trim().min(2).max(120), tipo: z.enum(TIPOS), categoria: z.enum(['custo', 'percentual']), forma: z.enum(['por_unidade', 'total_lote']).nullable().optional(),
   valor: dinheiro.nullable().optional(), percentual: percentual.nullable().optional(),
 }).strict();
-const aprovarSchema = z.object({ justificativa: z.string().trim().max(1000).nullable().optional() }).strict();
+const aprovarSchema = z.object({ justificativa: z.string().trim().max(1000).nullable().optional(), stepUp: z.uuid().nullable().optional() }).strict();
 
 // Formação de preços (spec fase-07). A API NUNCA calcula: grava os insumos por função do banco e enfileira o worker (rules/precos.py).
 // Custos e margens são sigilo comercial: só quem tem `precos/ver_custos_margens` lê (o banco devolve vazio sem a ação).
@@ -107,6 +107,6 @@ export class PrecosController {
   @HttpCode(204)
   async aprovar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
     const d = validar(aprovarSchema, corpo);
-    await this.q(req, (tx) => sql`select priv.aprovar_preco(${empresa}::uuid, ${id}::uuid, ${d.justificativa ?? null})`.execute(tx));
+    await this.q(req, (tx) => sql`select priv.aprovar_preco(${empresa}::uuid, ${id}::uuid, ${d.justificativa ?? null}, ${d.stepUp ?? null}::uuid)`.execute(tx));
   }
 }

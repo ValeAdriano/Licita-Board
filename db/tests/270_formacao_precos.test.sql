@@ -26,8 +26,8 @@ select is((select count(*)::int from ops.jobs where tipo = 'calcular_preco'), 4,
 -- alçada: simula o resultado do worker (abaixo do mínimo) e tenta aprovar
 update priv.precificacoes set calculado_em = now(), abaixo_do_minimo = true where empresa_id = tests.empresa_id('A') and id = (select id from g where nome = 'novo');
 select tests.autenticar_como('usuario_a');
-select throws_ok($$ select priv.aprovar_preco(tests.empresa_id('A'), (select id from g where nome = 'novo'), 'curta') $$, '22023', null, 'abaixo do mínimo exige justificativa de verdade');
-select lives_ok($$ select priv.aprovar_preco(tests.empresa_id('A'), (select id from g where nome = 'novo'), 'Cliente estratégico, margem reduzida aprovada pela diretoria') $$, 'aprova abaixo do mínimo com justificativa');
+select throws_ok($$ select priv.aprovar_preco(tests.empresa_id('A'), (select id from g where nome = 'novo'), 'curta', (select tests.step_up('usuario_a', 'preco_abaixo_minimo'))) $$, '22023', null, 'abaixo do mínimo exige justificativa de verdade');
+select lives_ok($$ select priv.aprovar_preco(tests.empresa_id('A'), (select id from g where nome = 'novo'), 'Cliente estratégico, margem reduzida aprovada pela diretoria', (select tests.step_up('usuario_a', 'preco_abaixo_minimo'))) $$, 'aprova abaixo do mínimo com justificativa');
 select lives_ok($$ select priv.adicionar_linha_preco(tests.empresa_id('A'), (select id from g where nome = 'novo'), 'Frete', 'frete', 'custo', 'total_lote', 50, null) $$, 'mudar um insumo...');
 select is((select aprovado_em from priv.precificacoes where id = (select id from g where nome = 'novo')), null, '...derruba a aprovação comercial');
 select tests.sair();
@@ -38,7 +38,7 @@ select is((select count(*)::int from priv.precificacoes), 0, 'sem ver_custos_mar
 select tests.sair();
 select tests.autenticar_como('editor');
 select is((select count(*)::int from priv.precificacoes), 1, 'com ver_custos_margens lê');
-select throws_ok($$ select priv.aprovar_preco(tests.empresa_id('A'), (select id from g where nome = 'novo'), 'tentando aprovar sem a permissão') $$, '42501', null, 'editor sem aprovar não aprova');
+select throws_ok($$ select priv.aprovar_preco(tests.empresa_id('A'), (select id from g where nome = 'novo'), 'tentando aprovar sem a permissão', null) $$, '42501', null, 'editor sem aprovar não aprova');
 select tests.sair();
 
 select tests.autenticar_como('usuario_b');
