@@ -28,6 +28,7 @@ from worker.email import (
     mensagem_recuperacao,
 )
 from worker.extracao import extrair
+from worker.minuta_ia import minutar
 from worker.peca import processar as processar_peca
 from worker.pesquisa.agenda import agendar, vigiar
 from worker.pesquisa.arquivos import baixar, extrair_texto
@@ -93,6 +94,7 @@ class Handlers:
             "extrair_requisitos": self.extrair_requisitos,
             "testar_chave_ia": self.testar_chave_ia,
             "processar_peca": self.processar_peca,
+            "minutar_peca": self.minutar_peca,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -226,6 +228,18 @@ class Handlers:
             conn,
             str(job["payload"]["peca_id"]),
             cast("Gravador | None", self._s3),
+            hoje_local(agora),
+            job.get("empresa_id"),
+        )
+
+    def minutar_peca(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # A IA só elabora o rascunho (origem 'ia'); a empresa do job tem de ser a dona do pedido (T2). Sem chave, fica "desligada".
+        agora = dt.datetime.now(dt.UTC)
+        cliente = cliente_da_empresa(conn, job.get("empresa_id"), self._s)
+        minutar(
+            conn,
+            str(job["payload"]["minuta_id"]),
+            cliente,
             hoje_local(agora),
             job.get("empresa_id"),
         )

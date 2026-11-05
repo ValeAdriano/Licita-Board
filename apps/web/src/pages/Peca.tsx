@@ -5,6 +5,7 @@ import { useEnvio } from '../features/acesso/conta/useEnvio'
 import { useAcesso } from '../features/acesso/contexto'
 import { useGet } from '../features/acesso/useGet'
 import { dataHoraSP } from '../features/agenda/comum'
+import { MinutaIa } from '../features/juridico/MinutaIa'
 import { RESULTADO_PECA, STATUS_PECA, TIPO_PECA, type Peca } from '../features/juridico/tipos'
 import { AreaTexto, Aviso, Botao, CabecalhoPagina, Campo, Cartao, Etiqueta, Legenda, Pagina, Selecao } from '../ui'
 
@@ -42,8 +43,9 @@ function Conteudo({ empresaId, p, pode, recarregar }: { empresaId: string; p: Pe
       <CabecalhoPagina titulo={p.titulo} subtitulo={`${TIPO_PECA[p.tipo] ?? p.tipo} · ${p.orgao ?? ''}${p.numeroEdital ? ` · edital nº ${p.numeroEdital}` : ''}`} acoes={<Etiqueta cor={cor}>{rotulo}</Etiqueta>} />
       <Aviso texto={erro} />
       {p.prazoLegal ? <Aviso tipo="atencao" texto={`Prazo legal na agenda: ${dataHoraSP(p.prazoLegal)}${p.prazoInterno ? ` (data interna ${dataHoraSP(p.prazoInterno)})` : ''}. ⚖️ A regra do prazo ainda não foi validada pelo jurídico: confira o edital.`} /> : null}
+      {['triagem', 'minuta'].includes(p.status) && pode('juridico', 'elaborar_peca') ? <MinutaIa empresaId={empresaId} pecaId={p.id} temMinuta={(p.minuta ?? '').trim().length > 0} aoConcluir={recarregar} /> : null}
       <Cartao>
-        <h2>Minuta</h2>
+        <h2>Minuta{p.minutaOrigem === 'ia' ? <> <Etiqueta cor="aviso">Rascunho da IA: revise</Etiqueta></> : p.minutaOrigem === 'ia_revisada' ? <> <Etiqueta cor="cinza">Nasceu de rascunho da IA, revisado</Etiqueta></> : null}</h2>
         <Legenda>Cite apenas fontes da base jurídica VERIFICADA. O sistema confere cada citação (lei, artigo, acórdão, súmula, Constituição) ao salvar e bloqueia a minuta se alguma não estiver na base. Separe os parágrafos com uma linha em branco.</Legenda>
         <AreaTexto rotulo="Texto da peça" value={minuta} onChange={setMinuta} rows={16} maxLength={60000} disabled={!editavel} />
         <Campo rotulo="Cláusulas, documentos e páginas do edital que sustentam os argumentos" value={clausulas} onChange={setClausulas} maxLength={2000} disabled={!editavel} />

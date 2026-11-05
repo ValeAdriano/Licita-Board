@@ -426,3 +426,11 @@ As ameaças T5.2 (logout que falha aberto), T5.3 (sessão sequestrada vira posse
 | T3.2 | PDF/XLSX/DOCX hostil na extração (zip bomb, entidade XML, macro) | DOCX sem parser XML e com limite de descompactado; XLSX só valores, `.xlsm` fora da lista de tipos; PDF por pdfium com tempo limitado do OCR; falha isolada por arquivo | `test_texto.py` | implementado |
 | T7.4 | Coleta parcial confundida com "sem editais" | Execução `parcial`/`falhou`/`perdida`, fonte `degradada`/`indisponivel`, banner em todas as telas de oportunidade, cobertura "não medida" sem amostra | `test_coleta.py`, `test_agenda.py`, `formato.test.ts` | implementado |
 
+
+## T10.IA · Minuta de peça pela IA (Fase 10)
+
+- **Injeção pelo edital:** o texto do edital vai entre `<edital>` como dado e o sistema avisa o modelo; o modelo não tem ferramentas e nada do que ele devolve é executado. Pior caso: um rascunho ruim, que passa pela conferência de citações e por revisão humana antes de qualquer documento final.
+- **Citação inventada:** o modelo só vê fontes verificadas, e o código reconfere o rascunho inteiro (`rules/citacoes`); citação fora da base bloqueia a peça. A IA nunca protocola (regra 17).
+- **Vazamento para o provedor:** só entram o texto público do edital, a lista de fontes verificadas, o título da peça e a orientação digitada; nunca nome/CNPJ da empresa, custos ou margens. Chave por empresa, cifrada (ADR-017).
+- **Custo:** 5 minutas por peça por dia (erro 429) e uma por vez.
+- **Rastreabilidade:** `priv.pecas_ia` guarda modelo, versão do prompt, tokens e quem pediu (auditado); `minuta_origem` distingue manual, IA e IA revisada por pessoa.

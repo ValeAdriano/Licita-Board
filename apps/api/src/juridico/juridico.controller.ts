@@ -18,6 +18,7 @@ const descartarSchema = z.object({ justificativa: z.string().trim().min(10).max(
 const minutaSchema = z.object({ minuta: z.string().max(60000), clausulas: z.string().trim().max(2000).nullable().optional() }).strict();
 const protocoloSchema = z.object({ numero: z.string().trim().min(2).max(80), quando: instante, comprovante: z.string().trim().max(1000).nullable().optional() }).strict();
 const resultadoSchema = z.object({ resultado: z.enum(['deferido', 'parcialmente_deferido', 'indeferido']), observacao: z.string().trim().max(2000).nullable().optional(), quando: instante.nullable().optional() }).strict();
+const minutaIaSchema = z.object({ instrucao: z.string().trim().max(3000).nullable().optional() }).strict();
 const downloadSchema = z.object({ formato: z.enum(['docx', 'pdf']).default('docx') }).strict();
 const filtroSchema = z.object({ acompanhamento: z.uuid().optional(), status: z.string().max(200).optional() }).strict();
 
@@ -81,7 +82,7 @@ export class JuridicoController {
   @Get('empresas/:empresa/juridico/pecas/:id')
   async peca(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
     const r = await this.q(req, async (tx) => (await sql`
-      select p.id, p.tipo, p.titulo, p.status, p.acompanhamento_id as "acompanhamentoId", p.evento_id as "eventoId", p.minuta, p.clausulas, p.justificativa_descarte as "justificativaDescarte", p.validacao, p.validada_em as "validadaEm", p.bloqueada,
+      select p.id, p.tipo, p.titulo, p.status, p.acompanhamento_id as "acompanhamentoId", p.evento_id as "eventoId", p.minuta, p.clausulas, p.minuta_origem as "minutaOrigem", p.minuta_modelo as "minutaModelo", p.justificativa_descarte as "justificativaDescarte", p.validacao, p.validada_em as "validadaEm", p.bloqueada,
              p.arquivo_sha256 as "arquivoSha256", p.arquivo_chave is not null as "temArquivo", p.arquivo_pdf_chave is not null as "temPdf", p.gerado_em as "geradoEm", p.protocolo_numero as "protocoloNumero", p.protocolado_em as "protocoladoEm",
              p.comprovante, p.resultado, p.resultado_obs as "resultadoObs", p.resultado_em as "resultadoEm", ua.nome as "aprovadoPor", p.aprovado_em as "aprovadoEm", ue.nome as "elaboradoPor",
              ev.data_limite_legal as "prazoLegal", ev.data_interna_recomendada as "prazoInterno", g.razao_social as orgao, e.numero_edital as "numeroEdital"
@@ -115,6 +116,25 @@ export class JuridicoController {
     const d = validar(minutaSchema, corpo);
     await this.q(req, (tx) => sql`select priv.salvar_minuta(${empresa}::uuid, ${id}::uuid, ${d.minuta}, ${d.clausulas ?? null})`.execute(tx));
     return { status: 'conferindo_citacoes' };
+  }
+
+  // Minuta pela IA: a API só ENFILEIRA (função do banco); o worker chama o provedor com a chave da empresa. O rascunho nunca avança o fluxo.
+  @Permissao('juridico', 'elaborar_peca')
+  @Post('empresas/:empresa/juridico/pecas/:id/minuta-ia')
+  @HttpCode(202)
+  async pedirMinutaIa(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
+    const d = validar(minutaIaSchema, corpo ?? {});
+    const r = await this.q(req, (tx) => sql<{ id: string }>`select priv.pedir_minuta_peca(${empresa}::uuid, ${id}::uuid, ${d.instrucao ?? null}) as id`.execute(tx));
+    return { id: r.rows[0]?.id, status: 'pendente' };
+  }
+
+  @Permissao('juridico', 'visualizar')
+  @Get('empresas/:empresa/juridico/pecas/:id/minuta-ia')
+  async minutaIa(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
+    return this.q(req, async (tx) => (await sql`
+      select id, status, modelo, prompt_versao as "promptVersao", tokens_entrada as "tokensEntrada", tokens_saida as "tokensSaida", referencias_ok as "fontesUsadas",
+             citacoes_fora_da_base as "citacoesForaDaBase", erro, created_at as "pedidoEm", concluida_em as "concluidaEm"
+        from priv.pecas_ia where peca_id = ${id}::uuid and empresa_id = ${empresa}::uuid order by created_at desc limit 5`.execute(tx)).rows);
   }
 
   @Permissao('juridico', 'visualizar')

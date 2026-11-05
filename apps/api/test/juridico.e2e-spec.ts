@@ -83,6 +83,30 @@ describe('jurídico: fluxo e A x B', () => {
     await http().post(`/empresas/${empA}/juridico/pecas/${peca}/pdf`).set(bearer(leitor)).expect(202);
   });
 
+  it('minuta pela IA: só enfileira, uma por vez, limite diário, só elaborador; o rascunho editado vira "ia_revisada"', async () => {
+    const nova = ((await http().post(`/empresas/${empA}/juridico/acompanhamentos/${acomp}/pecas`).set(bearer(redator)).send({ tipo: 'esclarecimento', titulo: 'Esclarecimento sobre a marca' }).expect(201)).body as { id: string }).id;
+    await http().post(`/empresas/${empA}/juridico/pecas/${nova}/minuta-ia`).set(bearer(leitor)).send({}).expect(404); // só visualizar
+    const r = await http().post(`/empresas/${empA}/juridico/pecas/${nova}/minuta-ia`).set(bearer(redator)).send({ instrucao: 'Foque na cláusula 7.2' }).expect(202);
+    expect((r.body as { status: string }).status).toBe('pendente');
+    expect((await admin.query<{ n: string }>(`select count(*) n from ops.jobs where tipo = 'minutar_peca' and empresa_id = $1`, [empA])).rows[0]?.n).toBe('1'); // a API não chama a IA
+    await http().post(`/empresas/${empA}/juridico/pecas/${nova}/minuta-ia`).set(bearer(redator)).send({}).expect(400); // já há uma em andamento
+    const lista = (await http().get(`/empresas/${empA}/juridico/pecas/${nova}/minuta-ia`).set(bearer(leitor)).expect(200)).body as { status: string }[];
+    expect(lista.map((x) => x.status)).toEqual(['pendente']);
+    // o worker (simulado) grava o rascunho da IA; a pessoa que edita passa a ser a autora e fica registrado que nasceu da IA
+    await admin.query(`update priv.pecas set minuta = 'Rascunho da IA com mais de trinta caracteres.', minuta_origem = 'ia', minuta_modelo = 'falso-1' where id = $1`, [nova]);
+    await admin.query(`update priv.pecas_ia set status = 'concluida' where peca_id = $1`, [nova]);
+    expect(((await http().get(`/empresas/${empA}/juridico/pecas/${nova}`).set(bearer(leitor)).expect(200)).body as { minutaOrigem: string }).minutaOrigem).toBe('ia');
+    await http().put(`/empresas/${empA}/juridico/pecas/${nova}/minuta`).set(bearer(redator)).send({ minuta: 'Texto revisado pela advogada com mais de trinta caracteres.', clausulas: 'Cláusula 7.2' }).expect(202);
+    expect(((await http().get(`/empresas/${empA}/juridico/pecas/${nova}`).set(bearer(leitor)).expect(200)).body as { minutaOrigem: string }).minutaOrigem).toBe('ia_revisada');
+    // limite diário (controle de custo): 5 pedidos por peça
+    await admin.query(`insert into priv.pecas_ia (empresa_id, peca_id, status) select $1, $2, 'concluida' from generate_series(1, 4)`, [empA, nova]);
+    await http().post(`/empresas/${empA}/juridico/pecas/${nova}/minuta-ia`).set(bearer(redator)).send({}).expect(429);
+    // B não vê nem pede minuta de A
+    await http().post(`/empresas/${empA}/juridico/pecas/${nova}/minuta-ia`).set(bearer(b)).send({}).expect(404);
+    await http().get(`/empresas/${empA}/juridico/pecas/${nova}/minuta-ia`).set(bearer(b)).expect(404);
+    await http().post(`/empresas/${empB}/juridico/pecas/${nova}/minuta-ia`).set(bearer(b)).send({}).expect(404);
+  });
+
   it('A x B: B não lê nem altera nada do jurídico de A', async () => {
     await http().get(`/empresas/${empA}/juridico/base`).set(bearer(b)).expect(404);
     await http().get(`/empresas/${empA}/juridico/pecas`).set(bearer(b)).expect(404);
