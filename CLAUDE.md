@@ -8,6 +8,7 @@ As regras do projeto valem para todos os agentes e estão em `AGENTS.md`, import
 
 ### Como começar uma sessão
 
+0. Leia `docs/agents/COMECE-AQUI.md` (estado real e próximos passos). **Conta pessoal do Adriano = `acsvalefilho@gmail.com`: nunca teste com ela** (AGENTS.md regra 19); use `scripts/criar-usuario-teste.sh`.
 1. Leia `docs/roadmap.md` para saber a fase atual e `docs/agents/em-andamento.md` para ver se outro agente está mexendo na mesma área.
 2. Se a tarefa for de uma fase, leia a spec dela em `docs/specs/`. Sem spec `Aprovada`, a única tarefa possível é escrever/ajustar a spec.
 3. Não use plan mode nem peça aprovação de plano: decida e execute (AGENTS.md §0).

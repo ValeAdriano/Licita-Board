@@ -80,6 +80,10 @@ Revisão 2 (auth própria, ADR-012/013). Os controles da revisão 1 sobre Supaba
 | --- | --- | --- | --- |
 | `preparar_login` conta a tentativa antes da senha, com `pg_advisory_xact_lock` por e-mail; `concluir_login` só aceita a própria tentativa, uma vez | `040_sessoes_login`; e2e rajada de 12 pedidos | 01 | implementado |
 
+## T5.8a · MFA opcional por chave do banco (ADR-021)
+
+Risco aceito pelo Adriano (2026-11-05): com `vv.mfa = 'opcional'` o perfil interno sem TOTP opera em `aal1`. Ligada só em desenvolvimento (`scripts/dev-up.sh`); **produção não deve ter a chave**. Teste: `db/tests/240_mfa_opcional.test.sql`.
+
 ## T5.8 · Sessão só com senha (aal1) usada para gerir a conta (nova)
 
 | Controle | Teste | Fase | Status |

@@ -11,6 +11,7 @@ As regras do projeto estão no `AGENTS.md` da raiz (você já o recebe sempre) e
 
 ## Antes de começar qualquer tarefa
 
+0. Leia `docs/agents/COMECE-AQUI.md` (estado real, armadilhas, próximos passos). **A conta `acsvalefilho@gmail.com` é a pessoal do Adriano: nunca teste com ela** (AGENTS.md regra 19); use `scripts/criar-usuario-teste.sh`.
 1. Leia `docs/roadmap.md` (fase atual e próximo passo) e `docs/agents/em-andamento.md` (quem está mexendo em quê). Se outra tarefa ativa usa a mesma área, pare e pergunte.
 2. Leia a spec da fase em `docs/specs/fase-XX.md`. Sem status `Aprovada`, a única tarefa possível é escrever ou ajustar a spec; o próximo PR da fase (uma entrega de um ou mais commits no `main`) está na seção 7 dela.
 3. Leia o `AGENTS.md` do pacote que vai tocar (`apps/web`, `apps/worker`, `db`) e [`docs/agents/fluxo.md`](../../docs/agents/fluxo.md).
@@ -29,7 +30,7 @@ As regras do projeto estão no `AGENTS.md` da raiz (você já o recebe sempre) e
 
 A documentação é atualizada **no mesmo commit do código**, nunca depois. A tabela completa de "mudou X → atualize Y" está em [`docs/agents/documentacao-viva.md`](../../docs/agents/documentacao-viva.md); leia-a no início de cada tarefa. O mínimo, sempre:
 
-- Ao fechar um bloco de trabalho: uma linha em `docs/agents/em-andamento.md` (o roadmap e a spec só quando a fase mudar).
+- Ao fechar um bloco de trabalho: atualize `docs/agents/COMECE-AQUI.md` (estado e próximos passos) e `docs/agents/em-andamento.md`; roadmap e spec da fase quando o estado mudar (AGENTS.md regra 20).
 - Controle de segurança, ameaça ou risco aceito novo: `docs/threat-model.md`.
 - Decisão de arquitetura nova: ADR em `docs/adr/`, status `Proposto` até o Adriano aceitar.
 - Comando, variável, porta ou regra nova: `AGENTS.md` (raiz ou do pacote).

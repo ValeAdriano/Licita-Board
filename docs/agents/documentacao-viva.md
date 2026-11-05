@@ -11,6 +11,7 @@ Regra de ouro: se o código e o documento discordam, o trabalho não terminou.
 
 | Mudou... | Atualize |
 | --- | --- |
+| Qualquer bloco de trabalho concluído (sempre) | **`docs/agents/COMECE-AQUI.md`**: o que mudou no estado, o que ficou pendente, os próximos passos em ordem, armadilhas novas |
 | Terminou um PR da fase | `docs/specs/fase-XX.md` §7 (marcar ✅ e anotar pendências), `docs/agents/em-andamento.md`, `docs/roadmap.md` (linha da fase e "Próximo passo") |
 | Começou ou pausou uma tarefa | `docs/agents/em-andamento.md` (uma linha por tarefa ativa; handoff ao pausar, modelo em [`handoff.md`](handoff.md)) |
 | Comportamento diferente do que a spec diz | Pare e pergunte ao Adriano; aprovada a mudança, edite a spec na mesma entrega |

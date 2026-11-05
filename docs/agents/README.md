@@ -15,6 +15,7 @@ Como o VV Licitações é construído por uma pessoa + agentes. As regras ficam 
 | Prompts neutros | [`prompts/`](prompts/) | Texto pronto para colar em qualquer agente, um por passo |
 | Checklists | [`checklists/`](checklists/) | DoD, revisão de migration, ASVS L2 resumido |
 | Glossário | [`glossario.md`](glossario.md) | Vocabulário de licitações que o agente precisa entender |
+| **Ponto de partida** | [`COMECE-AQUI.md`](COMECE-AQUI.md) | Estado real, como rodar, armadilhas e próximos passos: o primeiro arquivo para quem assume |
 | Coordenação | [`em-andamento.md`](em-andamento.md), [`handoff.md`](handoff.md) | Quem está mexendo em quê; como passar o bastão |
 | Claude Code | `.claude/` | Comandos (`/spec`, `/migration`...), subagentes revisores, hook de proteção |
 | Antigravity | `.agents/rules/vv-desenvolvimento.md` | Regra sempre ativa: rotina de início, método, documentação obrigatória, fim de tarefa |

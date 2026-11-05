@@ -27,7 +27,8 @@ alter role vv_api password '$VV_API_PASSWORD';
 alter role vv_worker password '$VV_WORKER_PASSWORD';
 SQL
 # Abre o autocadastro (tela "Criar conta"): core.cadastrar_conta só funciona com vv.cadastro='aberto' no banco.
-docker compose exec -T postgres psql -U postgres -d postgres -q -c "alter database vv set vv.cadastro = 'aberto'" -c "alter database vv reset vv.ambiente"
+# 2FA opcional em dev (vv.mfa='opcional'): quem não cadastrou TOTP entra só com a senha. Produção NÃO recebe esta chave.
+docker compose exec -T postgres psql -U postgres -d postgres -q -c "alter database vv set vv.cadastro = 'aberto'" -c "alter database vv set vv.mfa = 'opcional'" -c "alter database vv reset vv.ambiente"
 docker compose run --rm dbmate up
 # Verificador da chave-mestra: só no banco novo (com o banco já registrado, nada a fazer).
 if [ "$(docker compose exec -T postgres psql -U postgres -d vv -Atc 'select count(*) from core.chaves_mestras')" = 0 ]; then
