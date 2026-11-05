@@ -1,4 +1,4 @@
-import { Bell01, Building07, File05, CalendarDate, ClipboardCheck, FileSearch01, Home01, LogOut01, SearchLg, User01, Users01 } from '@untitledui/icons'
+import { Bell01, Building07, File05, FileCheck02, CalendarDate, ClipboardCheck, FileSearch01, Home01, LogOut01, SearchLg, User01, Users01 } from '@untitledui/icons'
 import { Outlet, useLocation } from 'react-router'
 import { NavList } from '@/components/application/app-navigation/base-components/nav-list'
 import { MobileNavigationHeader } from '@/components/application/app-navigation/base-components/mobile-header'
@@ -20,6 +20,7 @@ function Conteudo({ aoNavegar }: { aoNavegar?: () => void }) {
     { label: 'Início', href: '/', icon: Home01 },
     { label: 'Notificações', href: '/notificacoes', icon: Bell01, badge: naoLidas > 0 ? <Badge color="brand" size="sm" type="pill-color">{naoLidas}</Badge> : undefined },
     ...(pode('agenda', 'visualizar') ? [{ label: 'Agenda', href: '/agenda', icon: CalendarDate }] : []),
+    ...(pode('contratos', 'visualizar') ? [{ label: 'Contratos', href: '/contratos', icon: FileCheck02 }] : []),
     ...(pode('juridico', 'visualizar') ? [{ label: 'Jurídico', href: '/juridico', icon: File05 }] : []),
     ...(pode('empresas', 'visualizar') ? [{ label: 'Cadastros', href: '/cadastros', icon: ClipboardCheck }] : []),
     ...(pode('editais', 'visualizar') ? [{ label: 'Oportunidades', href: '/oportunidades', icon: SearchLg }] : []),

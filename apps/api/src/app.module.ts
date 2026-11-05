@@ -3,6 +3,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { AcessoModule } from './acesso/acesso.module.js';
 import { AgendaModule } from './agenda/agenda.module.js';
 import { AnalisesModule } from './analises/analises.module.js';
+import { ContratosModule } from './contratos/contratos.module.js';
 import { IaModule } from './ia/ia.module.js';
 import { JuridicoModule } from './juridico/juridico.module.js';
 import { PrecosModule } from './precos/precos.module.js';
@@ -44,6 +45,7 @@ export class AppModule {
         PesquisaModule,
         AgendaModule,
         AnalisesModule,
+        ContratosModule,
         IaModule,
         JuridicoModule,
         PrecosModule,

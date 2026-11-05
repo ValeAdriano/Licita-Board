@@ -21,7 +21,7 @@ Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada
 | 5 | 10a | Jurídico pré-disputa (10.2–10.3) | ~45 h | [fase-10](specs/fase-10.md) · Aprovada | 🟡 núcleo no main (base jurídica verificada, peças com fluxo, conferência de citações, final com hash e PDF, protocolo humano); falta minuta por IA, sugestões automáticas, viabilidade recursal (10b) |
 | 6 | 09 | Disputas e resultados | ~35 h | [fase-09](specs/fase-09.md) · Aprovada | 🟡 núcleo no main (resultado por item, 20 status, gatilho da intenção de recurso, histórico pesquisável); falta documentos posteriores (9.5) e viabilidade recursal (Fase 10.4) |
 | 6 | 10b | Jurídico pós-disputa (10.4–10.9) | ~65 h | — | ⚪ |
-| 7 | 11 | Contratos, entregas e financeiro | ~60 h | — | ⚪ |
+| 7 | 11 | Contratos, entregas e financeiro | ~60 h | [fase-11](specs/fase-11.md) · Aprovada | 🟡 núcleo no main (contratos e atas, itens, empenhos, fornecimento em 11 etapas, entregas parciais, financeiro, histórico, saldos e alertas calculados); falta anexos, notificações e ligação com o resultado "contratada" |
 | 7 | 12 | Dashboard e relatórios | ~45 h | — | ⚪ |
 | 8 | 13 | Integrações e expansão | ~80 h+ | — | ⚪ |
 

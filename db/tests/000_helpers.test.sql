@@ -235,6 +235,35 @@ begin
 end;
 $$;
 
+-- Cena da Fase 11: em CADA empresa, um contrato com 1 item, um empenho com 1 item, uma entrega, uma fatura, um evento e etapas.
+create or replace function tests.cena_contrato()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_letra text;
+  v_emp uuid;
+  v_c uuid;
+  v_ci uuid;
+  v_e uuid;
+  v_ei uuid;
+begin
+  foreach v_letra in array array['A', 'B'] loop
+    v_emp := tests.empresa_id(v_letra);
+    insert into priv.contratos (empresa_id, numero, orgao, objeto, vigencia_inicio, vigencia_fim, valor_total) values (v_emp, 'CT-' || v_letra, 'Órgão', 'Objeto', date '2026-01-01', date '2026-12-31', 1000) returning id into v_c;
+    insert into priv.contrato_itens (empresa_id, contrato_id, numero_item, descricao, quantidade, valor_unitario) values (v_emp, v_c, 1, 'Item', 10, 100) returning id into v_ci;
+    insert into priv.empenhos (empresa_id, contrato_id, numero, emitido_em) values (v_emp, v_c, 'EMP-1', date '2026-02-01') returning id into v_e;
+    insert into priv.empenho_itens (empresa_id, empenho_id, contrato_item_id, quantidade) values (v_emp, v_e, v_ci, 5) returning id into v_ei;
+    insert into priv.empenho_etapas (empresa_id, empenho_id, etapa) values (v_emp, v_e, 'pedido_recebido');
+    insert into priv.entregas (empresa_id, empenho_item_id, quantidade, entregue_em) values (v_emp, v_ei, 2, date '2026-03-01');
+    insert into priv.faturas (empresa_id, contrato_id, numero_nf, emitida_em, valor, vencimento) values (v_emp, v_c, 'NF-1', date '2026-03-05', 200, date '2026-04-05');
+    insert into priv.contrato_eventos (empresa_id, contrato_id, tipo, data, descricao) values (v_emp, v_c, 'ocorrencia', date '2026-03-10', 'Ocorrência de teste');
+  end loop;
+end;
+$$;
+
 -- Token fictício e determinístico da sessão de teste de um usuário.
 create or replace function tests.token(p_ident text, p_sessao text default 'sessao-teste')
 returns text

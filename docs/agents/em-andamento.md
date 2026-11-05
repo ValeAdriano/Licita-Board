@@ -17,3 +17,4 @@ Quadro simples de coordenação entre agentes. Atualize ao pegar e ao largar uma
 | main (push direto) | Claude Code | 08 | Propostas: validação 8.6, fluxo com permissões, .docx final com hash (banco, worker, API, tela). Falta PDF, modelo oficial, declarações | ✅ | 2026-11-05 | núcleo pronto |
 | main (push direto) | Claude Code | 09 | Resultados por item, gatilho de intenção de recurso e histórico pesquisável (banco, API, tela). Falta documentos posteriores e viabilidade recursal (Fase 10) | ✅ | 2026-11-05 | núcleo pronto |
 | main (push direto) | Claude Code | 10 | Jurídico: base verificada, peças, conferência de citações, final com hash, protocolo humano (banco, worker, API, tela). Falta minuta por IA, viabilidade recursal, teses | ✅ | 2026-11-05 | núcleo pronto |
+| main (push direto) | Claude Code | 11 | Contratos, empenhos, entregas e financeiro (banco, API, tela). Falta anexos, notificações e ligação com resultados | ✅ | 2026-11-05 | núcleo pronto |

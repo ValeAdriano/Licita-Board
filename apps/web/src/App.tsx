@@ -4,6 +4,8 @@ import { AMBIENTE, CADASTRO_ABERTO } from './config'
 import Acompanhamento from './pages/Acompanhamento'
 import Agenda from './pages/Agenda'
 import Analise from './pages/Analise'
+import Contrato from './pages/Contrato'
+import Contratos from './pages/Contratos'
 import Juridico from './pages/Juridico'
 import PecaPagina from './pages/Peca'
 import Preco from './pages/Preco'
@@ -67,6 +69,8 @@ export function Rotas() {
             <Route path="agenda/participacoes/:id/analise" element={<Analise />} />
             <Route path="agenda/participacoes/:id/preco" element={<Preco />} />
             <Route path="agenda/acompanhamentos/:id/proposta" element={<Proposta />} />
+            <Route path="contratos" element={<Contratos />} />
+            <Route path="contratos/:id" element={<Contrato />} />
             <Route path="juridico" element={<Juridico />} />
             <Route path="juridico/pecas/:id" element={<PecaPagina />} />
             <Route path="cadastros" element={<Cadastros />} />
