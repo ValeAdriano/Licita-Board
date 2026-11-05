@@ -76,6 +76,19 @@ def minutar(
                 "texto": rec["texto"],
                 "alegacoes": cur.fetchall(),
             }
+        parecer = None
+        cur.execute(
+            "select id, concorrente from priv.pareceres_recursais where peca_id = %s and empresa_id = %s",
+            (m["peca_id"], m["empresa_id"]),
+        )
+        par = cur.fetchone()
+        if par is not None:
+            cur.execute(
+                "select tipo, descricao, classificacao, prova, fundamento from priv.parecer_achados where parecer_id = %s and empresa_id = %s "
+                "and classificacao in ('forte', 'moderada') order by ordem",
+                (par["id"], m["empresa_id"]),
+            )
+            parecer = {"concorrente": par["concorrente"], "achados": cur.fetchall()}
         cur.execute(
             "select pagina, texto from pub.trechos where edital_id = %s order by pagina, ordem",
             (m["edital_id"],),
@@ -94,6 +107,7 @@ def minutar(
         paginas,
         fontes,
         recurso,
+        parecer,
     )
     try:
         resp = cliente.completar(SISTEMA, usuario)

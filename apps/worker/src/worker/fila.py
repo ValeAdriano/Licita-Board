@@ -29,6 +29,8 @@ from worker.email import (
 )
 from worker.extracao import extrair
 from worker.minuta_ia import minutar
+from worker.parecer import analisar as analisar_parecer
+from worker.parecer import conferir as conferir_parecer
 from worker.peca import processar as processar_peca
 from worker.pesquisa.agenda import agendar, vigiar
 from worker.pesquisa.arquivos import baixar, extrair_texto
@@ -97,6 +99,8 @@ class Handlers:
             "processar_peca": self.processar_peca,
             "minutar_peca": self.minutar_peca,
             "ler_recurso": self.ler_recurso,
+            "validar_parecer": self.validar_parecer,
+            "analisar_vencedora": self.analisar_vencedora,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -252,6 +256,15 @@ class Handlers:
         ler_recurso_terceiro(
             conn, str(job["payload"]["recurso_id"]), cliente, job.get("empresa_id")
         )
+
+    def validar_parecer(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # Só o id do parecer vem no payload; a empresa do job tem de ser a dona dele (T2). Confere a evidência por código (sem IA).
+        conferir_parecer(conn, str(job["payload"]["parecer_id"]), job.get("empresa_id"))
+
+    def analisar_vencedora(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # A IA só SUGERE achados com citação literal; a classificação e a recomendação são humanas. Sem chave, fica "desligada".
+        cliente = cliente_da_empresa(conn, job.get("empresa_id"), self._s)
+        analisar_parecer(conn, str(job["payload"]["parecer_id"]), cliente, job.get("empresa_id"))
 
     def gerar_proposta(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Só o id da proposta vem no payload; a empresa do job tem de ser a dona dela (T2). Nunca envia ao portal (regra 17).

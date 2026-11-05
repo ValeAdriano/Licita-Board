@@ -92,7 +92,7 @@ def test_minuta_com_fonte_verificada_entra_como_rascunho_da_ia_sem_autor_humano(
     assert (status, origem, modelo, elaborado) == ("minuta", "ia", "falso-1", None)
     assert "art. 165" in minuta and clausulas == "Cláusula 7.2, página 4"
     assert bloqueada is False and [v for v in validacao if v["bloqueia"]] == []
-    assert _ia(pedido)[:4] == ("concluida", 100, 0, "min-v2")
+    assert _ia(pedido)[:4] == ("concluida", 100, 0, "min-v3")
 
 
 def test_citacao_fora_da_base_bloqueia_a_peca(pedido: Any) -> None:
