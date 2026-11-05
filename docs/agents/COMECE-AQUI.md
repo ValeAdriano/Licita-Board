@@ -27,6 +27,7 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 
 - `db/scripts/test-local.sh` troca as senhas dos papéis `vv_*` do servidor por aleatórias: depois rode `scripts/dev-up.sh` (restaura as do `.env`) ou o login da API dá 500. Para rodar o e2e logo após, restaure à mão: `alter role vv_api password '<VV_API_PASSWORD do .env>'` (e `vv_owner`, `vv_worker`).
 - e2e da API: `DATABASE_URL_TEST` (vv_api no `vv_test`, porta 5433) e `DATABASE_URL_ADMIN_TEST` (postgres); não é idempotente em banco reaproveitado, então recrie o `vv_test` antes (test-local). Comando: `npx vitest run --project e2e <nome>` em `apps/api`.
+- Suítes de e2e (API) e de pytest com banco (worker) compartilham o `vv_test` e se poluem: rode uma, recrie o banco (`db/scripts/test-local.sh`), restaure as senhas e rode a outra (já deu falso negativo em `test_avaliacao`).
 - TOTP não aceita o mesmo código duas vezes (anti-replay): em script, espere a janela de 30 s.
 - Permissão ausente devolve 404 (não 403) na API. Rota nova com `:empresa` entra no teste `rotas.e2e-spec.ts`.
 - `vv_worker` lê `core.usuarios` só por colunas (nunca `senha_hash`): grant de tabela inteira quebra o pgTAP 040 (aconteceu; corrigido pela migration 20261108140000).
