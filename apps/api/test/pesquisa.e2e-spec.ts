@@ -94,6 +94,20 @@ describe('A x B: documentos, atestados e pesquisa de editais', () => {
     expect((await admin.query('select triagem from priv.oportunidades where id = $1', [opA])).rows[0]).toEqual({ triagem: 'interesse' });
   });
 
+  it('comparação de versões do edital: mostra o diff a quem tem editais/visualizar e recusa faixa inválida', async () => {
+    const c1 = JSON.stringify({ campos: { objeto: 'Mesas', situacao: 'Divulgada' }, itens: [{ numero_item: 1, descricao: 'Mesa', quantidade: '10.0000' }], arquivos: [] });
+    const c2 = JSON.stringify({ campos: { objeto: 'Mesas', situacao: 'Suspensa' }, itens: [{ numero_item: 1, descricao: 'Mesa', quantidade: '12.0000' }], arquivos: [] });
+    await admin.query(`delete from pub.edital_versoes where edital_id = $1 and versao > 1`, [editalId]);
+    await admin.query(`insert into pub.edital_versoes (edital_id, versao, hash_conteudo, campos_alterados, conteudo) values ($1, 1, repeat('a', 64), '{}', $2::jsonb) on conflict (edital_id, versao) do update set conteudo = excluded.conteudo`, [editalId, c1]);
+    await admin.query(`insert into pub.edital_versoes (edital_id, versao, hash_conteudo, campos_alterados, conteudo) values ($1, 2, repeat('b', 64), '{situacao,itens}', $2::jsonb)`, [editalId, c2]);
+    await admin.query(`update pub.editais set versao_atual = 2 where id = $1`, [editalId]);
+    const r = (await http().get(`/editais/${editalId}/comparar`).set(bearer(a)).expect(200)).body as { de: number; para: number; campos: { campo: string }[]; itens: { tipo: string }[]; alteraProposta: boolean };
+    expect([r.de, r.para, r.campos.map((c) => c.campo), r.itens.map((i) => i.tipo), r.alteraProposta]).toEqual([1, 2, ['situacao'], ['alterado'], true]);
+    await http().get(`/editais/${editalId}/comparar?de=2&para=1`).set(bearer(a)).expect(400);
+    await http().get(`/editais/${editalId}/comparar?de=1&para=9`).set(bearer(a)).expect(404);
+    await http().get(`/editais/${editalId}/comparar`).set(bearer(semEditais)).expect(404);
+  });
+
   it('edital público: só quem tem editais/visualizar em alguma empresa; download auditado', async () => {
     await http().get(`/editais/${editalId}`).set(bearer(a)).expect(200);
     await http().get(`/editais/${editalId}`).set(bearer(b)).expect(200); // dado público: qualquer empresa com editais/visualizar

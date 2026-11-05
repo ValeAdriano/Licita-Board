@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Post, Query, Req } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Post, Query, Req } from '@nestjs/common';
 import { type Transaction, sql } from 'kysely';
 import { z } from 'zod';
 import { type RequisicaoVV, dadosDe, sessaoDe, validar } from '../auth/requisicao.js';
@@ -6,6 +6,7 @@ import { Permissao } from '../auth/sessao.guard.js';
 import { ContextoService } from '../db/contexto.service.js';
 import type { Database } from '../db/db.module.js';
 import { S3Servico } from '../documentos/s3.service.js';
+import { compararVersoes } from './diff.js';
 
 const POR_PAGINA = 30;
 const listaSchema = z.object({
@@ -21,6 +22,7 @@ const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => new Date(`${d}
 const pesquisaSchema = z.object({
   fonte: z.enum(['pncp', 'comprasgov']).default('pncp'), inicio: dia, fim: dia, uf: z.string().regex(/^[A-Z]{2}$/).nullable().optional(),
 }).strict();
+const compararSchema = z.object({ de: z.coerce.number().int().min(1).optional(), para: z.coerce.number().int().min(1).optional() }).strict();
 const importacaoSchema = z.object({ url: z.url().max(1000) }).strict();
 const amostraSchema = z.object({
   mes: dia.refine((d) => d.endsWith('-01')),
@@ -91,6 +93,26 @@ export class PesquisaController {
   async triar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
     const d = validar(triagemSchema, corpo);
     await this.q(req, (tx) => sql`select priv.triar_oportunidade(${empresa}::uuid, ${id}::uuid, ${d.triagem}, ${d.motivo ?? null})`.execute(tx));
+  }
+
+  // O que mudou entre duas versões coletadas do edital (padrão: a anterior x a atual). Só fatos; nada de conclusão jurídica.
+  @Get('editais/:id/comparar')
+  async comparar(@Req() req: RequisicaoVV, @Param('id', new ParseUUIDPipe()) id: string, @Query() consulta: unknown) {
+    const f = validar(compararSchema, consulta);
+    const r = await this.q(req, async (tx) => {
+      const atual = (await sql<{ v: number }>`select versao_atual as v from pub.editais where id = ${id}::uuid`.execute(tx)).rows[0]?.v;
+      if (!atual) return null;
+      const para = f.para ?? atual;
+      const de = f.de ?? para - 1;
+      if (de < 1 || de >= para) return 'faixa' as const;
+      const linhas = (await sql<{ versao: number; conteudo: unknown }>`
+        select versao, conteudo from pub.edital_versoes where edital_id = ${id}::uuid and versao in (${de}, ${para})`.execute(tx)).rows;
+      const a = linhas.find((l) => l.versao === de); const d = linhas.find((l) => l.versao === para);
+      return a && d ? compararVersoes(de, para, a.conteudo as never, d.conteudo as never) : null;
+    });
+    if (r === 'faixa') throw new BadRequestException('Escolha duas versões diferentes (a primeira menor que a segunda).');
+    if (!r) throw new NotFoundException();
+    return r;
   }
 
   // Edital público com itens, arquivos e versões. Sem permissão a RLS devolve vazio: 404, sem revelar nada.

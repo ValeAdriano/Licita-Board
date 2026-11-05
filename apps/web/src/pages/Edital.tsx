@@ -5,6 +5,7 @@ import { useAcesso } from '../features/acesso/contexto'
 import { useGet } from '../features/acesso/useGet'
 import { useEnvio } from '../features/acesso/conta/useEnvio'
 import { BannerFontes } from '../features/pesquisa/BannerFontes'
+import { DiffVersoes } from '../features/pesquisa/DiffVersoes'
 import { BENEFICIO, moeda, quando } from '../features/pesquisa/formato'
 import { Aviso, Botao, CabecalhoPagina, Campo, Cartao, Etiqueta, Legenda, Pagina } from '../ui'
 
@@ -29,6 +30,7 @@ export default function PaginaEdital() {
   const { empresa, pode } = useAcesso()
   const navegar = useNavigate()
   const acomp = useEnvio()
+  const [comparando, setComparando] = useState<number | null>(null)
   if (e.erro) return <p className="px-4 py-10 text-center text-sm text-tertiary">Edital não encontrado ou sem permissão.</p>
   if (!e.dados) return <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Carregando…</p>
   const d = e.dados
@@ -75,11 +77,15 @@ export default function PaginaEdital() {
       <h2>Versões</h2>
       <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {d.versoes.map((v) => (
-          <div key={v.versao} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left">
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
-              <strong>Versão {v.versao}</strong>
-              <span className="text-sm text-tertiary [overflow-wrap:anywhere]">{quando(v.coletadaEm)}{v.camposAlterados.length ? ` · mudou: ${v.camposAlterados.map((c) => CAMPO[c] ?? c).join(', ')}` : ' · primeira coleta'}</span>
-            </span>
+          <div key={v.versao} className="flex flex-col gap-3 px-4 py-3">
+            <div className="flex min-h-10 w-full items-center gap-3 text-left">
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
+                <strong>Versão {v.versao}</strong>
+                <span className="text-sm text-tertiary [overflow-wrap:anywhere]">{quando(v.coletadaEm)}{v.camposAlterados.length ? ` · mudou: ${v.camposAlterados.map((c) => CAMPO[c] ?? c).join(', ')}` : ' · primeira coleta'}</span>
+              </span>
+              {v.versao > 1 ? <Botao variante="secundario" onClick={() => setComparando(comparando === v.versao ? null : v.versao)}>{comparando === v.versao ? 'Ocultar mudanças' : 'Ver o que mudou'}</Botao> : null}
+            </div>
+            {comparando === v.versao ? <DiffVersoes editalId={d.id} de={v.versao - 1} para={v.versao} /> : null}
           </div>
         ))}
       </div>

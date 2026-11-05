@@ -7,6 +7,7 @@ import { useGet } from '../features/acesso/useGet'
 import { dataHoraSP, paraCampoLocal, paraIsoSP, PRIORIDADE, STATUS_ACOMP } from '../features/agenda/comum'
 import { Eventos } from '../features/agenda/Eventos'
 import { Itens } from '../features/agenda/Itens'
+import { DiffVersoes } from '../features/pesquisa/DiffVersoes'
 import type { Detalhe } from '../features/agenda/tiposAcompanhamento'
 import { AreaTexto, Aviso, Botao, CabecalhoPagina, Campo, Cartao, Etiqueta, Legenda, Pagina, Selecao } from '../ui'
 
@@ -59,15 +60,18 @@ export default function Acompanhamento() {
 
 function RetificacaoAviso({ empresaId, d, podeEditar, aoMudar }: { empresaId: string; d: Detalhe; podeEditar: boolean; aoMudar: () => void }) {
   const { enviando, erro, enviar } = useEnvio()
+  const [ver, setVer] = useState(false)
   return (
     <Cartao className="ring-2 ring-warning">
       <h2>Edital retificado</h2>
       <p className="text-sm text-secondary">O edital está na versão {d.editalVersaoAtual}; você conferiu a {d.editalVersaoVista}. Veja o que mudou (data, itens, quantidades, descrição) e reconfirme a abertura. Se a retificação altera a proposta, avalie a necessidade de reabrir o prazo de publicação (decisão sua: o sistema não conclui).</p>
       <Aviso texto={erro} />
       <div className="flex flex-wrap gap-3">
+        <Botao variante="secundario" onClick={() => setVer(!ver)}>{ver ? 'Ocultar o que mudou' : 'Ver o que mudou'}</Botao>
         <Link to={`/editais/${d.editalId}`}>Ver as versões do edital</Link>
         {podeEditar ? <Botao variante="secundario" carregando={enviando} onClick={() => void enviar(async () => { await chamar('PATCH', `/empresas/${empresaId}/acompanhamentos/${d.id}`, { conferido: true }); aoMudar() })}>Marcar como conferido</Botao> : null}
       </div>
+      {ver ? <DiffVersoes editalId={d.editalId} de={d.editalVersaoVista} para={d.editalVersaoAtual} /> : null}
     </Cartao>
   )
 }
