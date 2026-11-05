@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 import psycopg
 from psycopg.rows import dict_row
 
+from worker.agenda import calcular_acompanhamento, garantir_feriados
 from worker.documentos import Antivirus, Armazenamento, processar_versao
 from worker.email import Enviador, mensagem_alerta, mensagem_operacional, mensagem_recuperacao
 from worker.pesquisa.agenda import agendar, vigiar
@@ -68,6 +69,7 @@ class Handlers:
             "avaliar_relevancia": self.avaliar_relevancia,
             "importar_edital": self.importar_edital,
             "apurar_cobertura": self.apurar_cobertura,
+            "calcular_prazos": self.calcular_prazos,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -185,6 +187,10 @@ class Handlers:
         agora = dt.datetime.now(dt.UTC)
         extrair_texto(conn, str(job["payload"]["arquivo_id"]), self._s3, ocr, agora)  # type: ignore[arg-type]
 
+    def calcular_prazos(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # Só o id do acompanhamento vem no payload; empresa e datas são lidas do banco (T2).
+        calcular_acompanhamento(conn, str(job["payload"]["acompanhamento_id"]))
+
     def apurar_cobertura(self, conn: psycopg.Connection[Any], job: Job) -> None:
         apurar(conn, dt.date.fromisoformat(str(job["payload"]["mes"])))
 
@@ -298,6 +304,9 @@ def alertas_do_dia(conn: psycopg.Connection[Any], hoje: dt.date, ultimo: dt.date
     """Uma vez por dia (e na partida) gera os alertas de vencimento (idempotente)."""
     if ultimo == hoje:
         return hoje
+    garantir_feriados(
+        conn, range(hoje.year - 1, hoje.year + 4)
+    )  # nacionais fixos e móveis, idempotente
     n = conn.execute("select priv.gerar_alertas_documentos(%s)", (hoje,)).fetchone()
     if hoje.day == 1:  # cobertura do mês contra a amostra (idempotente pela chave do mês)
         conn.execute(
