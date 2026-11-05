@@ -59,6 +59,23 @@ def minutar(
             (m["empresa_id"],),
         )
         fontes = cur.fetchall()
+        recurso = None
+        cur.execute(
+            "select id, recorrente, texto from priv.recursos_terceiros where peca_id = %s and empresa_id = %s",
+            (m["peca_id"], m["empresa_id"]),
+        )
+        rec = cur.fetchone()
+        if rec is not None:
+            cur.execute(
+                "select resumo, contra_prova, fundamento_refutacao from priv.recurso_alegacoes where recurso_id = %s and empresa_id = %s "
+                "and coalesce(decisao, 'rebater') = 'rebater' order by ordem",
+                (rec["id"], m["empresa_id"]),
+            )
+            recurso = {
+                "recorrente": rec["recorrente"],
+                "texto": rec["texto"],
+                "alegacoes": cur.fetchall(),
+            }
         cur.execute(
             "select pagina, texto from pub.trechos where edital_id = %s order by pagina, ordem",
             (m["edital_id"],),
@@ -69,7 +86,14 @@ def minutar(
     if not paginas:
         return _fim(conn, m["id"], "falhou", "o edital ainda não tem texto extraído")
     usuario, truncado = montar_usuario(
-        m["tipo"], m["titulo"], m["instrucao"], m["orgao"], m["numero_edital"], paginas, fontes
+        m["tipo"],
+        m["titulo"],
+        m["instrucao"],
+        m["orgao"],
+        m["numero_edital"],
+        paginas,
+        fontes,
+        recurso,
     )
     try:
         resp = cliente.completar(SISTEMA, usuario)

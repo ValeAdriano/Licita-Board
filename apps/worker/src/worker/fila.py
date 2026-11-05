@@ -41,6 +41,7 @@ from worker.pesquisa.texto import Tesseract
 from worker.preco import calcular_precificacao
 from worker.proposta import Gravador, gerar_proposta, hoje_local
 from worker.push import REDE, TTL_SEGUNDOS, EnviadorPush, Inscricao, carga_generica
+from worker.recurso import ler as ler_recurso_terceiro
 from worker.settings import Settings
 
 log = logging.getLogger("worker.fila")
@@ -95,6 +96,7 @@ class Handlers:
             "testar_chave_ia": self.testar_chave_ia,
             "processar_peca": self.processar_peca,
             "minutar_peca": self.minutar_peca,
+            "ler_recurso": self.ler_recurso,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -242,6 +244,13 @@ class Handlers:
             cliente,
             hoje_local(agora),
             job.get("empresa_id"),
+        )
+
+    def ler_recurso(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # A IA só extrai as alegações do recurso de terceiro; a empresa do job tem de ser a dona dele (T2). Sem chave, fica "desligada".
+        cliente = cliente_da_empresa(conn, job.get("empresa_id"), self._s)
+        ler_recurso_terceiro(
+            conn, str(job["payload"]["recurso_id"]), cliente, job.get("empresa_id")
         )
 
     def gerar_proposta(self, conn: psycopg.Connection[Any], job: Job) -> None:

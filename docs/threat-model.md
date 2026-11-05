@@ -434,3 +434,4 @@ As ameaças T5.2 (logout que falha aberto), T5.3 (sessão sequestrada vira posse
 - **Vazamento para o provedor:** só entram o texto público do edital, a lista de fontes verificadas, o título da peça e a orientação digitada; nunca nome/CNPJ da empresa, custos ou margens. Chave por empresa, cifrada (ADR-017).
 - **Custo:** 5 minutas por peça por dia (erro 429) e uma por vez.
 - **Rastreabilidade:** `priv.pecas_ia` guarda modelo, versão do prompt, tokens e quem pediu (auditado); `minuta_origem` distingue manual, IA e IA revisada por pessoa.
+- **Recurso de terceiro (10.6):** o texto é DADO de OUTRO licitante (pode conter ordens à IA): vai entre `<recurso>`, o modelo não tem ferramentas e só extrai alegações; citação conferida por código no texto; fundamentos do recorrente marcados dentro/fora da base verificada e nunca entram sozinhos na minuta. Nada da empresa vai ao provedor. Limite de 5 leituras por recurso por dia.

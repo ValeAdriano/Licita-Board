@@ -10,6 +10,6 @@ export interface PecaLinha {
   bloqueada: boolean; validadaEm: string | null; protocoloNumero: string | null; protocoladoEm: string | null; resultado: string | null; orgao: string | null; numeroEdital: string | null
 }
 export interface Peca extends PecaLinha {
-  minuta: string | null; minutaOrigem: 'manual' | 'ia' | 'ia_revisada'; minutaModelo: string | null; clausulas: string | null; justificativaDescarte: string | null; validacao: { codigo: string; mensagem: string; bloqueia: boolean }[] | null; arquivoSha256: string | null
+  recursoId: string | null; minuta: string | null; minutaOrigem: 'manual' | 'ia' | 'ia_revisada'; minutaModelo: string | null; clausulas: string | null; justificativaDescarte: string | null; validacao: { codigo: string; mensagem: string; bloqueia: boolean }[] | null; arquivoSha256: string | null
   temArquivo: boolean; temPdf: boolean; geradoEm: string | null; comprovante: string | null; resultadoObs: string | null; resultadoEm: string | null; aprovadoPor: string | null; aprovadoEm: string | null; elaboradoPor: string | null
 }

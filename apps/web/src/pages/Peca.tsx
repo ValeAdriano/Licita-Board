@@ -43,6 +43,7 @@ function Conteudo({ empresaId, p, pode, recarregar }: { empresaId: string; p: Pe
       <CabecalhoPagina titulo={p.titulo} subtitulo={`${TIPO_PECA[p.tipo] ?? p.tipo} · ${p.orgao ?? ''}${p.numeroEdital ? ` · edital nº ${p.numeroEdital}` : ''}`} acoes={<Etiqueta cor={cor}>{rotulo}</Etiqueta>} />
       <Aviso texto={erro} />
       {p.prazoLegal ? <Aviso tipo="atencao" texto={`Prazo legal na agenda: ${dataHoraSP(p.prazoLegal)}${p.prazoInterno ? ` (data interna ${dataHoraSP(p.prazoInterno)})` : ''}. ⚖️ A regra do prazo ainda não foi validada pelo jurídico: confira o edital.`} /> : null}
+      {p.recursoId ? <Link to={`/juridico/recursos/${p.recursoId}`}>Ver o recurso de terceiro e as alegações →</Link> : null}
       {['triagem', 'minuta'].includes(p.status) && pode('juridico', 'elaborar_peca') ? <MinutaIa empresaId={empresaId} pecaId={p.id} temMinuta={(p.minuta ?? '').trim().length > 0} aoConcluir={recarregar} /> : null}
       <Cartao>
         <h2>Minuta{p.minutaOrigem === 'ia' ? <> <Etiqueta cor="aviso">Rascunho da IA: revise</Etiqueta></> : p.minutaOrigem === 'ia_revisada' ? <> <Etiqueta cor="cinza">Nasceu de rascunho da IA, revisado</Etiqueta></> : null}</h2>

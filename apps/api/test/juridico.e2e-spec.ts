@@ -107,6 +107,40 @@ describe('jurídico: fluxo e A x B', () => {
     await http().post(`/empresas/${empB}/juridico/pecas/${nova}/minuta-ia`).set(bearer(b)).send({}).expect(404);
   });
 
+  it('recurso de terceiro: lança o prazo de contrarrazões, abre a peça, alegação sem prova é risco, A x B', async () => {
+    const texto = 'A recorrente alega que a proposta vencedora descumpre a cláusula 7.2 do edital e que a habilitação é irregular.';
+    await http().post(`/empresas/${empA}/juridico/acompanhamentos/${acomp}/recursos`).set(bearer(leitor)).send({ recorrente: 'Concorrente S/A', publicadoEm: '2026-11-10T12:00:00-03:00', texto }).expect(404); // só visualizar
+    await http().post(`/empresas/${empA}/juridico/acompanhamentos/${acomp}/recursos`).set(bearer(redator)).send({ recorrente: 'Concorrente S/A', publicadoEm: '2026-11-10T12:00:00-03:00', texto: 'curto' }).expect(400);
+    const ins = (await http().post(`/empresas/${empA}/juridico/acompanhamentos/${acomp}/recursos`).set(bearer(redator)).send({ recorrente: 'Concorrente S/A', publicadoEm: '2026-11-10T12:00:00-03:00', texto, link: 'https://exemplo.gov.br/recurso.pdf' }).expect(201)).body as { id: string; pecaId: string; eventoId: string };
+    expect((await admin.query<{ n: string }>(`select count(*) n from ops.jobs where tipo = 'ler_recurso' and empresa_id = $1`, [empA])).rows[0]?.n).toBe('1'); // a API não chama a IA
+    const pc = (await http().get(`/empresas/${empA}/juridico/pecas/${ins.pecaId}`).set(bearer(leitor)).expect(200)).body as { tipo: string; status: string; eventoId: string };
+    expect([pc.tipo, pc.status, pc.eventoId]).toEqual(['contrarrazoes', 'triagem', ins.eventoId]);
+    const al = ((await http().post(`/empresas/${empA}/juridico/recursos/${ins.id}/alegacoes`).set(bearer(redator)).send({ resumo: 'Proposta descumpre a cláusula 7.2', citacao: 'descumpre a cláusula 7.2 do edital' }).expect(201)).body as { id: string }).id;
+    let d = (await http().get(`/empresas/${empA}/juridico/recursos/${ins.id}`).set(bearer(leitor)).expect(200)).body as { leituraStatus: string; alegacoes: { risco: boolean; citacaoConfere: boolean }[] };
+    expect([d.leituraStatus, d.alegacoes[0]?.risco, d.alegacoes[0]?.citacaoConfere]).toEqual(['pendente', true, true]);
+    await http().put(`/empresas/${empA}/juridico/alegacoes/${al}`).set(bearer(leitor)).send({ decisao: 'rebater' }).expect(404);
+    await http().put(`/empresas/${empA}/juridico/alegacoes/${al}`).set(bearer(redator)).send({ decisao: 'rebater', contraProva: 'Ficha técnica, p. 3', fundamento: 'cláusula 7.2' }).expect(204);
+    d = (await http().get(`/empresas/${empA}/juridico/recursos/${ins.id}`).set(bearer(leitor)).expect(200)).body as typeof d;
+    expect(d.alegacoes[0]?.risco).toBe(false);
+    const lista = (await http().get(`/empresas/${empA}/juridico/recursos?acompanhamento=${acomp}`).set(bearer(leitor)).expect(200)).body as { id: string; alegacoes: number; riscos: number }[];
+    expect(lista.map((x) => [x.id, x.alegacoes, x.riscos])).toEqual([[ins.id, 1, 0]]);
+    await http().post(`/empresas/${empA}/juridico/recursos/${ins.id}/ler`).set(bearer(leitor)).expect(404);
+    // B não vê nem altera nada
+    await http().get(`/empresas/${empA}/juridico/recursos/${ins.id}`).set(bearer(b)).expect(404);
+    await http().get(`/empresas/${empB}/juridico/recursos/${ins.id}`).set(bearer(b)).expect(404);
+    expect(((await http().get(`/empresas/${empB}/juridico/recursos`).set(bearer(b)).expect(200)).body as unknown[])).toHaveLength(0);
+    await http().post(`/empresas/${empA}/juridico/recursos/${ins.id}/ler`).set(bearer(b)).expect(404);
+    await http().post(`/empresas/${empA}/juridico/recursos/${ins.id}/alegacoes`).set(bearer(b)).send({ resumo: 'Invasor' }).expect(404);
+    await http().put(`/empresas/${empA}/juridico/alegacoes/${al}`).set(bearer(b)).send({ decisao: 'concordar' }).expect(404);
+    await http().delete(`/empresas/${empA}/juridico/alegacoes/${al}`).set(bearer(b)).expect(404);
+    await http().post(`/empresas/${empB}/juridico/recursos/${ins.id}/ler`).set(bearer(b)).expect(404);
+    await http().put(`/empresas/${empB}/juridico/alegacoes/${al}`).set(bearer(b)).send({ decisao: 'concordar' }).expect(404); // a função do banco não acha a alegação em B
+    // limite diário de leituras (custo)
+    await admin.query(`update priv.recursos_terceiros set leitura_dia = current_date, leitura_qtd = 5 where id = $1`, [ins.id]);
+    await http().post(`/empresas/${empA}/juridico/recursos/${ins.id}/ler`).set(bearer(redator)).expect(429);
+    await http().delete(`/empresas/${empA}/juridico/alegacoes/${al}`).set(bearer(redator)).expect(204);
+  });
+
   it('A x B: B não lê nem altera nada do jurídico de A', async () => {
     await http().get(`/empresas/${empA}/juridico/base`).set(bearer(b)).expect(404);
     await http().get(`/empresas/${empA}/juridico/pecas`).set(bearer(b)).expect(404);

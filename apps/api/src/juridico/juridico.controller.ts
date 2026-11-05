@@ -82,7 +82,7 @@ export class JuridicoController {
   @Get('empresas/:empresa/juridico/pecas/:id')
   async peca(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
     const r = await this.q(req, async (tx) => (await sql`
-      select p.id, p.tipo, p.titulo, p.status, p.acompanhamento_id as "acompanhamentoId", p.evento_id as "eventoId", p.minuta, p.clausulas, p.minuta_origem as "minutaOrigem", p.minuta_modelo as "minutaModelo", p.justificativa_descarte as "justificativaDescarte", p.validacao, p.validada_em as "validadaEm", p.bloqueada,
+      select p.id, p.tipo, p.titulo, p.status, p.acompanhamento_id as "acompanhamentoId", p.evento_id as "eventoId", (select rt.id from priv.recursos_terceiros rt where rt.peca_id = p.id) as "recursoId", p.minuta, p.clausulas, p.minuta_origem as "minutaOrigem", p.minuta_modelo as "minutaModelo", p.justificativa_descarte as "justificativaDescarte", p.validacao, p.validada_em as "validadaEm", p.bloqueada,
              p.arquivo_sha256 as "arquivoSha256", p.arquivo_chave is not null as "temArquivo", p.arquivo_pdf_chave is not null as "temPdf", p.gerado_em as "geradoEm", p.protocolo_numero as "protocoloNumero", p.protocolado_em as "protocoladoEm",
              p.comprovante, p.resultado, p.resultado_obs as "resultadoObs", p.resultado_em as "resultadoEm", ua.nome as "aprovadoPor", p.aprovado_em as "aprovadoEm", ue.nome as "elaboradoPor",
              ev.data_limite_legal as "prazoLegal", ev.data_interna_recomendada as "prazoInterno", g.razao_social as orgao, e.numero_edital as "numeroEdital"

@@ -39,7 +39,7 @@ def _base(conn: psycopg.Connection[Any], empresa: Any) -> list[Entrada]:
         ]
 
 
-def validar(p: dict[str, Any], base: list[Entrada]) -> list[dict[str, Any]]:
+def validar(p: dict[str, Any], base: list[Entrada], riscos: int = 0) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     texto = (p["minuta"] or "").strip()
     if len(texto) < 30:
@@ -64,6 +64,14 @@ def validar(p: dict[str, Any], base: list[Entrada]) -> list[dict[str, Any]]:
                 "codigo": "citacao_fora_da_base",
                 "mensagem": f"Citação fora da base jurídica verificada: “{c.trecho}”. Cadastre e verifique a fonte oficial ou retire a citação.",
                 "bloqueia": True,
+            }
+        )
+    if riscos:
+        out.append(
+            {
+                "codigo": "ponto_de_risco",
+                "mensagem": f"{riscos} alegação(ões) do recurso a rebater sem prova que a refute: ponto de risco para o jurídico (indique a prova e o fundamento na tela do recurso).",
+                "bloqueia": False,
             }
         )
     if not base:
@@ -132,7 +140,12 @@ def processar(
         return str(p["status"])
     if p["status"] not in ("triagem", "minuta", "revisao", "aprovada"):
         return str(p["status"])
-    divergencias = validar(p, _base(conn, p["empresa_id"]))
+    riscos = conn.execute(
+        "select count(*) from priv.recurso_alegacoes a join priv.recursos_terceiros r on r.id = a.recurso_id and r.empresa_id = a.empresa_id "
+        "where r.peca_id = %s and a.empresa_id = %s and a.risco",
+        (p["id"], p["empresa_id"]),
+    ).fetchone()
+    divergencias = validar(p, _base(conn, p["empresa_id"]), int(riscos[0]) if riscos else 0)
     bloq = any(d["bloqueia"] for d in divergencias)
     valid = json.dumps(divergencias)
     if p["status"] in ("revisao", "aprovada") and bloq:
