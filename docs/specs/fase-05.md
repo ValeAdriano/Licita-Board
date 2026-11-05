@@ -234,3 +234,9 @@ As entradas T13 a T16 são propostas para `docs/threat-model.md` na entrega da f
 14. **Fatos geradores dos demais eventos.** Até as Fases 09 e 10, os eventos de resposta, intenção, razões, contrarrazões e regularização ME/EPP são criados **à mão** por botão. Aceita? *Recomendação:* sim, com o texto "EM DESENVOLVIMENTO: automático nas Fases 09 e 10".
 15. **Campos que dependem de outras fases** (atendimento técnico, marca/modelo/versão, valores). *Recomendação:* aparecem na agenda como `A CONFIRMAR`, editáveis como texto, e as Fases 06 e 07 passam a preenchê-los.
 16. **Retenção do histórico e dos arquivos de importação.** *Recomendação:* indefinida nesta fase (⚖️ LGPD com o jurídico), como na Fase 03.
+
+## 12. Estado da implementação (2026-11-05)
+
+- **Pronto e verificado no Docker (conta real, dados reais do PNCP):** banco (feriados, regras NÃO validadas, acompanhamentos, participações, eventos, histórico imutável; pgTAP 230), `rules/prazos.py` e `rules/feriados.py` (casos TÉCNICOS, não os do jurídico), job `calcular_prazos` (histórico, override preservado, prazo do edital), API (e2e A x B), telas: agenda com calendário mês/semana/dia, prazos em tabela e cartões, editais acompanhados, acompanhamento (abertura, prazos, itens/participações, histórico) e o botão "Acompanhar" em oportunidades e no edital.
+- **Falta (próximos blocos):** alertas D-5/D-3/D-1/dia com escalonamento e "Prazo perdido" automático (`alertas_agenda`), cruzamento de documentos que vencem antes da disputa, importação e exportação Excel, `.ics`, diff entre versões na tela, parâmetro D-N por empresa, cadastro de feriados municipais pela tela.
+- **Pendente de fora do código:** os 30+ casos do jurídico (CA-5), a planilha atual (CA-7), validação das regras.

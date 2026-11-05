@@ -37,7 +37,7 @@ export default function Agenda() {
   const hoje = hojeSP()
   const janela = periodo === 'proximos' ? `&de=${encodeURIComponent(inicioDoDia(hoje))}&ate=${encodeURIComponent(inicioDoDia(somarDias(hoje, 31)))}` : periodo === 'vencidos' ? `&ate=${encodeURIComponent(inicioDoDia(hoje))}` : ''
   const filtros = (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Selecao rotulo="Situação" value={situacao} onChange={setSituacao} opcoes={SITUACOES} />
       <Selecao rotulo="Evento" value={tipo} onChange={setTipo} vazio="Todos" opcoes={Object.entries(TIPO_EVENTO).map(([valor, rotulo]) => ({ valor, rotulo }))} />
       <Selecao rotulo="Responsável" value={responsavel} onChange={setResponsavel} vazio="Todos" opcoes={(responsaveis.dados ?? []).map((r) => ({ valor: r.id, rotulo: r.nome }))} />

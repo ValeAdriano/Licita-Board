@@ -79,6 +79,12 @@ export function grade(dia: string): string[][] {
   for (let d = inicio; d <= fim; d = somarDias(d, 7)) semanas.push(Array.from({ length: 7 }, (_, i) => somarDias(d, i)))
   return semanas
 }
-export const tituloDoMes = (dia: string): string => utc(dia).toLocaleDateString('pt-BR', { timeZone: 'UTC', month: 'long', year: 'numeric' })
-export const tituloDoDia = (dia: string): string => utc(dia).toLocaleDateString('pt-BR', { timeZone: 'UTC', weekday: 'long', day: '2-digit', month: 'long' })
+const maiuscula = (t: string): string => t.charAt(0).toUpperCase() + t.slice(1)
+export const tituloDoMes = (dia: string): string => maiuscula(utc(dia).toLocaleDateString('pt-BR', { timeZone: 'UTC', month: 'long', year: 'numeric' }))
+export const tituloDoDia = (dia: string): string => maiuscula(utc(dia).toLocaleDateString('pt-BR', { timeZone: 'UTC', weekday: 'long', day: '2-digit', month: 'long' }))
+// Rótulo curto para a grade do mês.
+export const TIPO_CURTO: Record<string, string> = {
+  disputa: 'Disputa', esclarecimento: 'Esclarec.', impugnacao: 'Impugnação', resposta_administracao: 'Resposta', intencao_recurso: 'Int. recurso',
+  razoes_recurso: 'Razões', contrarrazoes: 'Contrarrazões', regularizacao_fiscal_me_epp: 'Regul. ME/EPP', alteracao_edital: 'Retificação', documento_vence: 'Doc. vence',
+}
 export const DIAS_CURTOS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']

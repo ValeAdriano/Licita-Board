@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { Abas, Aviso, Botao, Vazio } from '../../ui'
 import { useGet } from '../acesso/useGet'
 import {
-  corDoStatus, DIAS_CURTOS, diaSP, grade, hojeSP, horaSP, inicioDaSemana, inicioDoDia, mesDe, somarDias, somarMeses, TIPO_EVENTO, tituloDoDia, tituloDoMes,
+  corDoStatus, DIAS_CURTOS, diaSP, grade, hojeSP, horaSP, inicioDaSemana, inicioDoDia, mesDe, somarDias, somarMeses, TIPO_CURTO, tituloDoDia, tituloDoMes,
   type EventoAgenda,
 } from './comum'
 import { EventoLinha } from './EventoLinha'
@@ -14,6 +14,8 @@ const FUNDO: Record<string, string> = {
   erro: 'bg-error-primary text-error-primary', sucesso: 'bg-success-primary text-success-primary', aviso: 'bg-warning-primary text-warning-primary',
   marca: 'bg-brand-primary text-brand-primary', cinza: 'bg-secondary text-secondary',
 }
+const PONTO: Record<string, string> = { erro: 'bg-error-solid', sucesso: 'bg-success-solid', aviso: 'bg-warning-solid', marca: 'bg-brand-solid', cinza: 'bg-quaternary' }
+const pontoDoEvento = (e: EventoAgenda): string => PONTO[e.tipo === 'disputa' && e.status !== 'prazo_perdido' ? 'marca' : corDoStatus(e.status)] ?? 'bg-quaternary'
 const classeDoEvento = (e: EventoAgenda): string =>
   `${FUNDO[e.tipo === 'disputa' && e.status !== 'prazo_perdido' ? 'marca' : corDoStatus(e.status)]}${e.provisorio ? ' border border-dashed border-warning' : ''}`
 
@@ -42,7 +44,7 @@ export function Calendario({ empresaId, filtro }: { empresaId: string; filtro: s
           <Botao variante="secundario" aria-label="Anterior" onClick={() => passo(-1)}>‹</Botao>
           <Botao variante="secundario" onClick={() => irPara(hoje)}>Hoje</Botao>
           <Botao variante="secundario" aria-label="Próximo" onClick={() => passo(1)}>›</Botao>
-          <h2 className="ml-2 text-lg font-semibold text-primary capitalize" aria-live="polite">{titulo}</h2>
+          <h2 className="ml-2 text-lg font-semibold text-primary " aria-live="polite">{titulo}</h2>
         </div>
         <Abas rotulo="Visão do calendário" ativa={visao} aoMudar={setVisao} abas={[{ id: 'mes', rotulo: 'Mês' }, { id: 'semana', rotulo: 'Semana' }, { id: 'dia', rotulo: 'Dia' }]} />
       </div>
@@ -69,14 +71,14 @@ export function Calendario({ empresaId, filtro }: { empresaId: string; filtro: s
                       <span className="hidden flex-col gap-0.5 sm:flex">
                         {evs.slice(0, 3).map((e) => (
                           <span key={e.id} className={`truncate rounded px-1 py-0.5 text-[11px] leading-tight font-medium ${classeDoEvento(e)}`}>
-                            {horaSP(e.dataLimite!)} {TIPO_EVENTO[e.tipo] ?? e.tipo}
+                            {horaSP(e.dataLimite!)} {TIPO_CURTO[e.tipo] ?? e.tipo}
                           </span>
                         ))}
                         {evs.length > 3 ? <span className="px-1 text-[11px] text-tertiary">+{evs.length - 3} mais</span> : null}
                       </span>
                       {evs.length > 0 ? (
                         <span className="flex flex-wrap gap-0.5 sm:hidden" aria-hidden="true">
-                          {evs.slice(0, 4).map((e) => <span key={e.id} className={`size-1.5 rounded-full ${classeDoEvento(e).split(' ')[0]}`} />)}
+                          {evs.slice(0, 4).map((e) => <span key={e.id} className={`size-2 rounded-full ${pontoDoEvento(e)}`} />)}
                         </span>
                       ) : null}
                     </button>
@@ -93,7 +95,7 @@ export function Calendario({ empresaId, filtro }: { empresaId: string; filtro: s
         <div className="grid gap-3 lg:grid-cols-7">
           {Array.from({ length: 7 }, (_, i) => somarDias(inicioDaSemana(cursor), i)).map((dia) => (
             <section key={dia} className={`flex flex-col gap-2 rounded-xl p-2 ring-1 ring-secondary ${dia === hoje ? 'bg-brand-primary' : 'bg-primary'}`} aria-label={tituloDoDia(dia)}>
-              <h3 className="text-xs font-semibold text-tertiary capitalize">{tituloDoDia(dia)}</h3>
+              <h3 className="text-xs font-semibold text-tertiary ">{tituloDoDia(dia)}</h3>
               {(porDia.get(dia) ?? []).map((e) => <EventoLinha key={e.id} e={e} />)}
               {(porDia.get(dia) ?? []).length === 0 ? <p className="text-xs text-quaternary">Sem prazos</p> : null}
             </section>
@@ -110,7 +112,7 @@ export function Calendario({ empresaId, filtro }: { empresaId: string; filtro: s
 function Dia({ dia, eventos, carregando }: { dia: string; eventos: EventoAgenda[]; carregando: boolean }) {
   return (
     <section className="flex flex-col gap-3" aria-label={`Prazos de ${tituloDoDia(dia)}`}>
-      <h3 className="text-md font-semibold text-primary capitalize">{tituloDoDia(dia)}</h3>
+      <h3 className="text-md font-semibold text-primary ">{tituloDoDia(dia)}</h3>
       {carregando ? <p className="text-sm text-tertiary">Carregando…</p> : null}
       {!carregando && eventos.length === 0 ? <Vazio>Nenhum prazo neste dia.</Vazio> : null}
       <div className="flex flex-col gap-2">{eventos.map((e) => <EventoLinha key={e.id} e={e} />)}</div>

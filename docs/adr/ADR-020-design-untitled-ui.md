@@ -17,6 +17,7 @@
 
 - `Label`: o asterisco de "obrigatório" só existe quando o campo pode ser obrigatório (o app não usa), para não entrar no nome acessível.
 - `TextArea`: sem a imagem `data:` do resizer (a CSP só aceita `img-src 'self'`).
+- `NativeSelect`: `w-full min-w-0` no `<select>` (sem isso a largura vira a da opção mais longa e estoura a tela em 360 px).
 - Logotipo e exemplos do Untitled UI removidos; `Marca` é o monograma VV.
 
 ## CSP

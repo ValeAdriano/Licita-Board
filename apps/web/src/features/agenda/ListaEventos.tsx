@@ -8,7 +8,7 @@ import { EventoLinha, SelosDoPrazo } from './EventoLinha'
 // Lista de prazos: tabela no desktop (Untitled UI Table) e cartões no celular. Vencidos e perdidos vêm primeiro
 // na ordenação por data; "Prazo perdido" fica em destaque.
 export function ListaEventos({ empresaId, filtro }: { empresaId: string; filtro: string }) {
-  const q = `/empresas/${empresaId}/agenda/eventos?x=1${filtro}`
+  const q = `/empresas/${empresaId}/agenda/eventos${filtro ? `?${filtro.slice(1)}` : ''}` // filtro vem como "&a=1&b=2"
   const eventos = useGet<EventoAgenda[]>(q)
   const navegar = useNavigate()
   const lista = eventos.dados ?? []
@@ -20,7 +20,7 @@ export function ListaEventos({ empresaId, filtro }: { empresaId: string; filtro:
       <div className="hidden md:block">
         {lista.length > 0 ? (
           <div className="overflow-hidden rounded-xl shadow-xs ring-1 ring-secondary">
-            <Table aria-label="Prazos da agenda" size="sm" onRowAction={(k) => void navegar(`/agenda/acompanhamentos/${String(k)}`)}>
+            <Table aria-label="Prazos da agenda" size="sm" onRowAction={(k) => { const ev = lista.find((x) => x.id === String(k)); if (ev) void navegar(`/agenda/acompanhamentos/${ev.acompanhamentoId}`) }}>
               <Table.Header>
                 <Table.Head id="prazo" isRowHeader label="Prazo" />
                 <Table.Head id="evento" label="Evento" />
@@ -30,7 +30,7 @@ export function ListaEventos({ empresaId, filtro }: { empresaId: string; filtro:
               </Table.Header>
               <Table.Body items={lista.map((e) => ({ ...e, key: e.id }))}>
                 {(e) => (
-                  <Table.Row id={e.acompanhamentoId}>
+                  <Table.Row id={e.id}>
                     <Table.Cell className="whitespace-nowrap font-medium text-primary">
                       {dataHoraSP(e.dataLimite)}
                       {e.tipo !== 'disputa' && e.dataInterna ? <span className="block text-xs font-normal text-tertiary">interno {dataHoraSP(e.dataInterna)}</span> : null}
