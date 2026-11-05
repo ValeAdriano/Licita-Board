@@ -31,6 +31,8 @@ TIPO = {
     "regularizacao_fiscal_me_epp": "Regularização fiscal ME/EPP", "alteracao_edital": "Alteração do edital",
     "documento_vence": "Documento vence antes da disputa",
 }  # fmt: skip
+# Disputa é data de sessão e documento_vence é aviso: nenhum "perde o prazo" (não há protocolo a fazer).
+SEM_PERDA = ("disputa", "documento_vence")
 EMAIL_EM = {
     "D-1",
     "D0",
@@ -47,7 +49,7 @@ class Resumo:
     emails: int = 0
 
 
-def _destinatarios(
+def destinatarios(
     conn: psycopg.Connection[Any], cache: dict[Any, dict[str, list[Any]]], empresa: Any
 ) -> dict[str, list[Any]]:
     """Quem recebe: todos com agenda/visualizar (menos CLIENTE) e, à parte, os gestores (ADMIN_EMPRESA ou agenda/aprovar)."""
@@ -135,11 +137,11 @@ def processar(conn: psycopg.Connection[Any], agora: datetime) -> Resumo:
         eventos = cur.fetchall()
     for ev in eventos:
         dias = dias_restantes(ev["data_limite_legal"], agora)
-        ds = _destinatarios(conn, cache, ev["empresa_id"])
+        ds = destinatarios(conn, cache, ev["empresa_id"])
         responsaveis = [u for u in {ev["responsavel_id"], ev["acomp_responsavel"]} if u]
         if (
             dias < 0
-            and ev["tipo"] != "disputa"
+            and ev["tipo"] not in SEM_PERDA
             and not ev["provisorio"]
             and ev["data_limite_legal"] < agora
         ):

@@ -173,7 +173,7 @@ def calcular_acompanhamento(
     agora = agora or datetime.now(UTC)
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            "select a.id, a.empresa_id, a.data_abertura, a.abertura_confirmada, a.prazo_esclarecimento_edital, "
+            "select a.id, a.empresa_id, a.responsavel_id, a.data_abertura, a.abertura_confirmada, a.prazo_esclarecimento_edital, "
             "a.prazo_impugnacao_edital, a.clausula_prazos, o.uf, o.codigo_ibge from priv.acompanhamentos a "
             "join pub.editais e on e.id = a.edital_id join pub.orgaos o on o.id = e.orgao_id "
             "where a.id = %s and a.deleted_at is null",
@@ -262,6 +262,21 @@ def calcular_acompanhamento(
                 agora,
             )
     conn.commit()
+    if a["abertura_confirmada"] and abertura is not None and abertura > agora:
+        from worker.agenda_documentos import cruzar  # noqa: PLC0415 - evita import circular
+
+        cruzar(
+            conn,
+            {
+                "id": a["id"],
+                "empresa_id": a["empresa_id"],
+                "data_abertura": abertura,
+                "responsavel_id": a["responsavel_id"],
+            },
+            agora,
+            {},
+        )
+        conn.commit()
     log.info(
         "prazos calculados",
         extra={"ctx": {"acompanhamento": str(acompanhamento_id), "alterados": mudaram}},

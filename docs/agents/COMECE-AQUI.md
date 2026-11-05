@@ -1,6 +1,6 @@
 # Comece aqui · passagem de bastão entre agentes
 
-Primeiro arquivo para quem assume o desenvolvimento (qualquer agente ou pessoa). **Mantenha-o atualizado a cada bloco de trabalho** (AGENTS.md regra 20): estado real, pendências e próximos passos. Última atualização: 2026-11-05.
+Primeiro arquivo para quem assume o desenvolvimento (qualquer agente ou pessoa). **Mantenha-o atualizado a cada bloco de trabalho** (AGENTS.md regra 20): estado real, pendências e próximos passos. Última atualização: 2026-11-05 (cruzamento de documentos pronto).
 
 ## 1. Regras que mais custam caro quando esquecidas
 
@@ -42,18 +42,20 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 | 02 Empresas e produtos | no main | A x B de `priv`, decisões do jurídico |
 | 03 Documentos e certidões | no main | tela do checklist, A x B, retenção |
 | 04 Pesquisa PNCP | no main, dados reais no Docker | Compras.gov.br (decisão), embeddings, ZIP, upload manual, amostra de 50 editais |
-| 05 Agenda ★ MVP | calendário, prazos, acompanhamento, **alertas D-5/D-3/D-1/dia, escalonamento, prazo perdido automático, .ics** | cruzamento de documentos que vencem antes da disputa, importar/exportar Excel, diff de versões na tela, parâmetro D-N por empresa, feriados municipais; **regras de prazo NÃO validadas pelo jurídico** |
+| 05 Agenda ★ MVP | calendário, prazos, acompanhamento, **alertas D-5/D-3/D-1/dia, escalonamento, prazo perdido automático, .ics, documentos que vencem antes da disputa** | importar/exportar Excel, diff de versões na tela, parâmetro D-N por empresa, feriados municipais; **regras de prazo NÃO validadas pelo jurídico** |
 | UI (ADR-020) | Untitled UI em todo o front | `Table` do Untitled UI em Equipe/Auditoria/Empresas, modo escuro, conferir 360 px em todas as telas |
 | 06 em diante | não iniciadas | — |
 
 ## 5. Próximos passos sugeridos (ordem)
 
-1. Fase 05: cruzamento de documentos que vencem antes da disputa (RF-05.15) → importar/exportar Excel → diff de versões → feriados municipais pela tela.
+1. Fase 05: importar/exportar Excel → diff de versões → feriados municipais pela tela.
 2. Fase 05 e anteriores: A x B (pgTAP e e2e) das tabelas `priv` novas **antes de uso real** (regra 13).
 3. Fase 04: decidir Compras.gov.br com o Adriano (recomendação: só conferência cruzada).
 4. UI: `Table` nas telas restantes, modo escuro, revisão em 360 px.
 5. Infra: VPS, S3 de produção, ensaio de restauração do backup (precisa do Adriano).
 6. Fase 06 (IA de análise técnica) só com spec aprovada.
+
+- O cruzamento de documentos (RF-05.15) considera todos os documentos da empresa com validade, não só os exigidos pelo edital (falta o checklist por edital).
 
 ## 6. Dependências que só o Adriano/jurídico resolvem
 
