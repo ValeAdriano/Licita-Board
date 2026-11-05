@@ -6,7 +6,7 @@ import { useEnvio } from '../acesso/conta/useEnvio'
 import { useAcesso } from '../acesso/contexto'
 import { useGet } from '../acesso/useGet'
 import { dataHoraSP, TIPO_EVENTO, type Acompanhado, type EventoAgenda } from '../agenda/comum'
-import { STATUS_PECA, TIPO_PECA, type PecaLinha } from './tipos'
+import { STATUS_PECA, TIPO_PECA, TIPO_PECA_JURIDICO, type PecaLinha } from './tipos'
 
 const TIPOS_EVENTO = ['esclarecimento', 'impugnacao', 'intencao_recurso', 'razoes_recurso', 'contrarrazoes']
 
@@ -25,7 +25,7 @@ export function Pecas({ empresaId }: { empresaId: string }) {
       {pode('juridico', 'elaborar_peca') ? (
         <div className="grid grid-cols-1 gap-3 rounded-xl bg-secondary p-4 sm:grid-cols-2 lg:grid-cols-4">
           <Selecao rotulo="Edital acompanhado" value={f.acomp} onChange={(v) => setF({ ...f, acomp: v, evento: '' })} vazio="Escolha" opcoes={(acomps.dados ?? []).map((a) => ({ valor: a.id, rotulo: `${a.orgao}${a.numeroEdital ? ` · nº ${a.numeroEdital}` : ''}`.slice(0, 80) }))} />
-          <Selecao rotulo="Tipo de peça" value={f.tipo} onChange={(v) => setF({ ...f, tipo: v })} opcoes={Object.entries(TIPO_PECA).map(([valor, rotulo]) => ({ valor, rotulo }))} />
+          <Selecao rotulo="Tipo de peça" value={f.tipo} onChange={(v) => setF({ ...f, tipo: v })} opcoes={Object.entries(TIPO_PECA_JURIDICO).map(([valor, rotulo]) => ({ valor, rotulo }))} />
           <Selecao rotulo="Prazo da agenda (opcional)" value={f.evento} onChange={(v) => setF({ ...f, evento: v })} vazio="Sem prazo ligado" opcoes={evs.map((e) => ({ valor: e.id, rotulo: `${TIPO_EVENTO[e.tipo] ?? e.tipo} · ${dataHoraSP(e.dataLimite)}` }))} />
           <Campo rotulo="Título" value={f.titulo} onChange={(v) => setF({ ...f, titulo: v })} maxLength={200} />
           <div><Botao carregando={enviando} disabled={!f.acomp || f.titulo.trim().length < 3} onClick={() => void enviar(async () => { await chamar('POST', `/empresas/${empresaId}/juridico/acompanhamentos/${f.acomp}/pecas`, { tipo: f.tipo, titulo: f.titulo.trim(), eventoId: f.evento || null }); setF({ ...f, titulo: '' }); lista.recarregar() })}>Criar peça</Botao></div>

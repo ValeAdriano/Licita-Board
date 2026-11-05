@@ -1,4 +1,6 @@
-export const TIPO_PECA: Record<string, string> = { esclarecimento: 'Pedido de esclarecimento', impugnacao: 'Impugnação', recurso: 'Recurso administrativo', contrarrazoes: 'Contrarrazões' }
+export const TIPO_PECA: Record<string, string> = { esclarecimento: 'Pedido de esclarecimento', impugnacao: 'Impugnação', recurso: 'Recurso administrativo', contrarrazoes: 'Contrarrazões', reajuste: 'Pedido de reajuste', reequilibrio: 'Pedido de reequilíbrio' }
+// Tipos que se criam/usam direto na tela do jurídico; reajuste e reequilíbrio nascem do contrato (aba Anexos e pedidos).
+export const TIPO_PECA_JURIDICO: Record<string, string> = Object.fromEntries(Object.entries(TIPO_PECA).filter(([k]) => !['reajuste', 'reequilibrio'].includes(k)))
 export const STATUS_PECA: Record<string, [string, 'cinza' | 'aviso' | 'marca' | 'sucesso' | 'erro']> = {
   sugerida: ['Sugerida', 'cinza'], triagem: ['Triagem', 'cinza'], minuta: ['Minuta', 'aviso'], revisao: ['Em revisão jurídica', 'aviso'], aprovada: ['Aprovada (gerando documento)', 'marca'],
   final: ['Documento final', 'sucesso'], protocolada: ['Protocolada', 'sucesso'], respondida: ['Respondida', 'sucesso'], descartada: ['Descartada', 'cinza'],

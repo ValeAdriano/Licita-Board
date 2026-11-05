@@ -4,7 +4,7 @@ import { Aviso, AreaTexto, Botao, Campo, Cartao, Etiqueta, Legenda, Selecao, Vaz
 import { useEnvio } from '../acesso/conta/useEnvio'
 import { useAcesso } from '../acesso/contexto'
 import { useGet } from '../acesso/useGet'
-import { TIPO_PECA } from './tipos'
+import { TIPO_PECA, TIPO_PECA_JURIDICO } from './tipos'
 
 interface Tese { id: string; tipo: string; titulo: string; texto: string; status: string; validacao: { codigo: string; mensagem: string; bloqueia: boolean }[] | null; validadaEm: string | null; bloqueada: boolean; aprovadaPor: string | null; usos: number; respondidas: number; deferidas: number; indeferidas: number }
 const STATUS: Record<string, ['cinza' | 'sucesso' | 'aviso', string]> = { rascunho: ['aviso', 'Rascunho'], aprovada: ['sucesso', 'Aprovada'], arquivada: ['cinza', 'Arquivada'] }
@@ -23,7 +23,7 @@ export function Teses({ empresaId }: { empresaId: string }) {
       <Legenda>Teses aprovadas aparecem na peça do mesmo tipo e alimentam a minuta por IA. Citação fora da base jurídica verificada bloqueia a aprovação. A taxa de deferimento é (deferido + parcialmente deferido) ÷ peças respondidas que usaram a tese. (EM DESENVOLVIMENTO)</Legenda>
       {pode('juridico', 'elaborar_peca') ? (
         <Cartao><h2>Nova tese</h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><Selecao rotulo="Tipo de peça" value={n.tipo} onChange={(v) => setN({ ...n, tipo: v })} opcoes={Object.entries(TIPO_PECA).map(([valor, rotulo]) => ({ valor, rotulo }))} /><Campo rotulo="Título" value={n.titulo} onChange={(v) => setN({ ...n, titulo: v })} maxLength={200} /></div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><Selecao rotulo="Tipo de peça" value={n.tipo} onChange={(v) => setN({ ...n, tipo: v })} opcoes={Object.entries(TIPO_PECA_JURIDICO).map(([valor, rotulo]) => ({ valor, rotulo }))} /><Campo rotulo="Título" value={n.titulo} onChange={(v) => setN({ ...n, titulo: v })} maxLength={200} /></div>
           <AreaTexto rotulo="Texto do argumento (cite só fontes da base verificada)" value={n.texto} onChange={(v) => setN({ ...n, texto: v })} rows={5} maxLength={4000} />
           <div><Botao carregando={enviando} disabled={n.titulo.trim().length < 3 || n.texto.trim().length < 20} onClick={() => void enviar(async () => { await chamar('POST', base, { tipo: n.tipo, titulo: n.titulo.trim(), texto: n.texto.trim() }); setN({ ...n, titulo: '', texto: '' }); lista.recarregar() })}>Criar tese</Botao></div></Cartao>
       ) : null}

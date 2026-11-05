@@ -13,7 +13,8 @@ import psycopg
 import pytest
 
 from tests.test_coleta import _admin
-from worker.peca import processar
+from worker.llm.minuta_peca import ROTULO
+from worker.peca import TITULO, processar
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get("VV_ADMIN_URL_TEST"), reason="sem banco de teste"
@@ -168,3 +169,8 @@ def test_base_que_perdeu_a_verificacao_derruba_a_aprovacao_sem_gerar_nada(cena: 
 def test_peca_de_outra_empresa_e_ignorada(cena: Any) -> None:
     assert processar(cena["conn"], cena["peca"], cena["s3"], HOJE, str(uuid.uuid4())) is None
     assert _admin("select validada_em from priv.pecas where id = %s", cena["peca"])[0][0] is None
+
+
+def test_todos_os_tipos_de_peca_do_banco_tem_titulo_e_rotulo() -> None:
+    tipos = {"esclarecimento", "impugnacao", "recurso", "contrarrazoes", "reajuste", "reequilibrio"}
+    assert tipos <= set(TITULO) and tipos <= set(ROTULO)

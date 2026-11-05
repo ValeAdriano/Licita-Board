@@ -106,6 +106,44 @@ describe('contratos: saldos, financeiro e A x B', () => {
     expect((await http().get(`/empresas/${empB}/contratos/pendentes-de-cadastro`).set(bearer(b)).expect(200)).body).toEqual([]);
   });
 
+  it('anexos vinculam documentos do repositório (por contrato ou etapa do empenho); pedido de reajuste/reequilíbrio abre peça do jurídico; A x B', async () => {
+    const c = (await http().post(`/empresas/${empA}/contratos`).set(bearer(a)).send({ numero: 'CT-88/2026', orgao: 'Prefeitura Y', objeto: 'Fornecimento contínuo', vigenciaInicio: '2026-01-01', vigenciaFim: '2027-12-31' }).expect(201)).body as { id: string };
+    const it = ((await http().post(`/empresas/${empA}/contratos/${c.id}/itens`).set(bearer(a)).send({ numeroItem: 1, descricao: 'Item', unidade: 'UN', quantidade: '10', valorUnitario: '100' }).expect(201)).body as { id: string }).id;
+    const empen = ((await http().post(`/empresas/${empA}/contratos/${c.id}/empenhos`).set(bearer(a)).send({ numero: 'EMP-X', emitidoEm: '2026-02-01', itens: [{ contratoItemId: it, quantidade: '4' }] }).expect(201)).body as { id: string }).id;
+    const tipo = (await admin.query<{ id: string }>(`select id from pub.tipos_documento limit 1`)).rows[0]?.id;
+    const docA = (await admin.query<{ id: string }>(`insert into priv.documentos (empresa_id, tipo_id, descricao) values ($1, $2, 'Certidão FGTS (execução)') returning id`, [empA, tipo])).rows[0]?.id ?? '';
+    const docB = (await admin.query<{ id: string }>(`insert into priv.documentos (empresa_id, tipo_id, descricao) values ($1, $2, 'Documento de B') returning id`, [empB, tipo])).rows[0]?.id ?? '';
+    const base = `/empresas/${empA}/contratos/${c.id}`;
+    await http().post(`${base}/anexos`).set(bearer(operador)).send({ documentoId: docA }).expect(403); // contratos/editar mas sem documentos/visualizar
+    await http().post(`${base}/anexos`).set(bearer(a)).send({ documentoId: docB }).expect(404); // documento de outra empresa não existe para A
+    await http().post(`${base}/anexos`).set(bearer(a)).send({ documentoId: docA, etapa: 'entrega' }).expect(400); // etapa exige empenho
+    const anx = ((await http().post(`${base}/anexos`).set(bearer(a)).send({ documentoId: docA, nota: 'Regularidade' }).expect(201)).body as { id: string }).id;
+    await http().post(`${base}/anexos`).set(bearer(a)).send({ documentoId: docA, empenhoId: empen, etapa: 'entrega', nota: 'Comprovante' }).expect(201);
+    await http().post(`${base}/anexos`).set(bearer(a)).send({ documentoId: docA, nota: 'repetido' }).expect(409);
+    const l = (await http().get(`${base}/anexos`).set(bearer(a)).expect(200)).body as { descricao: string | null; etapa: string | null }[];
+    expect(l.map((x) => `${x.descricao ?? ''}|${x.etapa ?? '-'}`).sort()).toEqual(['Certidão FGTS (execução)|-', 'Certidão FGTS (execução)|entrega']);
+    const semDoc = (await http().get(`${base}/anexos`).set(bearer(operador)).expect(200)).body as { descricao: string | null }[];
+    expect(semDoc.map((x) => x.descricao)).toEqual([null, null]); // sem documentos/visualizar o vínculo aparece, o documento não
+    await http().delete(`${base}/anexos/${anx}`).set(bearer(b)).expect(404);
+    await http().delete(`${base}/anexos/${anx}`).set(bearer(a)).expect(204);
+    // pedidos ao órgão: peça jurídica ligada ao contrato (precisa do edital: contrato cadastrado a partir do resultado)
+    await http().post(`${base}/pedidos`).set(bearer(a)).send({ tipo: 'reajuste', titulo: 'Pedido de reajuste anual' }).expect(400);
+    const ed = (await admin.query<{ id: string }>(`select a.id from priv.acompanhamentos a where a.empresa_id = $1 limit 1`, [empA])).rows[0]?.id;
+    await admin.query(`update priv.contratos set acompanhamento_id = $1 where id = $2`, [ed, c.id]);
+    await http().post(`${base}/pedidos`).set(bearer(a)).send({ tipo: 'recurso', titulo: 'Tipo inválido' }).expect(400);
+    const ped = ((await http().post(`${base}/pedidos`).set(bearer(a)).send({ tipo: 'reajuste', titulo: 'Pedido de reajuste anual' }).expect(201)).body as { pecaId: string }).pecaId;
+    const lp = (await http().get(`${base}/pedidos`).set(bearer(a)).expect(200)).body as { id: string; tipo: string; status: string }[];
+    expect(lp.map((x) => [x.id, x.tipo, x.status])).toEqual([[ped, 'reajuste', 'triagem']]);
+    await http().post(`${base}/pedidos`).set(bearer(operador)).send({ tipo: 'reajuste', titulo: 'Sem permissão' }).expect(404); // sem juridico/elaborar_peca
+    // A x B
+    await http().get(`${base}/anexos`).set(bearer(b)).expect(404);
+    await http().get(`${base}/pedidos`).set(bearer(b)).expect(404);
+    await http().post(`${base}/anexos`).set(bearer(b)).send({ documentoId: docB }).expect(404);
+    await http().post(`${base}/pedidos`).set(bearer(b)).send({ tipo: 'reajuste', titulo: 'Invasor aqui' }).expect(404);
+    await http().post(`/empresas/${empB}/contratos/${c.id}/pedidos`).set(bearer(b)).send({ tipo: 'reajuste', titulo: 'Invasor aqui' }).expect(404);
+    await http().post(`/empresas/${empB}/contratos/${c.id}/anexos`).set(bearer(b)).send({ documentoId: docB }).expect(404);
+  });
+
   it('A x B: B não lê nem altera nada de A, nem descobre ids', async () => {
     await http().get(`/empresas/${empA}/contratos`).set(bearer(b)).expect(404);
     await http().get(`/empresas/${empA}/contratos/${ct}`).set(bearer(b)).expect(404);

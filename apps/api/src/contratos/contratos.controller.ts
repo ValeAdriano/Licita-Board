@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Post, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Post, Req } from '@nestjs/common';
 import { type Transaction, sql } from 'kysely';
 import { z } from 'zod';
 import { type RequisicaoVV, dadosDe, sessaoDe, validar } from '../auth/requisicao.js';
@@ -28,6 +28,8 @@ const pagamentoSchema = z.object({ pagoEm: dia, valorRecebido: dec, ocorrencia: 
 const eventoSchema = z.object({
   tipo: z.enum(['aditivo', 'apostilamento', 'prorrogacao', 'reajuste', 'reequilibrio', 'ocorrencia']), data: dia, descricao: z.string().trim().min(3).max(2000), novoValor: dec.nullable().optional(), novaVigencia: dia.nullable().optional(),
 }).strict();
+const anexoSchema = z.object({ documentoId: z.uuid(), empenhoId: z.uuid().nullable().optional(), etapa: z.enum(ETAPAS).nullable().optional(), nota: z.string().trim().max(300).nullable().optional() }).strict();
+const pedidoSchema = z.object({ tipo: z.enum(['reajuste', 'reequilibrio']), titulo: z.string().trim().min(3).max(200) }).strict();
 const encerrarSchema = z.object({ status: z.enum(['encerrado', 'rescindido']) }).strict();
 
 // Contratos, empenhos, fornecimento, entregas e financeiro (spec fase-11). Saldos NUNCA vêm do cliente: são calculados aqui e pelo banco.
@@ -68,6 +70,52 @@ export class ContratosController {
        where ri.empresa_id = ${empresa}::uuid and ri.resultado_final = 'contratada'
          and not exists (select 1 from priv.contratos c where c.acompanhamento_id = a.id and c.empresa_id = a.empresa_id and c.deleted_at is null)
        order by ri.ocorrido_em desc, i.numero_item limit 300`.execute(tx)).rows);
+  }
+
+  // Anexos (11.1/11.3): vínculo com documentos do repositório (Fase 03); validade e status vêm de lá. Sem documentos/visualizar o documento não é visto.
+  @Permissao('contratos', 'visualizar')
+  @Get('empresas/:empresa/contratos/:id/anexos')
+  anexos(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
+    return this.q(req, async (tx) => (await sql`
+      select a.id, a.empenho_id as "empenhoId", e.numero as "empenhoNumero", a.etapa, a.nota, a.documento_id as "documentoId", d.descricao, s.status, s.validade::text as validade, a.created_at as "anexadoEm"
+        from priv.contrato_anexos a left join priv.empenhos e on e.id = a.empenho_id left join priv.documentos d on d.id = a.documento_id
+        left join priv.documentos_status s on s.documento_id = d.id
+       where a.contrato_id = ${id}::uuid and a.empresa_id = ${empresa}::uuid order by a.created_at desc`.execute(tx)).rows);
+  }
+
+  @Permissao('contratos', 'editar')
+  @Post('empresas/:empresa/contratos/:id/anexos')
+  @HttpCode(201)
+  async anexar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
+    const d = validar(anexoSchema, corpo);
+    const r = await this.q(req, (tx) => sql<{ id: string }>`
+      select priv.anexar_documento_contrato(${empresa}::uuid, ${id}::uuid, ${d.documentoId}::uuid, ${d.empenhoId ?? null}::uuid, ${d.etapa ?? null}, ${d.nota ?? null}) as id`.execute(tx));
+    return { id: r.rows[0]?.id };
+  }
+
+  @Permissao('contratos', 'editar')
+  @Delete('empresas/:empresa/contratos/:id/anexos/:anexo')
+  @HttpCode(204)
+  async removerAnexo(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('anexo', new ParseUUIDPipe()) anexo: string) {
+    await this.q(req, (tx) => sql`select priv.remover_anexo_contrato(${empresa}::uuid, ${anexo}::uuid)`.execute(tx));
+  }
+
+  // Pedidos ao órgão (reajuste/reequilíbrio) são peças jurídicas ligadas ao contrato: a tela só lista e abre; quem redige e aprova é o jurídico.
+  @Permissao('contratos', 'visualizar')
+  @Get('empresas/:empresa/contratos/:id/pedidos')
+  pedidos(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
+    return this.q(req, async (tx) => (await sql`
+      select p.id, p.tipo, p.titulo, p.status, p.resultado, p.created_at as "criadoEm"
+        from priv.pecas p where p.contrato_id = ${id}::uuid and p.empresa_id = ${empresa}::uuid order by p.created_at desc`.execute(tx)).rows);
+  }
+
+  @Permissao('juridico', 'elaborar_peca')
+  @Post('empresas/:empresa/contratos/:id/pedidos')
+  @HttpCode(201)
+  async abrirPedido(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
+    const d = validar(pedidoSchema, corpo);
+    const r = await this.q(req, (tx) => sql<{ id: string }>`select priv.abrir_pedido_contratual(${empresa}::uuid, ${id}::uuid, ${d.tipo}, ${d.titulo}) as id`.execute(tx));
+    return { pecaId: r.rows[0]?.id };
   }
 
   @Permissao('contratos', 'visualizar')

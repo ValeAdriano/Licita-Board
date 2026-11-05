@@ -22,6 +22,8 @@ ROTULO = {
     "impugnacao": "impugnação ao edital",
     "recurso": "recurso administrativo",
     "contrarrazoes": "contrarrazões de recurso",
+    "reajuste": "pedido de reajuste contratual",
+    "reequilibrio": "pedido de reequilíbrio econômico-financeiro",
 }
 SISTEMA = (
     "Você redige MINUTAS de peças jurídicas de licitação (Lei 14.133/2021) em português do Brasil, para revisão de um advogado. "

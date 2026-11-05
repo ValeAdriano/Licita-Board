@@ -4,11 +4,12 @@ import { chamar } from '../api/cliente'
 import { useEnvio } from '../features/acesso/conta/useEnvio'
 import { useAcesso } from '../features/acesso/contexto'
 import { useGet } from '../features/acesso/useGet'
+import { Anexos } from '../features/contratos/Anexos'
 import { dia, ETAPAS, TIPO_EVENTO_CONTRATO, type Detalhe } from '../features/contratos/tipos'
 import { ehDecimal, paraDecimal, reais, semZeros } from '../features/precos/formato'
 import { Abas, Aviso, Botao, CabecalhoPagina, Campo, Cartao, Etiqueta, Legenda, Pagina, Selecao, Vazio } from '../ui'
 
-type Aba = 'itens' | 'empenhos' | 'financeiro' | 'historico'
+type Aba = 'itens' | 'empenhos' | 'financeiro' | 'historico' | 'anexos'
 
 export default function ContratoPagina() {
   const { id } = useParams()
@@ -25,7 +26,7 @@ export default function ContratoPagina() {
   const base = `/empresas/${empresaId}`
   const editar = pode('contratos', 'editar') && c.status === 'ativo'
   const fin = pode('financeiro', 'editar')
-  const abas = [{ id: 'itens', rotulo: 'Itens e saldos' }, { id: 'empenhos', rotulo: 'Empenhos e entregas' }, ...(d.faturas ? [{ id: 'financeiro', rotulo: 'Financeiro' }] : []), { id: 'historico', rotulo: 'Histórico' }]
+  const abas = [{ id: 'itens', rotulo: 'Itens e saldos' }, { id: 'empenhos', rotulo: 'Empenhos e entregas' }, ...(d.faturas ? [{ id: 'financeiro', rotulo: 'Financeiro' }] : []), { id: 'historico', rotulo: 'Histórico' }, { id: 'anexos', rotulo: 'Anexos e pedidos' }]
   return (
     <Pagina larga>
       <Link to="/contratos">← Contratos</Link>
@@ -37,6 +38,7 @@ export default function ContratoPagina() {
       {aba === 'itens' ? <Itens empresaId={empresaId} id={id} d={d} editar={editar} recarregar={det.recarregar} /> : null}
       {aba === 'empenhos' ? <Empenhos empresaId={empresaId} id={id} d={d} editar={editar} recarregar={det.recarregar} /> : null}
       {aba === 'financeiro' && d.faturas ? <Financeiro empresaId={empresaId} id={id} d={d} editar={fin && c.status === 'ativo'} recarregar={det.recarregar} /> : null}
+      {aba === 'anexos' ? <Anexos empresaId={empresaId} id={id} d={d} editar={editar} /> : null}
       {aba === 'historico' ? <Historico empresaId={empresaId} id={id} d={d} editar={editar} recarregar={det.recarregar} /> : null}
     </Pagina>
   )

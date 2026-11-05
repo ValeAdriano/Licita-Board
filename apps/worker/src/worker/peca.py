@@ -25,6 +25,8 @@ TITULO = {
     "impugnacao": "IMPUGNAÇÃO AO EDITAL",
     "recurso": "RECURSO ADMINISTRATIVO",
     "contrarrazoes": "CONTRARRAZÕES DE RECURSO",
+    "reajuste": "PEDIDO DE REAJUSTE CONTRATUAL",
+    "reequilibrio": "PEDIDO DE REEQUILÍBRIO ECONÔMICO-FINANCEIRO",
 }
 
 
