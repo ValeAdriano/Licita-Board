@@ -6,12 +6,12 @@ export interface EventoIcs {
   aviso: string | null; responsavel: string | null; numeroEdital: string | null; objeto: string; orgao: string
 }
 
-const TIPO: Record<string, string> = {
+export const TIPO: Record<string, string> = {
   disputa: 'Disputa', esclarecimento: 'Pedido de esclarecimento', impugnacao: 'Impugnação', resposta_administracao: 'Resposta da Administração',
   intencao_recurso: 'Intenção de recurso', razoes_recurso: 'Razões de recurso', contrarrazoes: 'Contrarrazões',
   regularizacao_fiscal_me_epp: 'Regularização fiscal ME/EPP', alteracao_edital: 'Alteração do edital', documento_vence: 'Documento vence antes da disputa',
 }
-const STATUS: Record<string, string> = {
+export const STATUS: Record<string, string> = {
   sugerido: 'Sugerido', em_elaboracao: 'Em elaboração', em_revisao: 'Em revisão', aprovado: 'Aprovado', protocolado: 'Protocolado',
   respondido: 'Respondido', prazo_perdido: 'Prazo perdido', dispensado: 'Dispensado',
 }

@@ -92,6 +92,15 @@ describe('agenda: fluxo e A x B', () => {
     await http().get(`/empresas/${empA}/agenda/calendario.ics`).set(bearer(b)).expect(404);
   });
 
+  it('exporta CSV só com agenda/exportar; leitor e outra empresa recebem 404', async () => {
+    const r = await http().get(`/empresas/${empA}/agenda/eventos.csv?acompanhamento=${acomp}`).set(bearer(a)).expect(200);
+    expect(r.headers['content-type']).toContain('text/csv');
+    expect(r.headers['content-disposition']).toContain('attachment');
+    expect(r.text.startsWith('\uFEFFPrazo (Brasília);')).toBe(true);
+    await http().get(`/empresas/${empA}/agenda/eventos.csv`).set(bearer(leitor)).expect(404);
+    await http().get(`/empresas/${empA}/agenda/eventos.csv`).set(bearer(b)).expect(404);
+  });
+
   it('A x B: B não lê, não altera nem descobre nada da agenda de A', async () => {
     await http().get(`/empresas/${empA}/agenda/eventos`).set(bearer(b)).expect(404);
     await http().get(`/empresas/${empA}/agenda/acompanhamentos`).set(bearer(b)).expect(404);

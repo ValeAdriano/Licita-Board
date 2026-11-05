@@ -6,6 +6,7 @@ import { type RequisicaoVV, dadosDe, sessaoDe, validar } from '../auth/requisica
 import { Permissao } from '../auth/sessao.guard.js';
 import { ContextoService } from '../db/contexto.service.js';
 import type { Database } from '../db/db.module.js';
+import { type EventoCsv, gerarCsv } from './csv.js';
 import { type EventoIcs, gerarIcs } from './ics.js';
 
 const instante = z.iso.datetime({ offset: true });
@@ -68,6 +69,16 @@ export class AgendaController {
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="agenda-vv-licitacoes.ics"');
     return gerarIcs(eventos as unknown as EventoIcs[], new Date());
+  }
+
+  // Exportação em CSV (Excel pt-BR) com os mesmos filtros da lista.
+  @Permissao('agenda', 'exportar')
+  @Get('empresas/:empresa/agenda/eventos.csv')
+  async planilha(@Req() req: RequisicaoVV, @Res({ passthrough: true }) res: Response, @Param('empresa') empresa: string, @Query() consulta: unknown) {
+    const eventos = await this.listarEventos(req, empresa, validar(filtroEventos, consulta));
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="agenda-vv-licitacoes.csv"');
+    return gerarCsv(eventos as unknown as EventoCsv[]);
   }
 
   private listarEventos(req: RequisicaoVV, empresa: string, f: z.infer<typeof filtroEventos>) {

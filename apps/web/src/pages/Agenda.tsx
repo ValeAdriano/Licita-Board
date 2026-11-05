@@ -37,6 +37,8 @@ export default function Agenda() {
   const base = `${statusParam ? `&status=${statusParam}` : ''}${tipo ? `&tipo=${tipo}` : ''}${responsavel ? `&responsavel=${responsavel}` : ''}`
   const hoje = hojeSP()
   const janela = periodo === 'proximos' ? `&de=${encodeURIComponent(inicioDoDia(hoje))}&ate=${encodeURIComponent(inicioDoDia(somarDias(hoje, 31)))}` : periodo === 'vencidos' ? `&ate=${encodeURIComponent(inicioDoDia(hoje))}` : ''
+  // Exportações (.ics e planilha) levam os filtros atuais e os últimos 30 dias de prazos.
+  const exportacao = [statusParam && `status=${statusParam}`, `de=${encodeURIComponent(inicioDoDia(somarDias(hoje, -30)))}`, tipo && `tipo=${tipo}`, responsavel && `responsavel=${responsavel}`].filter(Boolean).join('&')
   const filtros = (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Selecao rotulo="Situação" value={situacao} onChange={setSituacao} opcoes={SITUACOES} />
@@ -53,8 +55,9 @@ export default function Agenda() {
         subtitulo={empresa.empresa}
         acoes={
           <>
-            <span className="flex items-center gap-2 text-sm text-tertiary"><Etiqueta cor="aviso">EM DESENVOLVIMENTO</Etiqueta> Importar e exportar Excel</span>
-            <Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/agenda/calendario.ics?${(statusParam ? `status=${statusParam}` : 'status=' + ABERTOS.join(',')) + `&de=${encodeURIComponent(inicioDoDia(somarDias(hoje, -30)))}${tipo ? `&tipo=${tipo}` : ''}${responsavel ? `&responsavel=${responsavel}` : ''}`}`)}>Baixar .ics</Botao>
+            <span className="flex items-center gap-2 text-sm text-tertiary"><Etiqueta cor="aviso">EM DESENVOLVIMENTO</Etiqueta> Importar planilha</span>
+            <Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/agenda/calendario.ics?${exportacao}`)}>Baixar .ics</Botao>
+            {pode('agenda', 'exportar') ? <Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/agenda/eventos.csv?${exportacao}`)}>Exportar planilha</Botao> : null}
             <Botao variante="secundario" disabled>Importar planilha</Botao>
           </>
         }
