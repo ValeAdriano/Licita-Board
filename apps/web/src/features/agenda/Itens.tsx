@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { chamar } from '../../api/cliente'
 import { AreaTexto, Aviso, Botao, Caixa, Campo, Etiqueta, Legenda, Modal, Selecao } from '../../ui'
 import { useEnvio } from '../acesso/conta/useEnvio'
+import { useAcesso } from '../acesso/contexto'
 import { BENEFICIO, moeda } from '../pesquisa/formato'
 import { PRIORIDADE, SITUACAO, STATUS_PART } from './comum'
 import type { Detalhe, ItemPart } from './tiposAcompanhamento'
@@ -13,6 +15,7 @@ const opcoes = (m: Record<string, string>) => Object.entries(m).map(([valor, rot
 export function Itens({ empresaId, d, responsaveis, podeCadastrar, podeEditar, aoMudar }: {
   empresaId: string; d: Detalhe; responsaveis: { id: string; nome: string }[]; podeCadastrar: boolean; podeEditar: boolean; aoMudar: () => void
 }) {
+  const { pode } = useAcesso()
   const [marcados, setMarcados] = useState<Set<string>>(new Set())
   const [editando, setEditando] = useState<ItemPart | null>(null)
   const { enviando, erro, enviar } = useEnvio()
@@ -51,7 +54,12 @@ export function Itens({ empresaId, d, responsaveis, podeCadastrar, podeEditar, a
                   </span>
                 ) : null}
               </div>
-              {i.participacaoId && podeEditar ? <Botao variante="secundario" onClick={() => setEditando(i)}>Editar</Botao> : null}
+              {i.participacaoId ? (
+                <span className="flex flex-wrap items-center gap-2">
+                  {pode('analises', 'visualizar') ? <Link to={`/agenda/participacoes/${i.participacaoId}/analise`}>Análise técnica</Link> : null}
+                  {podeEditar ? <Botao variante="secundario" onClick={() => setEditando(i)}>Editar</Botao> : null}
+                </span>
+              ) : null}
             </div>
           </div>
         ))}

@@ -15,7 +15,7 @@ Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada
 | 2 | 03 | Gestão documental e certidões | ~60 h | [fase-03](specs/fase-03.md) · Aprovada | 🟡 no main (modo rápido): repositório com quarentena e antivírus, versões, download auditado, alertas diários, pendência "Atualizar", atestados, checklist (regra pura); falta tela do checklist (com os editais), A x B de `priv`, retenção e ME/EPP do jurídico |
 | 2 | 05 | Agenda e prazos jurídicos ★ MVP | ~70 h | [fase-05](specs/fase-05.md) · Aprovada | 🟡 no main (modo rápido): banco, cálculo de prazos, API e telas (calendário, prazos, acompanhamento); alertas e "Prazo perdido" prontos; exportação CSV pronta; falta importar planilha; aceite depende da planilha e dos 30 casos do jurídico |
 | 3 | 04 | Motor de pesquisa (PNCP) | ~90 h | [fase-04](specs/fase-04.md) · Aprovada | 🟡 PNCP no main (modo rápido): coleta, arquivos, texto, relevância, API e telas; falta Compras.gov.br, embeddings, e2e A x B e a amostra de 50 editais |
-| 4 | 06 | IA para análise técnica (veículos) | ~100 h | — | ⚪ |
+| 4 | 06 | IA para análise técnica (veículos) | ~100 h | [fase-06](specs/fase-06.md) · Aprovada | 🟡 núcleo sem IA no main (requisitos, matriz por código, evidência verificável, aprovação); falta IA de extração (depende de provedor/custo), ficha técnica privada, alternativas e gabarito |
 | 5 | 07 | Formação de preços | ~50 h | — | ⚪ |
 | 5 | 08 | Propostas, declarações e habilitação | ~70 h | — | ⚪ |
 | 5 | 10a | Jurídico pré-disputa (10.2–10.3) | ~45 h | — | ⚪ |

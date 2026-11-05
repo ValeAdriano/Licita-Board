@@ -44,7 +44,8 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 | 04 Pesquisa PNCP | no main, dados reais no Docker | Compras.gov.br (decisão), embeddings, ZIP, upload manual, amostra de 50 editais |
 | 05 Agenda ★ MVP | calendário, prazos, acompanhamento, **alertas D-5/D-3/D-1/dia, escalonamento, prazo perdido automático, .ics, documentos que vencem antes da disputa, diff de versões do edital, reavaliação ao retificar (abertura a reconfirmar)** | importar planilha (exportação CSV pronta; configuração de feriados próprios e D-N pronta), diff de versões na tela, parâmetro D-N por empresa, feriados municipais; **regras de prazo NÃO validadas pelo jurídico** |
 | UI (ADR-020) | Untitled UI em todo o front | `Table` do Untitled UI em Equipe/Auditoria/Empresas, modo escuro, conferir 360 px em todas as telas |
-| 06 em diante | não iniciadas | — |
+| 06 Análise técnica | núcleo sem IA no main: requisitos, matriz por código, citação do edital conferida automaticamente, ficha conferida por pessoa, aprovação | extração por IA (decisão de provedor/custo do Adriano), texto da ficha privada, alternativas (6.4), gabarito de 20 editais |
+| 07 em diante | não iniciadas (07 sem spec ainda) | — |
 
 ## 5. Próximos passos sugeridos (ordem)
 
@@ -53,7 +54,7 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 3. Fase 04: decidir Compras.gov.br com o Adriano (recomendação: só conferência cruzada).
 4. UI: `Table` nas telas restantes, modo escuro, revisão em 360 px.
 5. Infra: VPS, S3 de produção, ensaio de restauração do backup (precisa do Adriano).
-6. Fase 06 (IA de análise técnica) só com spec aprovada.
+6. Fase 06: ligar a IA de extração só depois da decisão do Adriano (provedor, custo, retenção zero); código fica atrás de `llm/`, desligado por padrão.
 
 - O cruzamento de documentos (RF-05.15) considera todos os documentos da empresa com validade, não só os exigidos pelo edital (falta o checklist por edital).
 
