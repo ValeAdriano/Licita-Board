@@ -26,6 +26,8 @@ from worker.email import (
     mensagem_operacional,
     mensagem_recuperacao,
 )
+from worker.extracao import extrair
+from worker.llm.extracao_requisitos import Anthropic
 from worker.pesquisa.agenda import agendar, vigiar
 from worker.pesquisa.arquivos import baixar, extrair_texto
 from worker.pesquisa.cobertura import apurar
@@ -87,6 +89,7 @@ class Handlers:
             "analisar_item": self.analisar_item,
             "calcular_preco": self.calcular_preco,
             "gerar_proposta": self.gerar_proposta,
+            "extrair_requisitos": self.extrair_requisitos,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -203,6 +206,12 @@ class Handlers:
         ocr = Tesseract() if shutil.which("tesseract") else None
         agora = dt.datetime.now(dt.UTC)
         extrair_texto(conn, str(job["payload"]["arquivo_id"]), self._s3, ocr, agora)  # type: ignore[arg-type]
+
+    def extrair_requisitos(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # Só o id da extração vem no payload; a empresa do job tem de ser a dona dela (T2). Sem chave, a IA fica desligada.
+        chave = self._s.anthropic_api_key.get_secret_value()
+        cliente = Anthropic(chave, self._s.llm_modelo) if chave else None
+        extrair(conn, str(job["payload"]["extracao_id"]), cliente, job.get("empresa_id"))
 
     def gerar_proposta(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Só o id da proposta vem no payload; a empresa do job tem de ser a dona dela (T2). Nunca envia ao portal (regra 17).

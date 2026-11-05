@@ -91,6 +91,9 @@ services:
       VV_SMTP_HOST: mailpit
       VV_SMTP_PORT: "1025"
       VV_APP_URL: http://localhost:8080
+      # IA de extração de requisitos (Fase 06): vazia = DESLIGADA. Coloque ANTHROPIC_API_KEY no .env (fora do git); nunca no código.
+      VV_ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      VV_LLM_MODELO: ${VV_LLM_MODELO:-claude-sonnet-5-5}
       # Chave PRIVADA do Web Push: só o worker a conhece. Vazia = push desligado.
       VV_VAPID_PRIVATE_KEY: ${VV_VAPID_PRIVATE_KEY:-}
       VV_VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}

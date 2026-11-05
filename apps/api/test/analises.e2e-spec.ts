@@ -96,6 +96,28 @@ describe('análise técnica: fluxo e A x B', () => {
     await http().post(`/empresas/${empB}/analises/${analise}/aprovar`).set(bearer(b)).expect(404);
   });
 
+  it('extração por IA: só enfileira o worker (a API não chama a IA), limite diário, e a sugestão só vale depois de confirmada', async () => {
+    await http().post(`/empresas/${empA}/participacoes/${part}/extrair-requisitos`).set(bearer(leitor)).expect(404);
+    const jobs = Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'extrair_requisitos'`)).rows[0]?.count);
+    await http().post(`/empresas/${empA}/participacoes/${part}/extrair-requisitos`).set(bearer(editor)).expect(202);
+    expect(Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'extrair_requisitos'`)).rows[0]?.count)).toBe(jobs + 1);
+    await http().post(`/empresas/${empA}/participacoes/${part}/extrair-requisitos`).set(bearer(editor)).expect(400); // já há uma em andamento
+    await admin.query(`update priv.extracoes_ia set status = 'concluida' where participacao_id = $1`, [part]); // worker simulado
+    await admin.query(`insert into priv.extracoes_ia (empresa_id, participacao_id, status) select $1, $2, 'concluida' from generate_series(1, 4)`, [empA, part]);
+    await http().post(`/empresas/${empA}/participacoes/${part}/extrair-requisitos`).set(bearer(editor)).expect(429); // controle de custo
+    // sugestão da IA (worker simulado): nasce não confirmada; confirmar exige analises/editar
+    const sug = (await admin.query<{ id: string }>(`insert into priv.requisitos_item (empresa_id, participacao_id, nome, operador, valor_numero, origem, modelo_ia, prompt_versao) values ($1, $2, 'Sugestão da IA', '>=', 10, 'ia', 'modelo-x', 'req-v1') returning id`, [empA, part])).rows[0]?.id ?? '';
+    const d = (await http().get(`/empresas/${empA}/participacoes/${part}/analise`).set(bearer(leitor)).expect(200)).body as { requisitos: { id: string; origem: string; confirmado: boolean }[]; extracoes: { status: string }[] };
+    expect(d.requisitos.find((x) => x.id === sug)).toMatchObject({ origem: 'ia', confirmado: false });
+    expect(d.extracoes.length).toBe(5);
+    await http().post(`/empresas/${empA}/requisitos/${sug}/confirmar`).set(bearer(leitor)).expect(404);
+    await http().post(`/empresas/${empB}/requisitos/${sug}/confirmar`).set(bearer(b)).expect(404);
+    await http().post(`/empresas/${empA}/requisitos/${sug}/confirmar`).set(bearer(editor)).expect(204);
+    await http().post(`/empresas/${empA}/requisitos/${sug}/confirmar`).set(bearer(editor)).expect(404); // já confirmado
+    await http().post(`/empresas/${empA}/participacoes/${part}/extrair-requisitos`).set(bearer(b)).expect(404);
+    await admin.query(`delete from priv.requisitos_item where id = $1`, [sug]);
+  });
+
   it('remover requisito: só quem edita; some da matriz', async () => {
     await http().delete(`/empresas/${empA}/requisitos/${requisito}`).set(bearer(leitor)).expect(404);
     await http().delete(`/empresas/${empA}/requisitos/${requisito}`).set(bearer(editor)).expect(204);

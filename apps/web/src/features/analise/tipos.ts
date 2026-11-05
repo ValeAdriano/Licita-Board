@@ -2,7 +2,9 @@
 export interface Requisito {
   id: string; nome: string; tipo: string; atributoId: string | null; operador: string; valorNumero: string | null; valorMax: string | null
   valorTexto: string | null; unidadeId: string | null; obrigatorio: boolean; citacaoEdital: string | null; pagina: number | null; origem: string
+  modeloIa?: string | null; confirmado?: boolean
 }
+export interface Extracao { status: 'pendente' | 'concluida' | 'falhou' | 'desligada'; modelo: string | null; requisitosCriados: number; descartados: number; semCitacao: number; erro: string | null; criadaEm: string }
 export interface Linha {
   id: string; analiseId: string; requisitoId: string; resultado: Resultado; valorOferecido: string | null; citacaoVerificada: boolean; paginaEdital: number | null
   fichaTrecho: string | null; fichaPagina: number | null; fichaDocumentoId: string | null; fichaConferidaEm: string | null; fichaConferidaPor: string | null
@@ -14,7 +16,7 @@ export interface Analise {
 }
 export interface Dados {
   participacao: { id: string; status: string; numeroItem: number | null; descricao: string | null; quantidade: string | null; unidadeMedida: string | null; acompanhamentoId: string; orgao: string | null; numeroEdital: string | null }
-  requisitos: Requisito[]; analises: Analise[]
+  requisitos: Requisito[]; analises: Analise[]; extracoes?: Extracao[]
   produtos: { id: string; codigoInterno: string; marca: string | null; modelo: string | null; descricao: string }[]
   atributos: { id: string; nome: string; tipo: string; grandeza: string | null; categoria: string }[]
   unidades: { id: string; simbolo: string; grandeza: string }[]

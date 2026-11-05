@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     # (a ausência em 30 min alerta por fora) e o contato que o robô informa no User-Agent.
     pesquisa_heartbeat_url: str = ""
     robo_contato: str = ""
+    # IA de extração de requisitos (Fase 06, decisão do Adriano em 2026-11-05): chave do provedor (Anthropic). Vazia = IA DESLIGADA.
+    # A chave só vem do ambiente (.env fora do git), nunca de código; o modelo é configurável.
+    anthropic_api_key: SecretStr = SecretStr("")
+    llm_modelo: str = "claude-sonnet-5-5"
     # URL pública do app, base dos links enviados por e-mail.
     app_url: str = "http://localhost:5173"
 

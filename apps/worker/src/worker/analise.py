@@ -90,7 +90,7 @@ def analisar(conn: psycopg.Connection[Any], analise_id: str, empresa_job: Any = 
             return None  # nunca confie no payload: a análise tem de ser da empresa do job (T2)
         cur.execute(
             "select id, nome, tipo_exigencia, atributo_id, operador, valor_numero, valor_max, valor_texto, unidade_id, obrigatorio, "
-            "citacao_edital, pagina from priv.requisitos_item where participacao_id = %s and empresa_id = %s and deleted_at is null order by created_at, id",
+            "citacao_edital, pagina, origem, confirmado_em from priv.requisitos_item where participacao_id = %s and empresa_id = %s and deleted_at is null order by created_at, id",
             (a["participacao_id"], a["empresa_id"]),
         )
         reqs = cur.fetchall()
@@ -135,7 +135,15 @@ def analisar(conn: psycopg.Connection[Any], analise_id: str, empresa_job: Any = 
             "garantia",
             "prazo_entrega",
         )
-        if sem_vinculo:
+        if r["origem"] == "ia" and r["confirmado_em"] is None:
+            from worker.rules.comparacao import Classificacao  # noqa: PLC0415
+
+            c = Classificacao(
+                Resultado.A_CONFIRMAR,
+                "Requisito sugerido pela IA: confira o texto e a citação e confirme (ou remova).",
+                "A IA só sugere; a pessoa confirma.",
+            )
+        elif sem_vinculo:
             from worker.rules.comparacao import Classificacao  # noqa: PLC0415
 
             c = Classificacao(

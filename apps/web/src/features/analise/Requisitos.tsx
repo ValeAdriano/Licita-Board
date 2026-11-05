@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { chamar } from '../../api/cliente'
 import { AreaTexto, Aviso, Botao, Campo, Etiqueta, Legenda, Selecao, Vazio } from '../../ui'
 import { useEnvio } from '../acesso/conta/useEnvio'
+import { dataHoraSP } from '../agenda/comum'
 import { exigido, OPERADOR, TIPO_EXIGENCIA, type Dados } from './tipos'
 
 const VAZIO = { nome: '', tipo: 'minimo', atributoId: '', operador: '>=', numero: '', max: '', texto: '', unidadeId: '', obrigatorio: 'sim', citacao: '', pagina: '' }
@@ -10,6 +11,7 @@ const VAZIO = { nome: '', tipo: 'minimo', atributoId: '', operador: '>=', numero
 // existe no texto do edital (se não existir, o requisito não vira ATENDE). Texto de edital é dado, nunca instrução.
 export function Requisitos({ empresaId, d, podeEditar, aoMudar }: { empresaId: string; d: Dados; podeEditar: boolean; aoMudar: () => void }) {
   const [f, setF] = useState(VAZIO)
+  const ultima = d.extracoes?.[0]
   const { enviando, erro, enviar } = useEnvio()
   const numerico = ['>=', '<=', '=', 'entre'].includes(f.operador)
   const valido = f.nome.trim().length >= 2 && (!numerico || /^-?\d+([.,]\d+)?$/.test(f.numero.trim())) && (f.operador !== 'entre' || /^-?\d+([.,]\d+)?$/.test(f.max.trim())) && (f.operador !== 'contem' || f.texto.trim() !== '')
@@ -30,16 +32,31 @@ export function Requisitos({ empresaId, d, podeEditar, aoMudar }: { empresaId: s
       <h2 id="h-req">Requisitos do edital ({d.requisitos.length})</h2>
       <Legenda>Um requisito por exigência técnica do item. Vincule ao atributo do catálogo para o sistema comparar com o produto (garantia e prazo de entrega usam o cadastro do produto).</Legenda>
       <Aviso texto={erro} />
+      {podeEditar ? (
+        <div className="flex flex-col gap-2 rounded-xl bg-secondary p-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Botao variante="secundario" carregando={enviando} onClick={() => void enviar(async () => { await chamar('POST', `/empresas/${empresaId}/participacoes/${d.participacao.id}/extrair-requisitos`); aoMudar() })}>Sugerir requisitos com IA</Botao>
+            <Legenda>A IA só SUGERE: cada sugestão traz uma citação que o sistema confere no texto do edital e só vale depois que você confirma. Vai ao provedor apenas o texto público do edital (nunca custos, margens ou dados da empresa).</Legenda>
+          </div>
+          {ultima ? (
+            <span className="text-sm text-secondary">
+              Última extração ({dataHoraSP(ultima.criadaEm)}): {ultima.status === 'pendente' ? 'em andamento… atualize em instantes.' : ultima.status === 'concluida' ? `${ultima.requisitosCriados} sugestão(ões)${ultima.semCitacao ? `, ${ultima.semCitacao} sem citação confirmada` : ''}${ultima.descartados ? `, ${ultima.descartados} descartada(s) por formato` : ''} · ${ultima.modelo ?? ''}` : ultima.status === 'desligada' ? 'IA desligada neste servidor (falta a chave do provedor).' : `falhou: ${ultima.erro ?? 'erro'}`}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       {d.requisitos.length === 0 ? <Vazio>Nenhum requisito cadastrado ainda.</Vazio> : (
         <ul className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl ring-1 ring-secondary">
           {d.requisitos.map((r) => (
             <li key={r.id} className="flex flex-wrap items-start gap-3 p-3">
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className="flex flex-wrap items-center gap-2"><strong className="text-sm text-primary [overflow-wrap:anywhere]"><bdi>{r.nome}</bdi></strong>
-                  <Etiqueta cor={r.obrigatorio ? 'marca' : 'cinza'}>{r.obrigatorio ? 'Obrigatório' : 'Opcional'}</Etiqueta><Etiqueta cor="cinza">{TIPO_EXIGENCIA[r.tipo] ?? r.tipo}</Etiqueta></span>
+                  <Etiqueta cor={r.obrigatorio ? 'marca' : 'cinza'}>{r.obrigatorio ? 'Obrigatório' : 'Opcional'}</Etiqueta><Etiqueta cor="cinza">{TIPO_EXIGENCIA[r.tipo] ?? r.tipo}</Etiqueta>
+                  {r.origem === 'ia' ? <Etiqueta cor={r.confirmado ? 'sucesso' : 'aviso'}>{r.confirmado ? 'IA · confirmado' : `Sugerido pela IA${r.modeloIa ? ` (${r.modeloIa})` : ''} · confirme`}</Etiqueta> : null}</span>
                 <span className="text-sm text-secondary">Exige: {exigido(r, d.unidades)}{r.atributoId ? ` · atributo ${d.atributos.find((a) => a.id === r.atributoId)?.nome ?? ''}` : ''}</span>
                 {r.citacaoEdital ? <Legenda>“<bdi>{r.citacaoEdital}</bdi>”{r.pagina ? ` · página ${r.pagina}` : ''}</Legenda> : <Legenda>Sem citação do edital: o resultado nunca passa de “A CONFIRMAR”.</Legenda>}
               </div>
+              {podeEditar && r.origem === 'ia' && !r.confirmado ? <Botao variante="secundario" disabled={enviando} onClick={() => void enviar(async () => { await chamar('POST', `/empresas/${empresaId}/requisitos/${r.id}/confirmar`); aoMudar() })}>Confirmar</Botao> : null}
               {podeEditar ? <Botao variante="texto" disabled={enviando} onClick={() => void remover(r.id)}>Remover</Botao> : null}
             </li>
           ))}

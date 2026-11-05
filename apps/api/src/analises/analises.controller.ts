@@ -43,7 +43,7 @@ export class AnalisesController {
       if (!p) return null;
       const requisitos = (await sql`
         select id, nome, tipo_exigencia as tipo, atributo_id as "atributoId", operador, valor_numero::text as "valorNumero", valor_max::text as "valorMax",
-               valor_texto as "valorTexto", unidade_id as "unidadeId", obrigatorio, citacao_edital as "citacaoEdital", pagina, origem
+               valor_texto as "valorTexto", unidade_id as "unidadeId", obrigatorio, citacao_edital as "citacaoEdital", pagina, origem, modelo_ia as "modeloIa", confirmado_em is not null as confirmado
           from priv.requisitos_item where participacao_id = ${id}::uuid and empresa_id = ${empresa}::uuid and deleted_at is null order by created_at, id`.execute(tx)).rows;
       const analises = (await sql`
         select a.id, a.produto_id as "produtoId", pr.codigo_interno as "codigoInterno", pr.marca, pr.modelo, pr.descricao, a.resumo, a.calculado_em as "calculadoEm",
@@ -63,7 +63,10 @@ export class AnalisesController {
       const atributos = (await sql`
         select d.id, d.nome, d.tipo, d.grandeza, c.nome as categoria from pub.atributos_def d join pub.categorias c on c.id = d.categoria_id order by c.nome, d.ordem, d.nome`.execute(tx)).rows;
       const unidades = (await sql`select id, simbolo, grandeza from pub.unidades order by grandeza, simbolo`.execute(tx)).rows;
-      return { participacao: p, requisitos, analises: analises.map((a) => ({ ...a, linhas: (linhas as { analiseId: string }[]).filter((l) => l.analiseId === a.id) })), produtos, atributos, unidades };
+      const extracoes = (await sql`
+        select status, modelo, requisitos_criados as "requisitosCriados", descartados, sem_citacao as "semCitacao", erro, created_at as "criadaEm", tokens_entrada as "tokensEntrada", tokens_saida as "tokensSaida"
+          from priv.extracoes_ia where participacao_id = ${id}::uuid and empresa_id = ${empresa}::uuid order by created_at desc limit 5`.execute(tx)).rows;
+      return { participacao: p, extracoes, requisitos, analises: analises.map((a) => ({ ...a, linhas: (linhas as { analiseId: string }[]).filter((l) => l.analiseId === a.id) })), produtos, atributos, unidades };
     });
     if (!r) throw new NotFoundException();
     return r;
@@ -78,6 +81,23 @@ export class AnalisesController {
       select priv.criar_requisito(${empresa}::uuid, ${id}::uuid, ${d.nome}, ${d.tipo}, ${d.atributoId ?? null}::uuid, ${d.operador}, ${d.valorNumero ?? null}::numeric,
         ${d.valorMax ?? null}::numeric, ${d.valorTexto ?? null}, ${d.unidadeId ?? null}::uuid, ${d.obrigatorio}, ${d.citacaoEdital ?? null}, ${d.pagina ?? null}::int) as id`.execute(tx));
     return { id: r.rows[0]?.id };
+  }
+
+  // Pede à IA SUGESTÕES de requisitos (o worker chama o provedor; a API nunca chama a IA). Sem chave configurada o pedido volta como "desligada".
+  @Permissao('analises', 'editar')
+  @Post('empresas/:empresa/participacoes/:id/extrair-requisitos')
+  @HttpCode(202)
+  async extrair(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
+    const r = await this.q(req, (tx) => sql<{ id: string }>`select priv.pedir_extracao_requisitos(${empresa}::uuid, ${id}::uuid) as id`.execute(tx));
+    return { id: r.rows[0]?.id, status: 'extraindo' };
+  }
+
+  // A pessoa confirma a sugestão da IA depois de conferir o texto e a citação.
+  @Permissao('analises', 'editar')
+  @Post('empresas/:empresa/requisitos/:id/confirmar')
+  @HttpCode(204)
+  async confirmar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
+    await this.q(req, (tx) => sql`select priv.confirmar_requisito(${empresa}::uuid, ${id}::uuid)`.execute(tx));
   }
 
   @Permissao('analises', 'editar')

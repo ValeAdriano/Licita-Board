@@ -31,7 +31,7 @@ export default function Analise() {
         subtitulo={`${d.participacao.orgao ?? ''}${d.participacao.numeroEdital ? ` · edital nº ${d.participacao.numeroEdital}` : ''} · ${d.participacao.descricao ?? ''}`.slice(0, 220)}
         acoes={<Etiqueta cor="aviso">A classificação é feita por código, nunca pela IA</Etiqueta>}
       />
-      <Aviso tipo="atencao" texto="ATENDE só aparece com a citação do edital conferida automaticamente e a evidência da ficha técnica conferida por uma pessoa. Sem evidência, o resultado é “A CONFIRMAR”. Obrigatório não atendido reprova o item. A extração automática de requisitos por IA ainda não está ligada: cadastre os requisitos à mão." />
+      <Aviso tipo="atencao" texto="ATENDE só aparece com a citação do edital conferida automaticamente e a evidência da ficha técnica conferida por uma pessoa. Sem evidência, o resultado é “A CONFIRMAR”. Obrigatório não atendido reprova o item. Os requisitos podem ser cadastrados à mão ou sugeridos pela IA (que só sugere: você confirma)." />
       <Requisitos empresaId={empresaId} d={d} podeEditar={podeEditar} aoMudar={det.recarregar} />
       {podeEditar ? (
         <section className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-6" aria-labelledby="h-prod">

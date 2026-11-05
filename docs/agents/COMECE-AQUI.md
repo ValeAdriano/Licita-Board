@@ -45,7 +45,7 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 | 04 Pesquisa PNCP | no main, dados reais no Docker | Compras.gov.br (decisão), embeddings, ZIP, upload manual, amostra de 50 editais |
 | 05 Agenda ★ MVP | calendário, prazos, acompanhamento, **alertas D-5/D-3/D-1/dia, escalonamento, prazo perdido automático, .ics, documentos que vencem antes da disputa, diff de versões do edital, reavaliação ao retificar (abertura a reconfirmar)** | importar planilha (exportação CSV pronta; configuração de feriados próprios e D-N pronta), diff de versões na tela, parâmetro D-N por empresa, feriados municipais; **regras de prazo NÃO validadas pelo jurídico** |
 | UI (ADR-020) | Untitled UI em todo o front | `Table` do Untitled UI em Equipe/Auditoria/Empresas, modo escuro, conferir 360 px em todas as telas |
-| 06 Análise técnica | núcleo sem IA no main: requisitos, matriz por código, citação do edital conferida automaticamente, ficha conferida por pessoa, aprovação | extração por IA (decisão de provedor/custo do Adriano), texto da ficha privada, alternativas (6.4), gabarito de 20 editais |
+| 06 Análise técnica | no main: requisitos, matriz por código, citação do edital conferida automaticamente, ficha conferida por pessoa, aprovação, **extração por IA (Anthropic) pronta e desligada até haver `ANTHROPIC_API_KEY`** | primeiro uso real da IA (nunca rodou contra a API real), gabarito de 20 editais, texto da ficha privada, alternativas (6.4) |
 | 07 Formação de preços | núcleo no main: calculadora por código (Decimal), custos com sigilo (`ver_custos_margens`), alçada, aprovação | histórico PNCP, empate ficto na tela, reautenticação, cenários; 🧾 tributos e ⚖️ empate/inexequibilidade pendentes |
 | 08 Propostas | no main: versões, validação 8.6, fluxo, .docx e PDF finais com hash e bloqueio, download | modelo oficial e papel timbrado, declarações (8.4), checklist (8.5), comprovante de envio |
 | 09 Disputas e resultados | núcleo no main: resultado por item, status ampliados, gatilho de recurso na agenda, histórico pesquisável | documentos posteriores (9.5), viabilidade recursal (10.4), alerta em tempo real |
@@ -58,7 +58,7 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 3. Fase 04: decidir Compras.gov.br com o Adriano (recomendação: só conferência cruzada).
 4. UI: `Table` nas telas restantes, modo escuro, revisão em 360 px.
 5. Infra: VPS, S3 de produção, ensaio de restauração do backup (precisa do Adriano).
-6. Fase 06: ligar a IA de extração só depois da decisão do Adriano (provedor, custo, retenção zero); código fica atrás de `llm/`, desligado por padrão.
+6. Fase 06: para ligar a IA, ponha `ANTHROPIC_API_KEY=...` no `.env` e reinicie o worker (`scripts/dev-up.sh`); confira o plano do provedor (sem treino com os dados) e acompanhe a primeira extração real (nunca foi testada contra a API).
 
 - O cruzamento de documentos (RF-05.15) considera todos os documentos da empresa com validade, não só os exigidos pelo edital (falta o checklist por edital).
 
