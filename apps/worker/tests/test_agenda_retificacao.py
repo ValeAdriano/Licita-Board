@@ -105,7 +105,12 @@ def test_mudanca_de_data_avisa_marca_reconfirmar_e_enfileira_recalculo(cena: Any
     )[0][0]
     assert "fim do prazo de propostas" in corpo and "Reconfirme a data de abertura" in corpo
     assert "reabrir o prazo" not in corpo
-    assert _n("select count(*) from ops.jobs where tipo = 'calcular_prazos'") == 1
+    assert (
+        _n(
+            f"select count(*) from ops.jobs where tipo = 'calcular_prazos' and payload->>'acompanhamento_id' = '{ac}'"
+        )
+        == 1
+    )
 
 
 def test_rodar_de_novo_nao_reavisa(cena: Any) -> None:
