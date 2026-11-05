@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SENHA, admin, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
+import { SENHA, admin, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
 
 // Contratos da Fase 11: saldos calculados, limites, financeiro com sigilo, histórico e A x B.
 describe('contratos: saldos, financeiro e A x B', () => {
@@ -85,6 +85,25 @@ describe('contratos: saldos, financeiro e A x B', () => {
     await http().post(`/empresas/${empA}/contratos/${ct}/encerrar`).set(bearer(operador)).send({ status: 'encerrado' }).expect(204);
     await http().post(`/empresas/${empA}/contratos/${ct}/encerrar`).set(bearer(operador)).send({ status: 'encerrado' }).expect(400);
     await http().post(`/empresas/${empA}/contratos/${ct}/empenhos`).set(bearer(operador)).send({ numero: 'EMP-9', emitidoEm: '2026-07-01', itens: [{ contratoItemId: item, quantidade: '1' }] }).expect(404); // contrato não está ativo
+  });
+
+  it('contratada sem contrato aparece como pendente de cadastro com os dados do edital; cadastrar com o acompanhamento tira da lista; A x B', async () => {
+    const fonte = (await admin.query<{ id: string }>(`select id from ops.fontes where slug = 'pncp'`)).rows[0]?.id;
+    const orgao = (await admin.query<{ id: string }>(`insert into pub.orgaos (cnpj, razao_social, uf, codigo_ibge) values ($1, 'Prefeitura Contratante', 'PR', '4106902') returning id`, [cnpjFicticio()])).rows[0]?.id;
+    const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, numero_edital, objeto, hash_conteudo) values ($1, $2, $3, '7/2026', 'Aquisição de veículos', repeat('1', 64)) returning id`, [fonte, `CT-${crypto.randomUUID()}`, orgao])).rows[0]?.id;
+    const it = (await admin.query<{ id: string }>(`insert into pub.edital_itens (edital_id, numero_item, descricao, quantidade, unidade_medida) values ($1, 1, 'Veículo utilitário', 4, 'UN') returning id`, [edital])).rows[0]?.id;
+    const ac = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1, $2) returning id`, [empA, edital])).rows[0]?.id ?? '';
+    const part = (await admin.query<{ id: string }>(`insert into priv.participacoes (empresa_id, acompanhamento_id, item_id) values ($1, $2, $3) returning id`, [empA, ac, it])).rows[0]?.id;
+    await admin.query(`insert into priv.resultados_item (empresa_id, participacao_id, resultado_final, valor_final) values ($1, $2, 'contratada', 85000.5)`, [empA, part]);
+    const base = `/empresas/${empA}/contratos/pendentes-de-cadastro`;
+    await http().get(base).set(bearer(b)).expect(404);
+    await http().get(base).set(bearer(operador)).expect(404); // sem agenda/visualizar a RLS esconderia as linhas
+    const l = (await http().get(base).set(bearer(a)).expect(200)).body as { acompanhamentoId: string; orgao: string; numeroEdital: string; descricao: string; quantidade: string; valorFinal: string }[];
+    expect(l.map((x) => [x.acompanhamentoId, x.orgao, x.numeroEdital, x.descricao, x.quantidade, x.valorFinal])).toEqual([[ac, 'Prefeitura Contratante', '7/2026', 'Veículo utilitário', '4.0000', '85000.5000']]);
+    const c = { numero: 'CT-77/2026', orgao: 'Prefeitura Contratante', objeto: 'Aquisição de veículos', vigenciaInicio: '2026-01-01', vigenciaFim: '2026-12-31', acompanhamentoId: ac };
+    await http().post(`/empresas/${empA}/contratos`).set(bearer(operador)).send(c).expect(201);
+    expect(((await http().get(base).set(bearer(a)).expect(200)).body as unknown[])).toHaveLength(0);
+    expect((await http().get(`/empresas/${empB}/contratos/pendentes-de-cadastro`).set(bearer(b)).expect(200)).body).toEqual([]);
   });
 
   it('A x B: B não lê nem altera nada de A, nem descobre ids', async () => {

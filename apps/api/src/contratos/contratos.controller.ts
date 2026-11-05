@@ -52,6 +52,24 @@ export class ContratosController {
         from priv.contratos c where c.empresa_id = ${empresa}::uuid and c.deleted_at is null order by c.vigencia_fim, c.numero limit 500`.execute(tx)).rows);
   }
 
+  // Resultados "contratada" cujo acompanhamento ainda não tem contrato cadastrado, com os dados do edital para pré-preencher. O valor final do
+  // resultado vai como veio (o sistema não decide se é unitário ou total): a pessoa confere ao cadastrar os itens.
+  // Os dados vêm do acompanhamento/resultado (módulo agenda), por isso a permissão é a da agenda: sem ela a RLS esconderia as linhas.
+  @Permissao('agenda', 'visualizar')
+  @Get('empresas/:empresa/contratos/pendentes-de-cadastro')
+  pendentes(@Req() req: RequisicaoVV, @Param('empresa') empresa: string) {
+    return this.q(req, async (tx) => (await sql`
+      select a.id as "acompanhamentoId", ri.participacao_id as "participacaoId", g.razao_social as orgao, e.numero_edital as "numeroEdital", left(e.objeto, 2000) as objeto,
+             i.numero_item as "numeroItem", left(i.descricao, 2000) as descricao, i.unidade_medida as unidade, i.quantidade::text as quantidade, ri.valor_final::text as "valorFinal",
+             ri.ocorrido_em as "ocorridoEm"
+        from priv.resultados_item ri join priv.participacoes pa on pa.id = ri.participacao_id and pa.empresa_id = ri.empresa_id
+        join priv.acompanhamentos a on a.id = pa.acompanhamento_id left join pub.editais e on e.id = a.edital_id left join pub.orgaos g on g.id = e.orgao_id
+        left join pub.edital_itens i on i.id = pa.item_id
+       where ri.empresa_id = ${empresa}::uuid and ri.resultado_final = 'contratada'
+         and not exists (select 1 from priv.contratos c where c.acompanhamento_id = a.id and c.empresa_id = a.empresa_id and c.deleted_at is null)
+       order by ri.ocorrido_em desc, i.numero_item limit 300`.execute(tx)).rows);
+  }
+
   @Permissao('contratos', 'visualizar')
   @Get('empresas/:empresa/contratos/:id')
   async detalhe(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {

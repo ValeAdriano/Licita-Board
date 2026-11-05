@@ -6,6 +6,7 @@ import { useEnvio } from '../acesso/conta/useEnvio'
 import { useAcesso } from '../acesso/contexto'
 import { useGet } from '../acesso/useGet'
 import { reais } from '../precos/formato'
+import { Pendentes } from './Pendentes'
 import { dia, type ContratoLinha } from './tipos'
 
 export function Lista({ empresaId }: { empresaId: string }) {
@@ -18,6 +19,7 @@ export function Lista({ empresaId }: { empresaId: string }) {
   return (
     <div className="flex flex-col gap-4">
       <Aviso texto={erro ?? lista.erro} />
+      {pode('contratos', 'cadastrar') && pode('agenda', 'visualizar') ? <Pendentes empresaId={empresaId} /> : null}
       {pode('contratos', 'cadastrar') ? (
         <div className="grid grid-cols-1 gap-3 rounded-xl bg-secondary p-4 sm:grid-cols-2 lg:grid-cols-4">
           <Selecao rotulo="Tipo" value={f.tipo} onChange={(v) => setF({ ...f, tipo: v })} opcoes={[{ valor: 'contrato', rotulo: 'Contrato' }, { valor: 'ata', rotulo: 'Ata de registro de preços' }]} />

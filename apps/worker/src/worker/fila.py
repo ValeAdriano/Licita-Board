@@ -442,6 +442,15 @@ def processar_lote(conn: psycopg.Connection[Any], handlers: dict[str, Handler]) 
 FUSO = ZoneInfo("America/Sao_Paulo")
 
 
+def alertas_dos_contratos(conn: psycopg.Connection[Any], hoje: dt.date) -> int:
+    """Vigência, garantia, entrega, pagamento vencido e "contratada sem contrato": uma notificação por situação (idempotente no banco)."""
+    n = conn.execute("select priv.gerar_alertas_contratos(%s)", (hoje,)).fetchone()
+    conn.commit()
+    if n and n[0]:
+        log.info("alertas de contratos", extra={"ctx": {"novos": n[0]}})
+    return int(n[0]) if n else 0
+
+
 def alertas_do_dia(conn: psycopg.Connection[Any], hoje: dt.date, ultimo: dt.date | None) -> dt.date:
     """Uma vez por dia (e na partida) gera os alertas de vencimento (idempotente)."""
     if ultimo == hoje:
@@ -515,6 +524,7 @@ def consumir(
                                 reavaliar_retificacoes(conn)
                                 cruzar_documentos(conn, agora)
                                 alertas_da_agenda(conn, agora)
+                                alertas_dos_contratos(conn, agora.astimezone(FUSO).date())
                                 ultima_hora_agenda = hora
                         except Exception as e:
                             conn.rollback()
