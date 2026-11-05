@@ -22,7 +22,7 @@ Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada
 | 6 | 09 | Disputas e resultados | ~35 h | [fase-09](specs/fase-09.md) · Aprovada | 🟡 núcleo no main (resultado por item, 20 status, gatilho da intenção de recurso, histórico pesquisável); falta documentos posteriores (9.5) e viabilidade recursal (Fase 10.4) |
 | 6 | 10b | Jurídico pós-disputa (10.4–10.9) | ~65 h | — | ⚪ |
 | 7 | 11 | Contratos, entregas e financeiro | ~60 h | [fase-11](specs/fase-11.md) · Aprovada | 🟡 núcleo no main (contratos e atas, itens, empenhos, fornecimento em 11 etapas, entregas parciais, financeiro, histórico, saldos e alertas calculados); falta anexos, notificações e ligação com o resultado "contratada" |
-| 7 | 12 | Dashboard e relatórios | ~45 h | — | ⚪ |
+| 7 | 12 | Dashboard e relatórios | ~45 h | [fase-12](specs/fase-12.md) · Aprovada | 🟡 núcleo no main (painel com 13 indicadores por permissão, relatório comercial, CSV de resultados); falta relatório diário por e-mail, margens e preços vencedores anteriores, busca avançada entre módulos, Excel/PDF |
 | 8 | 13 | Integrações e expansão | ~80 h+ | — | ⚪ |
 
 ## Dependências externas abertas

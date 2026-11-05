@@ -4,6 +4,7 @@ import { AcessoModule } from './acesso/acesso.module.js';
 import { AgendaModule } from './agenda/agenda.module.js';
 import { AnalisesModule } from './analises/analises.module.js';
 import { ContratosModule } from './contratos/contratos.module.js';
+import { DashboardModule } from './dashboard/dashboard.module.js';
 import { IaModule } from './ia/ia.module.js';
 import { JuridicoModule } from './juridico/juridico.module.js';
 import { PrecosModule } from './precos/precos.module.js';
@@ -46,6 +47,7 @@ export class AppModule {
         AgendaModule,
         AnalisesModule,
         ContratosModule,
+        DashboardModule,
         IaModule,
         JuridicoModule,
         PrecosModule,

@@ -51,7 +51,8 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 | 09 Disputas e resultados | núcleo no main: resultado por item, status ampliados, gatilho de recurso na agenda, histórico pesquisável | documentos posteriores (9.5), viabilidade recursal (10.4), alerta em tempo real |
 | 10 Jurídico | núcleo no main: base jurídica verificada (nasce vazia), peças com fluxo e aprovação, conferência de citações, final .docx/PDF com hash, protocolo humano, resultado | minuta por IA, sugestões automáticas, análise da vencedora e parecer (10.4), teses e indicadores; ⚖️ fontes, modelos e prazos do jurídico |
 | 11 Contratos | núcleo no main: contratos/atas, empenhos, 11 etapas, entregas parciais, financeiro com sigilo, histórico, saldos e alertas calculados | anexos por etapa, notificações dos alertas, contrato automático a partir de "contratada", pedido de reajuste pelo jurídico |
-| 12 em diante | não iniciadas (sem spec) | — |
+| 12 Dashboard | núcleo no main: painel no Início (13 indicadores, `null` sem permissão), relatório comercial, CSV de resultados | relatório diário por e-mail (12.2), margens e preços anteriores, busca avançada entre módulos, Excel/PDF |
+| 13 em diante | não iniciadas (sem spec) | — |
 
 ## 5. Próximos passos sugeridos (ordem)
 

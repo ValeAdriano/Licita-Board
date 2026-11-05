@@ -1,9 +1,9 @@
-import { CabecalhoPagina, Etiqueta, Pagina } from '../ui'
-import { modulosDe, useAcesso } from '../features/acesso/contexto'
+import { CabecalhoPagina, Pagina } from '../ui'
+import { useAcesso } from '../features/acesso/contexto'
 import { ConvitesRecebidos } from '../features/acesso/equipe/ConvitesRecebidos'
+import { Painel } from '../features/dashboard/Painel'
 
-// Início: a empresa selecionada e os módulos que o vínculo libera. Os módulos chegam nas próximas
-// fases; até lá aparecem como EM DESENVOLVIMENTO (regra 8 do AGENTS.md).
+// Início: o painel da empresa selecionada (Fase 12). Cada indicador vem dos registros e só aparece para quem tem a permissão do módulo de origem.
 export default function Inicio() {
   const { usuario, empresa } = useAcesso()
   return (
@@ -12,16 +12,7 @@ export default function Inicio() {
       <ConvitesRecebidos />
       {empresa ? (
         <>
-          <ul className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
-            {modulosDe(empresa.permissoes).map((m) => (
-              <li key={m} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left">
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere] capitalize">
-                  <strong>{m}</strong>
-                </span>
-                <Etiqueta cor="aviso">EM DESENVOLVIMENTO</Etiqueta>
-              </li>
-            ))}
-          </ul>
+          <Painel key={empresa.empresaId} empresaId={empresa.empresaId} />
           {empresa.papel === 'SUPERADMIN' ? (
             <p>Você acessa esta empresa como equipe da plataforma. Convide o administrador dela em Equipe.</p>
           ) : empresa.permissoes.length === 0 ? (
