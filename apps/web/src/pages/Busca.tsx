@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { useAcesso } from '../features/acesso/contexto'
 import { useGet } from '../features/acesso/useGet'
 import { Aviso, Botao, CabecalhoPagina, Campo, Cartao, Etiqueta, Legenda, Pagina, Selecao, Vazio } from '../ui'
@@ -14,8 +14,15 @@ const dia = (d: string | null) => (d ? d.slice(0, 10).split('-').reverse().join(
 // aparece se você pode ver o módulo; a busca por texto ignora acentos. A minuta e os valores ficam no módulo de origem.
 export default function Busca() {
   const { empresa } = useAcesso()
-  const [f, setF] = useState({ q: '', tipo: '', de: '', ate: '', uf: '' })
-  const [consulta, setConsulta] = useState<string | null>(null)
+  // A busca vive na URL (/busca?q=…&tipos=…): a busca rápida do topo, o botão voltar e links compartilhados levam direto ao resultado.
+  const [params, setParams] = useSearchParams()
+  const consulta = (params.get('q') ?? '').trim().length >= 2 ? params.toString() : null
+  const [f, setF] = useState({ q: params.get('q') ?? '', tipo: params.get('tipos') ?? '', de: params.get('de') ?? '', ate: params.get('ate') ?? '', uf: params.get('uf') ?? '' })
+  const [lido, setLido] = useState(params.get('q'))
+  if (params.get('q') !== lido) {
+    setLido(params.get('q'))
+    setF({ q: params.get('q') ?? '', tipo: params.get('tipos') ?? '', de: params.get('de') ?? '', ate: params.get('ate') ?? '', uf: params.get('uf') ?? '' })
+  }
   const empresaId = empresa?.empresaId ?? null
   const res = useGet<Resultado>(empresaId && consulta ? `/empresas/${empresaId}/busca?${consulta}` : null)
   if (!empresa || !empresaId) return <p className="py-10 text-center text-sm text-tertiary">Selecione uma empresa.</p>
@@ -25,7 +32,7 @@ export default function Busca() {
     if (f.de) p.set('de', f.de)
     if (f.ate) p.set('ate', f.ate)
     if (f.uf) p.set('uf', f.uf)
-    setConsulta(p.toString())
+    setParams(p)
   }
   const dados = res.dados
   const vazio = dados !== undefined && GRUPOS.every(([k]) => !dados[k] || dados[k]?.length === 0)

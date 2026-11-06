@@ -25,6 +25,7 @@ export interface Notificacao {
   empresaId: string | null
   titulo: string
   corpo: string | null
+  link?: string | null
   lidaEm: string | null
   criadaEm: string
 }

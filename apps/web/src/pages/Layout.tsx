@@ -1,12 +1,15 @@
-import { Bell01, Building07, File05, FileCheck02, CalendarDate, ClipboardCheck, FileSearch01, Home01, LogOut01, SearchLg, SearchSm, User01, Users01 } from '@untitledui/icons'
+import { Bell01, Building07, File05, FileCheck02, CalendarDate, ClipboardCheck, FileSearch01, Home01, LogOut01, SearchLg, User01, Users01 } from '@untitledui/icons'
+import type { ReactNode } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { NavList } from '@/components/application/app-navigation/base-components/nav-list'
 import { MobileNavigationHeader } from '@/components/application/app-navigation/base-components/mobile-header'
-import type { NavItemType } from '@/components/application/app-navigation/config'
+import type { NavItemDividerType, NavItemType } from '@/components/application/app-navigation/config'
 import { Badge } from '@/components/base/badges/badges'
 import { useSessao } from '../auth/sessao'
 import { AMBIENTE } from '../config'
 import { AcessoProvider, useAcesso } from '../features/acesso/contexto'
+import { BuscaRapida } from '../features/busca/BuscaRapida'
+import { TarefasProvider, useTarefas } from '../features/tarefas/TarefasContexto'
 import { SeletorEmpresa } from '../features/acesso/SeletorEmpresa'
 import { Botao, FaixaAmbiente, Marca } from '../ui'
 
@@ -16,22 +19,29 @@ function Conteudo({ aoNavegar }: { aoNavegar?: () => void }) {
   const { naoLidas, pode, usuario } = useAcesso()
   const { sair } = useSessao()
   const { pathname } = useLocation()
-  const itens: NavItemType[] = [
+  const { dados } = useTarefas()
+  const selo = (modulo: string): ReactNode => {
+    const n = dados?.contagens[modulo] ?? 0
+    return n > 0 ? <Badge color="error" size="sm" type="pill-color">{n}</Badge> : undefined
+  }
+  // Ordem do dia a dia: o que chega (oportunidades), o que vence (agenda), o jurídico e o pós-licitação; cadastros e administração por último.
+  const itens: (NavItemType | NavItemDividerType)[] = [
     { label: 'Início', href: '/', icon: Home01 },
     { label: 'Notificações', href: '/notificacoes', icon: Bell01, badge: naoLidas > 0 ? <Badge color="brand" size="sm" type="pill-color">{naoLidas}</Badge> : undefined },
-    ...(pode('agenda', 'visualizar') ? [{ label: 'Agenda', href: '/agenda', icon: CalendarDate }] : []),
-    ...(pode('contratos', 'visualizar') ? [{ label: 'Contratos', href: '/contratos', icon: FileCheck02 }] : []),
-    ...(pode('juridico', 'visualizar') ? [{ label: 'Jurídico', href: '/juridico', icon: File05 }] : []),
-    ...(pode('empresas', 'visualizar') ? [{ label: 'Cadastros', href: '/cadastros', icon: ClipboardCheck }] : []),
-    ...(pode('relatorios', 'visualizar') ? [{ label: 'Busca', href: '/busca', icon: SearchSm }] : []),
-    ...(pode('editais', 'visualizar') ? [{ label: 'Oportunidades', href: '/oportunidades', icon: SearchLg }] : []),
+    { divider: true },
+    ...(pode('editais', 'visualizar') ? [{ label: 'Oportunidades', href: '/oportunidades', icon: SearchLg, badge: selo('oportunidades') }] : []),
+    ...(pode('agenda', 'visualizar') ? [{ label: 'Agenda', href: '/agenda', icon: CalendarDate, badge: selo('agenda') }] : []),
+    ...(pode('juridico', 'visualizar') ? [{ label: 'Jurídico', href: '/juridico', icon: File05, badge: selo('juridico') }] : []),
+    ...(pode('contratos', 'visualizar') ? [{ label: 'Contratos', href: '/contratos', icon: FileCheck02, badge: selo('contratos') }] : []),
+    { divider: true },
+    ...(pode('empresas', 'visualizar') ? [{ label: 'Cadastros', href: '/cadastros', icon: ClipboardCheck, badge: selo('cadastros') }] : []),
     ...(pode('usuarios', 'visualizar') ? [{ label: 'Equipe', href: '/equipe', icon: Users01 }] : []),
     ...(pode('auditoria', 'visualizar') ? [{ label: 'Auditoria', href: '/auditoria', icon: FileSearch01 }] : []),
     ...(usuario?.superadmin ? [{ label: 'Plataforma', href: '/plataforma', icon: Building07 }] : []),
     { label: 'Conta', href: '/conta', icon: User01 },
   ]
   // Detalhe de edital pertence à área de Oportunidades.
-  const ativo = pathname.startsWith('/editais') ? '/oportunidades' : pathname.startsWith('/agenda') ? '/agenda' : pathname
+  const ativo = pathname.startsWith('/editais') ? '/oportunidades' : pathname.startsWith('/agenda') ? '/agenda' : pathname.startsWith('/juridico') ? '/juridico' : pathname.startsWith('/contratos') ? '/contratos' : pathname
   return (
     <div className="flex h-full flex-col justify-between overflow-y-auto bg-primary" onClick={aoNavegar ? (e) => (e.target as HTMLElement).closest('a') && aoNavegar() : undefined}>
       <div>
@@ -72,6 +82,7 @@ function Esqueleto() {
       </aside>
       <main className="px-4 py-8 lg:pl-72">
         <div className="lg:px-8">
+          <BuscaRapida />
           <Outlet />
         </div>
       </main>
@@ -82,7 +93,9 @@ function Esqueleto() {
 export default function Layout() {
   return (
     <AcessoProvider>
-      <Esqueleto />
+      <TarefasProvider>
+        <Esqueleto />
+      </TarefasProvider>
     </AcessoProvider>
   )
 }

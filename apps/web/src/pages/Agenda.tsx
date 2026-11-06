@@ -9,7 +9,7 @@ import { ABERTOS, inicioDoDia, hojeSP, somarDias, TIPO_EVENTO } from '../feature
 import { ListaEventos } from '../features/agenda/ListaEventos'
 import { Resumo } from '../features/agenda/Resumo'
 import { Historico } from '../features/resultados/Historico'
-import { Abas, Aviso, Botao, CabecalhoPagina, Etiqueta, Pagina, Selecao } from '../ui'
+import { Abas, Botao, CabecalhoPagina, Etiqueta, Pagina, Selecao, AvisoNota } from '../ui'
 
 type Aba = 'calendario' | 'prazos' | 'acompanhados' | 'resultados' | 'configuracao'
 const SITUACOES = [
@@ -63,7 +63,7 @@ export default function Agenda() {
           </>
         }
       />
-      <Aviso tipo="atencao" texto="Os prazos seguem as regras do Prompt Mestre e ainda NÃO foram validados pelo jurídico (aparecem com o selo “⚖️ Regra não validada”). Prazo calculado sobre abertura não confirmada é provisório. Confira sempre o edital." />
+      <AvisoNota tipo="atencao" resumo="Prazos ainda não validados pelo jurídico: confira sempre o edital." texto="Os prazos seguem as regras do Prompt Mestre e ainda NÃO foram validados pelo jurídico (aparecem com o selo “⚖️ Regra não validada”). Prazo calculado sobre abertura não confirmada é provisório. Confira sempre o edital." />
       <Resumo key={empresaId} empresaId={empresaId} />
       <Abas
         rotulo="Agenda"

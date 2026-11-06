@@ -52,8 +52,9 @@ export default function Acompanhamento() {
       {d.aberturaReconfirmar ? <Aviso tipo="atencao" texto="A retificação mudou datas do edital: a abertura confirmada pode não valer mais. Reconfirme a data de abertura abaixo (os prazos calculados dependem dela)." /> : null}
       {d.editalVersaoAtual > d.editalVersaoVista ? <RetificacaoAviso empresaId={empresaId} d={d} podeEditar={podeEditar} aoMudar={mudou} /> : null}
       {recalculando ? <Aviso tipo="info" texto="Recalculando os prazos… eles aparecem em instantes." /> : null}
+      {d.aberturaConfirmada ? <Eventos empresaId={empresaId} d={d} responsaveis={responsaveis} podeEditar={podeEditar} aoMudar={mudou} /> : null}
       <Abertura empresaId={empresaId} d={d} podeEditar={podeEditar} aoMudar={mudou} />
-      <Eventos empresaId={empresaId} d={d} responsaveis={responsaveis} podeEditar={podeEditar} aoMudar={mudou} />
+      {d.aberturaConfirmada ? null : <Eventos empresaId={empresaId} d={d} responsaveis={responsaveis} podeEditar={podeEditar} aoMudar={mudou} />}
       <Itens empresaId={empresaId} d={d} responsaveis={responsaveis} podeCadastrar={pode('agenda', 'cadastrar')} podeEditar={podeEditar} aoMudar={det.recarregar} />
       <Gestao empresaId={empresaId} d={d} responsaveis={responsaveis} podeEditar={podeEditar} aoMudar={det.recarregar} />
     </Pagina>
@@ -84,6 +85,8 @@ function Abertura({ empresaId, d, podeEditar, aoMudar }: { empresaId: string; d:
     clausula: d.aberturaClausula ?? '', esc: paraCampoLocal(d.prazoEsclarecimentoEdital), imp: paraCampoLocal(d.prazoImpugnacaoEdital), clausulaPrazos: d.clausulaPrazos ?? '',
   })
   const { enviando, erro, enviar } = useEnvio()
+  // Já confirmada: o formulário fica recolhido (os prazos vêm primeiro); a pessoa abre só se precisar corrigir a data.
+  const [editando, setEditando] = useState(!d.aberturaConfirmada)
   const confirmar = () =>
     enviar(async () => {
       await chamar('POST', `/empresas/${empresaId}/acompanhamentos/${d.id}/abertura`, {
@@ -104,7 +107,8 @@ function Abertura({ empresaId, d, podeEditar, aoMudar }: { empresaId: string; d:
         <Legenda>Abertura {dataHoraSP(d.dataAbertura)} · confiabilidade {d.confiabilidade}{d.aberturaClausula ? ` · ${d.aberturaClausula}` : ''}</Legenda>
       )}
       <Aviso texto={erro} />
-      {podeEditar ? (
+      {podeEditar && d.aberturaConfirmada && !editando ? <div><Botao variante="secundario" onClick={() => setEditando(true)}>Corrigir a data de abertura ou os prazos do edital</Botao></div> : null}
+      {podeEditar && editando ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <Campo rotulo="Data e hora da abertura (Brasília)" type="datetime-local" value={f.quando} onChange={(v) => setF({ ...f, quando: v })} />
           <Selecao rotulo="Onde você confirmou" value={f.origem} onChange={(v) => setF({ ...f, origem: v })} opcoes={[{ valor: 'edital', rotulo: 'No edital' }, { valor: 'portal', rotulo: 'No portal' }, { valor: 'manual', rotulo: 'Outra fonte' }]} />
@@ -115,7 +119,7 @@ function Abertura({ empresaId, d, podeEditar, aoMudar }: { empresaId: string; d:
           <Campo rotulo="Cláusula dos prazos do edital" value={f.clausulaPrazos} onChange={(v) => setF({ ...f, clausulaPrazos: v })} maxLength={300} />
         </div>
       ) : null}
-      {podeEditar ? <div><Botao carregando={enviando} disabled={!f.quando} onClick={() => void confirmar()}>{d.aberturaConfirmada ? 'Atualizar abertura e recalcular' : 'Confirmar abertura e calcular prazos'}</Botao></div> : null}
+      {podeEditar && editando ? <div><Botao carregando={enviando} disabled={!f.quando} onClick={() => void confirmar()}>{d.aberturaConfirmada ? 'Atualizar abertura e recalcular' : 'Confirmar abertura e calcular prazos'}</Botao></div> : null}
     </section>
   )
 }

@@ -16,24 +16,29 @@ export function Pecas({ empresaId }: { empresaId: string }) {
   const lista = useGet<PecaLinha[]>(`/empresas/${empresaId}/juridico/pecas`)
   const acomps = useGet<Acompanhado[]>(pode('agenda', 'visualizar') ? `/empresas/${empresaId}/agenda/acompanhamentos` : null)
   const [f, setF] = useState({ acomp: '', tipo: 'impugnacao', titulo: '', evento: '' })
+  const [novaAberta, setNovaAberta] = useState(false)
+  const [todas, setTodas] = useState(false)
   const eventos = useGet<EventoAgenda[]>(f.acomp ? `/empresas/${empresaId}/agenda/eventos?acompanhamento=${f.acomp}` : null)
   const { enviando, erro, enviar } = useEnvio()
+  // Em andamento = ainda pede ação de alguém; encerradas (descartada, respondida) ficam a um clique, para não enterrar o trabalho do dia.
+  const visiveis = (lista.dados ?? []).filter((p) => todas || !['descartada', 'respondida'].includes(p.status))
   const evs = (eventos.dados ?? []).filter((e) => TIPOS_EVENTO.includes(e.tipo))
   return (
     <div className="flex flex-col gap-4">
       <Aviso texto={erro ?? lista.erro} />
-      {pode('juridico', 'elaborar_peca') ? (
+      {pode('juridico', 'elaborar_peca') && !novaAberta ? <div className="flex flex-wrap items-center gap-3"><Botao onClick={() => setNovaAberta(true)}>Nova peça</Botao><Botao variante="texto" onClick={() => setTodas(!todas)}>{todas ? 'Só as em andamento' : 'Mostrar também as encerradas'}</Botao></div> : null}
+      {pode('juridico', 'elaborar_peca') && novaAberta ? (
         <div className="grid grid-cols-1 gap-3 rounded-xl bg-secondary p-4 sm:grid-cols-2 lg:grid-cols-4">
           <Selecao rotulo="Edital acompanhado" value={f.acomp} onChange={(v) => setF({ ...f, acomp: v, evento: '' })} vazio="Escolha" opcoes={(acomps.dados ?? []).map((a) => ({ valor: a.id, rotulo: `${a.orgao}${a.numeroEdital ? ` · nº ${a.numeroEdital}` : ''}`.slice(0, 80) }))} />
           <Selecao rotulo="Tipo de peça" value={f.tipo} onChange={(v) => setF({ ...f, tipo: v })} opcoes={Object.entries(TIPO_PECA_JURIDICO).map(([valor, rotulo]) => ({ valor, rotulo }))} />
           <Selecao rotulo="Prazo da agenda (opcional)" value={f.evento} onChange={(v) => setF({ ...f, evento: v })} vazio="Sem prazo ligado" opcoes={evs.map((e) => ({ valor: e.id, rotulo: `${TIPO_EVENTO[e.tipo] ?? e.tipo} · ${dataHoraSP(e.dataLimite)}` }))} />
           <Campo rotulo="Título" value={f.titulo} onChange={(v) => setF({ ...f, titulo: v })} maxLength={200} />
-          <div><Botao carregando={enviando} disabled={!f.acomp || f.titulo.trim().length < 3} onClick={() => void enviar(async () => { await chamar('POST', `/empresas/${empresaId}/juridico/acompanhamentos/${f.acomp}/pecas`, { tipo: f.tipo, titulo: f.titulo.trim(), eventoId: f.evento || null }); setF({ ...f, titulo: '' }); lista.recarregar() })}>Criar peça</Botao></div>
+          <div><Botao carregando={enviando} disabled={!f.acomp || f.titulo.trim().length < 3} onClick={() => void enviar(async () => { await chamar('POST', `/empresas/${empresaId}/juridico/acompanhamentos/${f.acomp}/pecas`, { tipo: f.tipo, titulo: f.titulo.trim(), eventoId: f.evento || null }); setF({ ...f, titulo: '' }); setNovaAberta(false); lista.recarregar() })}>Criar peça</Botao> <Botao variante="texto" onClick={() => setNovaAberta(false)}>Cancelar</Botao></div>
         </div>
       ) : null}
-      {(lista.dados ?? []).length === 0 && !lista.carregando ? <Vazio>Nenhuma peça ainda. Crie uma a partir de um edital acompanhado.</Vazio> : null}
+      {visiveis.length === 0 && !lista.carregando ? <Vazio>{(lista.dados ?? []).length === 0 ? 'Nenhuma peça ainda. Crie uma a partir de um edital acompanhado.' : 'Nenhuma peça em andamento.'}</Vazio> : null}
       <div className="flex flex-col gap-2">
-        {(lista.dados ?? []).map((p) => {
+        {visiveis.map((p) => {
           const [rotulo, cor] = STATUS_PECA[p.status] ?? [p.status, 'cinza' as const]
           return (
             <Link key={p.id} to={`/juridico/pecas/${p.id}`} className="flex flex-col gap-1 rounded-xl bg-primary p-4 no-underline shadow-xs ring-1 ring-secondary hover:bg-primary_hover">

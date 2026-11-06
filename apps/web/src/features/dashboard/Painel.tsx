@@ -51,10 +51,12 @@ export function Painel({ empresaId }: { empresaId: string }) {
   return (
     <section className="flex flex-col gap-4" aria-label="Painel">
       {pode('editais', 'visualizar') ? <BannerFontes /> : null}
-      <AssinaturaRelatorio empresaId={empresaId} />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {cartoes.filter((x): x is { titulo: string; valor: string; to: string; alerta?: boolean } => x.valor !== null).map((x) => <Cartao key={x.titulo} {...x} />)}
+      <h2>Indicadores</h2>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {cartoes.filter((x): x is { titulo: string; valor: string; to: string; alerta?: boolean } => x.valor !== null && x.valor !== '0').map((x) => <Cartao key={x.titulo} {...x} />)}
       </div>
+      {cartoes.some((x) => x.valor === '0') ? <Legenda>Sem ocorrências: {cartoes.filter((x) => x.valor === '0').map((x) => x.titulo.toLowerCase()).join(' · ')}.</Legenda> : null}
+      <AssinaturaRelatorio empresaId={empresaId} />
       {c ? (
         <div className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-6">
           <div className="flex flex-wrap items-center gap-3"><h2 className="min-w-0 flex-1">Resultado comercial</h2>

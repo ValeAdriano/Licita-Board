@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { useAcesso } from '../features/acesso/contexto'
 import { BuscarEdital, Oportunidades } from '../features/pesquisa/Oportunidades'
 import { Abas, CabecalhoPagina, Pagina } from '../ui'
@@ -7,7 +7,10 @@ import { Abas, CabecalhoPagina, Pagina } from '../ui'
 // quem decide é a API (guard + RLS).
 export default function PaginaOportunidades() {
   const { empresa, pode } = useAcesso()
-  const [aba, setAba] = useState<'oportunidades' | 'buscar'>('oportunidades')
+  // A aba vive na URL (/oportunidades?aba=buscar): atalhos do Início levam direto a "Buscar edital".
+  const [params, setParams] = useSearchParams()
+  const aba: 'oportunidades' | 'buscar' = params.get('aba') === 'buscar' && pode('editais', 'cadastrar') ? 'buscar' : 'oportunidades'
+  const setAba = (a: 'oportunidades' | 'buscar') => setParams(a === 'buscar' ? { aba: 'buscar' } : {}, { replace: true })
   if (!empresa) return <p className="px-4 py-10 text-center text-sm text-tertiary">Selecione uma empresa.</p>
   if (!pode('editais', 'visualizar')) return <p className="px-4 py-10 text-center text-sm text-tertiary">Você não tem permissão para ver editais de {empresa.empresa}.</p>
   return (
