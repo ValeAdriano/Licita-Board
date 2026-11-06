@@ -8,6 +8,7 @@ import Contrato from './pages/Contrato'
 import Contratos from './pages/Contratos'
 import Juridico from './pages/Juridico'
 import PecaPagina from './pages/Peca'
+import Busca from './pages/Busca'
 import RecursoPagina from './pages/Recurso'
 import ParecerPagina from './pages/Parecer'
 import Preco from './pages/Preco'
@@ -78,6 +79,7 @@ export function Rotas() {
             <Route path="juridico/recursos/:id" element={<RecursoPagina />} />
             <Route path="juridico/pareceres/:participacao" element={<ParecerPagina />} />
             <Route path="cadastros" element={<Cadastros />} />
+            <Route path="busca" element={<Busca />} />
             <Route path="oportunidades" element={<PaginaOportunidades />} />
             <Route path="editais/:id" element={<PaginaEdital />} />
             <Route path="equipe" element={<Equipe />} />
