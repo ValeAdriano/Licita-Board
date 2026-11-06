@@ -97,3 +97,15 @@ input[type="search"]::-webkit-search-cancel-button {
         transition: none !important;
     }
 }
+
+/* Impressão / salvar em PDF dos relatórios (12.5): sem menu, cabeçalho móvel nem botões. */
+@media print {
+  aside,
+  header,
+  .nao-imprimir {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+}

@@ -1,8 +1,10 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, Req, Res, StreamableFile } from '@nestjs/common';
+import type { Response } from 'express';
 import { type Transaction, sql } from 'kysely';
 import { z } from 'zod';
 import { type RequisicaoVV, dadosDe, sessaoDe, validar } from '../auth/requisicao.js';
 import { Permissao } from '../auth/sessao.guard.js';
+import { TIPO_XLSX, gerarXlsx } from '../exportacao/xlsx.js';
 import { ContextoService } from '../db/contexto.service.js';
 import type { Database } from '../db/db.module.js';
 
@@ -83,9 +85,7 @@ export class TesesController {
   }
 
   // 10.9 Indicadores: peças sugeridas, elaboradas e protocoladas; prazos cumpridos e perdidos; deferimento por tipo e por tese; licitações revertidas por recurso.
-  @Permissao('juridico', 'visualizar')
-  @Get('empresas/:empresa/juridico/indicadores')
-  async indicadores(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Query() consulta: unknown) {
+  private indicadoresDe(req: RequisicaoVV, empresa: string, consulta: unknown): Promise<Record<string, unknown>> {
     const f = validar(filtroSchema, consulta);
     const ano = f.ano ?? null;
     return this.q(req, async (tx) => {
@@ -118,5 +118,32 @@ export class TesesController {
          group by t.id order by count(pt.id) desc, t.titulo limit 30`.execute(tx)).rows;
       return { ano, ...geral, porTipo, porTese };
     });
+  }
+
+  @Permissao('juridico', 'visualizar')
+  @Get('empresas/:empresa/juridico/indicadores')
+  indicadores(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Query() consulta: unknown) {
+    return this.indicadoresDe(req, empresa, consulta);
+  }
+
+  // Exportação Excel (12.5) dos indicadores do jurídico: resumo, por tipo de peça e por tese.
+  @Permissao('juridico', 'exportar')
+  @Get('empresas/:empresa/juridico/indicadores.xlsx')
+  async indicadoresXlsx(@Req() req: RequisicaoVV, @Res({ passthrough: true }) res: Response, @Param('empresa') empresa: string, @Query() consulta: unknown) {
+    const i = await this.indicadoresDe(req, empresa, consulta) as Record<string, number | string | null> & { porTipo: Record<string, string | number | null>[]; porTese: Record<string, string | number | null>[] };
+    const ROTULO: Record<string, string> = { esclarecimento: 'Pedido de esclarecimento', impugnacao: 'Impugnação', recurso: 'Recurso administrativo', contrarrazoes: 'Contrarrazões', reajuste: 'Pedido de reajuste', reequilibrio: 'Pedido de reequilíbrio' };
+    const n = (v: string | number | null | undefined): string | null => (v === null || v === undefined ? null : String(v));
+    const buf = gerarXlsx([
+      { nome: 'Resumo', colunas: [{ titulo: 'Indicador', largura: 40 }, { titulo: 'Valor', tipo: 'numero' }], linhas: [
+        ['Peças sugeridas', n(i.sugeridas)], ['Peças elaboradas', n(i.elaboradas)], ['Peças protocoladas', n(i.protocoladas)], ['Respondidas', n(i.respondidas)], ['Deferidas (total ou parcial)', n(i.deferidas)],
+        ['Indeferidas', n(i.indeferidas)], ['Prazos cumpridos', n(i.prazosCumpridos)], ['Prazos perdidos', n(i.prazosPerdidos)], ['Licitações revertidas por recurso', n(i.revertidasPorRecurso)]] },
+      { nome: 'Por tipo de peça', colunas: ['Tipo', 'Elaboradas', 'Protocoladas', 'Respondidas', 'Deferidas', 'Parciais', 'Indeferidas', 'Taxa de deferimento (%)'].map((titulo, k) => ({ titulo, tipo: k === 0 ? 'texto' as const : 'numero' as const })),
+        linhas: i.porTipo.map((t) => [ROTULO[String(t.tipo)] ?? n(t.tipo), n(t.elaboradas), n(t.protocoladas), n(t.respondidas), n(t.deferidas), n(t.parciais), n(t.indeferidas), n(t.taxa)]) },
+      { nome: 'Por tese', colunas: ['Tese', 'Tipo', 'Usos', 'Respondidas', 'Deferidas', 'Indeferidas', 'Taxa de deferimento (%)'].map((titulo, k) => ({ titulo, tipo: k > 1 ? 'numero' as const : 'texto' as const, largura: k === 0 ? 50 : 16 })),
+        linhas: i.porTese.map((t) => [n(t.titulo), ROTULO[String(t.tipo)] ?? n(t.tipo), n(t.usos), n(t.respondidas), n(t.deferidas), n(t.indeferidas), n(t.taxa)]) },
+    ]);
+    res.setHeader('Content-Type', TIPO_XLSX);
+    res.setHeader('Content-Disposition', 'attachment; filename="indicadores-juridico-vv-licitacoes.xlsx"');
+    return new StreamableFile(buf);
   }
 }

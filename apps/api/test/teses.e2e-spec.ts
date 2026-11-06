@@ -64,6 +64,11 @@ describe('teses e indicadores: fluxo e A x B', () => {
     expect(ind.porTipo.find((t) => t.tipo === 'impugnacao')?.taxa).toBe('100.0');
     expect(ind.porTese.map((t) => [t.id, t.taxa])).toEqual([[tese, '100.0']]);
     await http().get(`${base}/indicadores?ano=2001`).set(bearer(leitor)).expect(200);
+    // Excel dos indicadores: exige juridico/exportar (leitor e redator não têm), o administrador baixa um pacote .xlsx
+    await http().get(`${base}/indicadores.xlsx`).set(bearer(leitor)).expect(404);
+    const xl = (await http().get(`${base}/indicadores.xlsx`).set(bearer(a)).buffer(true).parse((r, cb) => { const c: Buffer[] = []; r.on('data', (d: Buffer) => c.push(d)); r.on('end', () => { cb(null, Buffer.concat(c)); }); }).expect(200));
+    expect(xl.headers['content-type']).toContain('spreadsheetml.sheet');
+    expect((xl.body as Buffer).subarray(0, 2).toString()).toBe('PK');
     await http().put(`${base}/teses/${tese}`).set(bearer(redator)).send({ titulo: 'Marca única (revisada)', texto: 'Texto revisado do argumento, sem citar lei, só a competitividade.' }).expect(204);
     expect(((await http().get(`${base}/teses`).set(bearer(leitor)).expect(200)).body as { status: string }[])[0]?.status).toBe('rascunho'); // editar derruba a aprovação
     await http().post(`${base}/teses/${tese}/arquivar`).set(bearer(redator)).expect(404);

@@ -1,10 +1,11 @@
-import { Body, Controller, Get, HttpCode, Param, Put, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Put, Req, Res, StreamableFile } from '@nestjs/common';
 import type { Response } from 'express';
 import { type Transaction, sql } from 'kysely';
 import { celula } from '../agenda/csv.js';
 import { z } from 'zod';
 import { type RequisicaoVV, dadosDe, sessaoDe, validar } from '../auth/requisicao.js';
 import { Permissao } from '../auth/sessao.guard.js';
+import { TIPO_XLSX, gerarXlsx } from '../exportacao/xlsx.js';
 import { ContextoService } from '../db/contexto.service.js';
 import type { Database } from '../db/db.module.js';
 
@@ -67,10 +68,7 @@ export class DashboardController {
   }
 
   // Relatório comercial (12.3): participações, vitórias, derrotas e motivos, taxa de sucesso, valor disputado e ganho, produtos mais ofertados e órgãos.
-  @Permissao('agenda', 'visualizar')
-  @Get('empresas/:empresa/relatorios/comercial')
-  async comercial(@Req() req: RequisicaoVV, @Param('empresa') empresa: string) {
-    const e = empresa;
+  private comercialDe(req: RequisicaoVV, e: string): Promise<Record<string, unknown>> {
     return this.q(req, async (tx) => {
       const resumo = (await sql<Record<string, unknown>>`
         select (select count(*)::int from priv.participacoes where empresa_id = ${e}::uuid and deleted_at is null and status not in ('avaliando', 'nao_vai', 'cancelada')) as participacoes,
@@ -89,10 +87,32 @@ export class DashboardController {
     });
   }
 
-  // Exportação CSV dos resultados (12.5): UTF-8 com BOM, separador ";", texto protegido contra fórmula do Excel.
+  @Permissao('agenda', 'visualizar')
+  @Get('empresas/:empresa/relatorios/comercial')
+  comercial(@Req() req: RequisicaoVV, @Param('empresa') empresa: string) {
+    return this.comercialDe(req, empresa);
+  }
+
+  // Exportação Excel (12.5) do relatório comercial: uma aba de resumo e uma por lista. Valores em texto decimal exato, sem ponto flutuante.
   @Permissao('agenda', 'exportar')
-  @Get('empresas/:empresa/relatorios/resultados.csv')
-  async csvResultados(@Req() req: RequisicaoVV, @Res({ passthrough: true }) res: Response, @Param('empresa') empresa: string) {
+  @Get('empresas/:empresa/relatorios/comercial.xlsx')
+  async comercialXlsx(@Req() req: RequisicaoVV, @Res({ passthrough: true }) res: Response, @Param('empresa') empresa: string) {
+    const r = await this.comercialDe(req, empresa) as { participacoes: number; vitorias: number; derrotas: number; taxaSucessoPct: string | null; valorDisputado: string; valorGanho: string; motivos: { motivo: string; total: number }[]; produtos: { produto: string; total: number }[]; orgaos: { orgao: string; total: number }[] };
+    const buf = gerarXlsx([
+      { nome: 'Resumo', colunas: [{ titulo: 'Indicador', largura: 36 }, { titulo: 'Valor', tipo: 'numero', largura: 22 }], linhas: [
+        ['Participações', String(r.participacoes)], ['Vitórias', String(r.vitorias)], ['Derrotas', String(r.derrotas)], ['Taxa de sucesso (%)', r.taxaSucessoPct],
+        ['Valor disputado (R$)', r.valorDisputado], ['Valor ganho (R$)', r.valorGanho]] },
+      { nome: 'Motivos de perda', colunas: [{ titulo: 'Motivo', largura: 60 }, { titulo: 'Quantidade', tipo: 'numero' }], linhas: r.motivos.map((m) => [m.motivo, String(m.total)]) },
+      { nome: 'Produtos mais ofertados', colunas: [{ titulo: 'Produto', largura: 60 }, { titulo: 'Quantidade', tipo: 'numero' }], linhas: r.produtos.map((m) => [m.produto, String(m.total)]) },
+      { nome: 'Órgãos onde mais ganhamos', colunas: [{ titulo: 'Órgão', largura: 60 }, { titulo: 'Quantidade', tipo: 'numero' }], linhas: r.orgaos.map((m) => [m.orgao, String(m.total)]) },
+    ]);
+    res.setHeader('Content-Type', TIPO_XLSX);
+    res.setHeader('Content-Disposition', 'attachment; filename="relatorio-comercial-vv-licitacoes.xlsx"');
+    return new StreamableFile(buf);
+  }
+
+  // Linhas dos resultados para as exportações (CSV e Excel): as mesmas colunas, uma só consulta.
+  private async resultadosParaExportar(req: RequisicaoVV, empresa: string): Promise<{ cab: string[]; chaves: string[]; linhas: Record<string, string | null>[] }> {
     const linhas = await this.q(req, async (tx) => (await sql<Record<string, string | null>>`
       select to_char(r.ocorrido_em at time zone 'America/Sao_Paulo', 'DD/MM/YYYY HH24:MI') as quando, g.razao_social as orgao, e.numero_edital as edital, e.processo, i.numero_item::text as item, r.resultado_final as resultado,
              r.valor_inicial::text as "valorInicial", r.valor_final::text as "valorFinal", r.melhor_lance::text as "melhorLance", r.classificacao::text as classificacao, r.vencedora_nome as vencedora, r.vencedora_marca_modelo as "marcaVencedora",
@@ -101,8 +121,28 @@ export class DashboardController {
         left join pub.orgaos g on g.id = e.orgao_id left join pub.edital_itens i on i.id = pa.item_id where r.empresa_id = ${empresa}::uuid order by r.ocorrido_em desc limit 5000`.execute(tx)).rows);
     const cab = ['Data', 'Órgão', 'Edital', 'Processo', 'Item', 'Resultado', 'Valor inicial', 'Valor final', 'Melhor lance', 'Classificação', 'Vencedora', 'Marca/modelo da vencedora', 'Nosso produto', 'Motivo'];
     const chaves = ['quando', 'orgao', 'edital', 'processo', 'item', 'resultado', 'valorInicial', 'valorFinal', 'melhorLance', 'classificacao', 'vencedora', 'marcaVencedora', 'nossoProduto', 'motivo'];
+    return { cab, chaves, linhas };
+  }
+
+  // Exportação CSV dos resultados (12.5): UTF-8 com BOM, separador ";", texto protegido contra fórmula do Excel.
+  @Permissao('agenda', 'exportar')
+  @Get('empresas/:empresa/relatorios/resultados.csv')
+  async csvResultados(@Req() req: RequisicaoVV, @Res({ passthrough: true }) res: Response, @Param('empresa') empresa: string) {
+    const { cab, chaves, linhas } = await this.resultadosParaExportar(req, empresa);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="resultados-vv-licitacoes.csv"');
     return `﻿${[cab, ...linhas.map((l) => chaves.map((k) => l[k] ?? ''))].map((l) => l.map(celula).join(';')).join('\r\n')}\r\n`;
+  }
+
+  // Exportação Excel (12.5) dos resultados: valores e posições como números (texto decimal exato do banco), o resto como texto.
+  @Permissao('agenda', 'exportar')
+  @Get('empresas/:empresa/relatorios/resultados.xlsx')
+  async xlsxResultados(@Req() req: RequisicaoVV, @Res({ passthrough: true }) res: Response, @Param('empresa') empresa: string) {
+    const { cab, chaves, linhas } = await this.resultadosParaExportar(req, empresa);
+    const numericas = new Set(['item', 'valorInicial', 'valorFinal', 'melhorLance', 'classificacao']);
+    const buf = gerarXlsx([{ nome: 'Resultados', colunas: cab.map((titulo, i) => ({ titulo, tipo: numericas.has(chaves[i] ?? '') ? 'numero' as const : 'texto' as const, largura: ['orgao', 'motivo', 'vencedora', 'marcaVencedora', 'nossoProduto'].includes(chaves[i] ?? '') ? 36 : 16 })), linhas: linhas.map((l) => chaves.map((k) => l[k] ?? null)) }]);
+    res.setHeader('Content-Type', TIPO_XLSX);
+    res.setHeader('Content-Disposition', 'attachment; filename="resultados-vv-licitacoes.xlsx"');
+    return new StreamableFile(buf);
   }
 }

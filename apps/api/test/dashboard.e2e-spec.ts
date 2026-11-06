@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
+import { inflateRawSync } from 'node:zlib';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SENHA, admin, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
@@ -87,6 +88,42 @@ describe('dashboard: indicadores, permissões e A x B', () => {
     await http().put(`/empresas/${empB}/relatorio-diario`).set(bearer(limitado)).send({ ativo: true }).expect(404); // sem vínculo em B
     await http().put(u).set(bearer(limitado)).send({ ativo: false }).expect(204);
     expect((await http().get(u).set(bearer(limitado)).expect(200)).body).toEqual({ ativo: false });
+  });
+
+  // Lê as partes de um .xlsx (ZIP) pelo diretório central: prova que o arquivo é um pacote válido e deixa conferir o conteúdo.
+  function partesXlsx(buf: Buffer): Map<string, string> {
+    const fim = buf.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+    const total = buf.readUInt16LE(fim + 10);
+    let p = buf.readUInt32LE(fim + 16);
+    const partes = new Map<string, string>();
+    for (let i = 0; i < total; i++) {
+      const comp = buf.readUInt32LE(p + 20); const nomeLen = buf.readUInt16LE(p + 28); const local = buf.readUInt32LE(p + 42);
+      const nome = buf.subarray(p + 46, p + 46 + nomeLen).toString('utf8');
+      const ini = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
+      partes.set(nome, inflateRawSync(buf.subarray(ini, ini + comp)).toString('utf8'));
+      p += 46 + nomeLen;
+    }
+    return partes;
+  }
+  const baixar = async (u: string, token: string, status = 200): Promise<Buffer> => (await http().get(u).set(bearer(token)).buffer(true).parse((res, cb) => { const c: Buffer[] = []; res.on('data', (d: Buffer) => c.push(d)); res.on('end', () => { cb(null, Buffer.concat(c)); }); }).expect(status)).body as Buffer;
+
+  it('Excel: relatório comercial e resultados, só com agenda/exportar, valores exatos do banco e pacote válido', async () => {
+    const com = partesXlsx(await baixar(`/empresas/${empA}/relatorios/comercial.xlsx`, limitado));
+    expect(com.get('xl/workbook.xml')).toContain('name="Resumo"');
+    expect(com.get('xl/workbook.xml')).toContain('name="Motivos de perda"');
+    const resumo = com.get('xl/worksheets/sheet1.xml') ?? '';
+    expect(resumo).toContain('Valor ganho (R$)');
+    expect(resumo).toContain('<v>1000.5000</v>'); // valor ganho = só a homologada, texto decimal exato
+    expect(com.get('xl/worksheets/sheet2.xml')).toContain('Atestado incompatível');
+    const res = partesXlsx(await baixar(`/empresas/${empA}/relatorios/resultados.xlsx`, limitado));
+    const planilha = res.get('xl/worksheets/sheet1.xml') ?? '';
+    expect(planilha).toContain('homologada');
+    expect(planilha).toContain('<v>1000.5000</v>');
+    expect((planilha.match(/<row /g) ?? []).length).toBe(4); // cabeçalho + 3 resultados
+    for (const u of ['relatorios/comercial.xlsx', 'relatorios/resultados.xlsx']) {
+      await http().get(`/empresas/${empA}/${u}`).set(bearer(semExportar)).expect(404); // sem exportar
+      await http().get(`/empresas/${empA}/${u}`).set(bearer(b)).expect(404);
+    }
   });
 
   it('CSV de resultados: só com agenda/exportar, BOM, separador ; e valores do banco', async () => {

@@ -58,7 +58,7 @@ export function Painel({ empresaId }: { empresaId: string }) {
       {c ? (
         <div className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-6">
           <div className="flex flex-wrap items-center gap-3"><h2 className="min-w-0 flex-1">Resultado comercial</h2>
-            {pode('agenda', 'exportar') ? <Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/relatorios/resultados.csv`)}>Exportar resultados (CSV)</Botao> : null}</div>
+            {pode('agenda', 'exportar') ? <div className="nao-imprimir flex flex-wrap gap-2"><Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/relatorios/resultados.csv`)}>Resultados (CSV)</Botao><Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/relatorios/resultados.xlsx`)}>Resultados (Excel)</Botao><Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/relatorios/comercial.xlsx`)}>Relatório (Excel)</Botao></div> : null}<span className="nao-imprimir"><Botao variante="texto" onClick={() => window.print()}>Salvar em PDF (imprimir)</Botao></span></div>
           <div className="flex flex-wrap items-center gap-2"><Etiqueta cor="marca">{c.participacoes} participação(ões)</Etiqueta><Etiqueta cor="sucesso">{c.vitorias} vitória(s)</Etiqueta><Etiqueta cor="erro">{c.derrotas} derrota(s)</Etiqueta>
             <Etiqueta cor="cinza">Taxa de sucesso {c.taxaSucessoPct === null ? '—' : `${c.taxaSucessoPct.replace('.', ',')}%`}</Etiqueta></div>
           <Legenda>Valor disputado {reais(c.valorDisputado)} · valor ganho {reais(c.valorGanho)}. Taxa = vitórias ÷ (vitórias + derrotas), só com resultado registrado.</Legenda>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Aviso, Cartao, Legenda, Selecao } from '../../ui'
+import { Aviso, Botao, Cartao, Legenda, Selecao } from '../../ui'
+import { useAcesso } from '../acesso/contexto'
 import { useGet } from '../acesso/useGet'
 import { TIPO_PECA } from './tipos'
 
@@ -15,11 +16,16 @@ export function Indicadores({ empresaId }: { empresaId: string }) {
   const [ano, setAno] = useState('')
   const d = useGet<Ind>(`/empresas/${empresaId}/juridico/indicadores${ano ? `?ano=${ano}` : ''}`)
   const [anos] = useState(() => Array.from({ length: 6 }, (_, i) => String(new Date().getFullYear() - i)))
+  const { pode } = useAcesso()
   const i = d.dados
   return (
     <div className="flex flex-col gap-4">
       <Aviso texto={d.erro} />
-      <div className="max-w-xs"><Selecao rotulo="Período" value={ano} onChange={setAno} vazio="Todos os anos" opcoes={anos.map((a) => ({ valor: a, rotulo: a }))} /></div>
+      <div className="nao-imprimir flex flex-wrap items-end gap-3">
+        <div className="max-w-xs"><Selecao rotulo="Período" value={ano} onChange={setAno} vazio="Todos os anos" opcoes={anos.map((a) => ({ valor: a, rotulo: a }))} /></div>
+        {pode('juridico', 'exportar') ? <Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/juridico/indicadores.xlsx${ano ? `?ano=${ano}` : ''}`)}>Exportar (Excel)</Botao> : null}
+        <Botao variante="texto" onClick={() => window.print()}>Salvar em PDF (imprimir)</Botao>
+      </div>
       {i ? <>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {([['Peças sugeridas', i.sugeridas], ['Peças elaboradas', i.elaboradas], ['Peças protocoladas', i.protocoladas], ['Respondidas', i.respondidas], ['Deferidas (total ou parcial)', i.deferidas], ['Indeferidas', i.indeferidas], ['Prazos cumpridos', i.prazosCumpridos], ['Prazos perdidos', i.prazosPerdidos]] as [string, number][]).map(([r, v]) => (
