@@ -17,11 +17,14 @@ Como o VV Licitações é construído por uma pessoa + agentes. As regras ficam 
 | Glossário | [`glossario.md`](glossario.md) | Vocabulário de licitações que o agente precisa entender |
 | **Ponto de partida** | [`COMECE-AQUI.md`](COMECE-AQUI.md) | Estado real, como rodar, armadilhas e próximos passos: o primeiro arquivo para quem assume |
 | Coordenação | [`em-andamento.md`](em-andamento.md), [`handoff.md`](handoff.md) | Quem está mexendo em quê; como passar o bastão |
+| **Orquestração** | [`orquestracao.md`](orquestracao.md), [`fila.md`](fila.md), [`prompts/00-orquestrador.md`](prompts/00-orquestrador.md), [`prompts/07-tarefa-worker.md`](prompts/07-tarefa-worker.md) | Plano de ponta a ponta no Paseo: orquestrador Claude, workers Argon/Codex, roteamento por custo |
 | Claude Code | `.claude/` | Comandos (`/spec`, `/migration`...), subagentes revisores, hook de proteção |
 | Antigravity | `.agents/rules/vv-desenvolvimento.md` | Regra sempre ativa: rotina de início, método, documentação obrigatória, fim de tarefa |
 | Rede de segurança | `.github/workflows/ci.yml`, `.semgrep/`, `scripts/` | O que a revisão humana pode deixar passar, o CI pega |
 
 ## Qual agente para quê (sugestão)
+
+> No modo orquestrado, a tabela que vale é a de roteamento em [`orquestracao.md`](orquestracao.md#2-roteamento-por-modelo).
 
 | Tarefa | Agente sugerido | Por quê |
 | --- | --- | --- |

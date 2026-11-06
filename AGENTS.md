@@ -132,6 +132,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 npm run build --prefix apps/web && infra/caddy/testar-cabecalhos.sh
 
 # Guardas (rodam no CI)
+python3 scripts/conferir-entrega.py [base]   # confere o diff de um worker antes de integrar (repete o hook do Claude Code; orquestracao.md)
 python3 scripts/check_isolation_coverage.py
 semgrep scan --config .semgrep/ --error
 ```
@@ -183,3 +184,4 @@ Pergunte com: contexto em 1 linha, opções (com a sua recomendação primeiro) 
 - Front e worker podem andar em paralelo depois que a migration da fase estiver no `main` e os tipos gerados.
 - Ao terminar ou pausar, deixe um **handoff** em `em-andamento.md` (ou no corpo do commit): o que foi feito, o que falta, comandos para verificar, dúvidas abertas. Modelo em [`docs/agents/handoff.md`](docs/agents/handoff.md).
 - Revisão cruzada (e subagentes revisores) só quando o Adriano pedir (§0).
+- **Modo orquestrado (Paseo):** um orquestrador (Claude) consome [`docs/agents/fila.md`](docs/agents/fila.md) e dispara workers em worktrees `orq/<id>`. O worker não faz push e não edita `COMECE-AQUI.md`, `em-andamento.md`, `roadmap.md` nem `fila.md`: descreve o efeito na nota de entrega. O orquestrador confere com `scripts/conferir-entrega.py`, integra com `git merge --squash` e atualiza esses arquivos **no mesmo commit** (regra 20). Detalhes e roteamento por modelo: [`docs/agents/orquestracao.md`](docs/agents/orquestracao.md).

@@ -9,6 +9,10 @@ description: Como o Antigravity conduz o desenvolvimento do VV Licitações e ma
 
 As regras do projeto estão no `AGENTS.md` da raiz (você já o recebe sempre) e valem integralmente. Este arquivo diz **como seguir o desenvolvimento** e torna obrigatório manter a documentação atualizada.
 
+## Quando você é worker do orquestrador
+
+Se a tarefa chegou pelo modelo `docs/agents/prompts/07-tarefa-worker.md` (worktree `orq/<id>`), ele vale acima deste arquivo: commit só na worktree, sem push, sem editar `COMECE-AQUI.md`, `em-andamento.md`, `roadmap.md` nem `fila.md` (o orquestrador faz isso a partir da sua nota de entrega), sem mostrar plano ao Adriano (o orquestrador já decidiu). Você roda sem pedir permissão e sem o hook do Claude Code: rode `python3 scripts/conferir-entrega.py main` antes de dizer que terminou. Nunca toque `db/migrations/`, `infra/`, `.env*`, autenticação, permissões nem `rules/`.
+
 ## Antes de começar qualquer tarefa
 
 0. Leia `docs/agents/COMECE-AQUI.md` (estado real, armadilhas, próximos passos). **A conta `acsvalefilho@gmail.com` é a pessoal do Adriano: nunca teste com ela** (AGENTS.md regra 19); use `scripts/criar-usuario-teste.sh`.

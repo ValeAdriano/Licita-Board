@@ -24,6 +24,7 @@ As regras do projeto valem para todos os agentes e estão em `AGENTS.md`, import
 | `/revisar` | Revisa a branch atual contra o Definition of Done e o modelo de ameaças |
 | `/relatorio-fase 01` | Gera `docs/phase-reports/fase-01.md` com evidências reais |
 | `/handoff` | Registra o estado da tarefa para outro agente ou sessão continuar |
+| `/orquestrar [contexto]` | Orquestrador do Paseo: consome `docs/agents/fila.md` e delega a workers (`docs/agents/orquestracao.md`) |
 
 Os comandos são finos: cada um aponta para um prompt neutro em `docs/agents/prompts/`, que qualquer outro agente também usa.
 

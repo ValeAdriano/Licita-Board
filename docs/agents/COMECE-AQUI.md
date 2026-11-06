@@ -1,6 +1,6 @@
 # Comece aqui · passagem de bastão entre agentes
 
-Primeiro arquivo para quem assume o desenvolvimento (qualquer agente ou pessoa). **Mantenha-o atualizado a cada bloco de trabalho** (AGENTS.md regra 20): estado real, pendências e próximos passos. Última atualização: 2026-11-05 (cruzamento de documentos pronto).
+Primeiro arquivo para quem assume o desenvolvimento (qualquer agente ou pessoa). **Mantenha-o atualizado a cada bloco de trabalho** (AGENTS.md regra 20): estado real, pendências e próximos passos. Última atualização: 2026-11-06 (orquestração pelo Paseo).
 
 ## 1. Regras que mais custam caro quando esquecidas
 
@@ -62,6 +62,8 @@ Plano de marcos, MVP e sprints: [`../roadmap-marcos.md`](../roadmap-marcos.md) (
 | 13 em diante | não iniciadas (sem spec) | — |
 
 ## 5. Próximos passos sugeridos (ordem)
+
+**Orquestração (2026-11-06):** a ordem de trabalho agora vive em [`fila.md`](fila.md), consumida por um orquestrador Claude no Paseo (`/orquestrar`; [`orquestracao.md`](orquestracao.md)). Workers (Antigravity/Gemini 4 Argon, Codex GPT-6.1 Sol e GPT-6 Luna) trabalham em worktrees `orq/<id>`; `scripts/conferir-entrega.py` repete o hook de proteção sobre o diff, porque só o Claude Code passa pelo hook. A lista abaixo continua como contexto; ao mudar de prioridade, mude a fila.
 
 1. Fase 05: importar planilha (bloqueado: falta o layout da planilha atual da operação; exportação CSV já existe).
 2. Fase 05 e anteriores: A x B (pgTAP e e2e) das tabelas `priv` novas **antes de uso real** (regra 13).
