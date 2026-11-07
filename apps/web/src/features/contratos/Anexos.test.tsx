@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,6 +10,7 @@ vi.mock('../acesso/contexto', () => ({ useAcesso: () => ({ pode: (modulo: string
 vi.mock('../../ui', async (original) => ({ ...await original<typeof import('../../ui')>(), Arquivo: ({ aoEscolher }: { aoEscolher: (f: File) => void }) => <input aria-label="Arquivo" type="file" onChange={(e) => aoEscolher(e.target.files![0]!)} /> }))
 const detalhe = { contrato: { status: 'ativo' }, empenhos: [] } as unknown as Detalhe
 beforeEach(() => {
+  sessionStorage.clear()
   m.cadastrar = true; m.status = 'liberado'; m.chamar.mockReset()
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
   m.chamar.mockImplementation(async (metodo: string, url: string) => {
@@ -53,5 +54,36 @@ describe('Upload no contrato', () => {
     render(<MemoryRouter><Anexos empresaId="empresa" id="contrato" d={detalhe} editar /></MemoryRouter>)
     await waitFor(() => expect(screen.getByRole('button', { name: 'Vincular existente' })).toBeTruthy())
     expect(screen.queryByRole('button', { name: 'Enviar arquivo' })).toBeNull()
+  })
+
+  it('retoma a pendência salva e vincula quando a verificação libera', async () => {
+    sessionStorage.setItem('vv.contrato.anexo.pendente:empresa:contrato', JSON.stringify({ doc: 'doc-pendente', versao: 'versao', destino: { empenhoId: 'emp', etapa: 'entrega', nota: 'nota' } }))
+    m.status = 'liberado'
+    render(<MemoryRouter><Anexos empresaId="empresa" id="contrato" d={detalhe} editar /></MemoryRouter>)
+    await screen.findByText('Arquivo liberado e vinculado ao contrato.')
+    expect(m.chamar).toHaveBeenCalledWith('POST', '/empresas/empresa/contratos/contrato/anexos', { documentoId: 'doc-pendente', empenhoId: 'emp', etapa: 'entrega', nota: 'nota' })
+    expect(sessionStorage.getItem('vv.contrato.anexo.pendente:empresa:contrato')).toBeNull()
+  })
+
+  it('para após três minutos e permite nova tentativa', async () => {
+    vi.useFakeTimers()
+    try {
+      sessionStorage.setItem('vv.contrato.anexo.pendente:empresa:contrato', JSON.stringify({ doc: 'doc-pendente', versao: 'versao', destino: { empenhoId: null, etapa: null, nota: null } }))
+      m.status = 'quarentena'
+      render(<MemoryRouter><Anexos empresaId="empresa" id="contrato" d={detalhe} editar /></MemoryRouter>)
+      fireEvent.click(screen.getByRole('button', { name: 'Enviar arquivo' }))
+      await act(async () => { await Promise.resolve(); await vi.advanceTimersByTimeAsync(181_000) })
+      expect(screen.getByText('A verificação está demorando. O arquivo continua no repositório de Documentos; tente verificar e vincular de novo em instantes.')).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Tentar verificar e vincular novamente' })).toBeTruthy()
+      expect(sessionStorage.getItem('vv.contrato.anexo.pendente:empresa:contrato')).not.toBeNull()
+    } finally { vi.useRealTimers() }
+  })
+
+  it('recusado limpa a pendência persistida', async () => {
+    sessionStorage.setItem('vv.contrato.anexo.pendente:empresa:contrato', JSON.stringify({ doc: 'doc-pendente', versao: 'versao', destino: { empenhoId: null, etapa: null, nota: null } }))
+    m.status = 'bloqueado'
+    render(<MemoryRouter><Anexos empresaId="empresa" id="contrato" d={detalhe} editar /></MemoryRouter>)
+    await screen.findByText(/Arquivo recusado: Tipo não permitido/)
+    expect(sessionStorage.getItem('vv.contrato.anexo.pendente:empresa:contrato')).toBeNull()
   })
 })
