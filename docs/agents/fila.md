@@ -1,6 +1,6 @@
 # Fila de desenvolvimento
 
-Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o orquestrador edita este arquivo**, no commit de integração. Montada a partir de [`COMECE-AQUI.md`](COMECE-AQUI.md) §4–§5 e das pendências das specs. Última atualização: 2026-11-07 (Q-01, Q-02, Q-05, Q-04a, Q-06, Q-09, Q-22, Q-23/1–3 e Q-24 integrados; Q-03 já estava no `main`; Q-04 dividido; Q-22 novo).
+Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o orquestrador edita este arquivo**, no commit de integração. Montada a partir de [`COMECE-AQUI.md`](COMECE-AQUI.md) §4–§5 e das pendências das specs. Última atualização: 2026-11-07 (Q-01, Q-02, Q-05, Q-04a, Q-04b, Q-06, Q-09, Q-22, Q-23/1–3 e Q-24 integrados; Q-03 já estava no `main`; Q-04 dividido; Q-22 novo).
 
 - **Prioridade:** 1 = MVP e uso real primeiro; 2 = completa fase em curso; 3 = melhoria.
 - **Tier:** A Claude Opus · B Gemini 4 Argon (Antigravity) · B' GPT-6.1 Sol · C GPT-6 Luna ([tabela](orquestracao.md#2-roteamento-por-modelo)).
@@ -12,7 +12,7 @@ Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o 
 | Q-02 | 1 | 05+ | e2e A x B por endpoint das rotas com `:empresa` ainda sem teste (regra 13), começando pela Agenda (MVP) | api/test | B' | integrado | Agenda integrada em 2026-11-07 (codex/gpt-6.1-sol, 1ª tentativa): 20 rotas, 2 sentidos, sem vazamento. Os demais módulos viram Q-23 |
 | Q-03 | 1 | 05 | Diff de versões do edital na tela da Agenda (o diff já existe na API) | web | B | integrado | Já estava no `main` (achado no Q-01): `DiffVersoes` em `pages/Acompanhamento.tsx` e `pages/Edital.tsx` |
 | Q-04a | 1 | 03 | Checklist documental por edital: banco (exigências por edital + leitura de validade para o worker), job que roda `rules/checklist_documental.py`, API | db + worker + api | A | integrado | Integrado em 2026-11-07 (claude/opus-5-5, 1ª tentativa): migration `20261128100000`, job, API. Contrato da API na spec 03 §10.1 |
-| Q-04b | 1 | 03 | Tela do checklist de documentos por edital (sobre a API do Q-04a) | web | B | em curso | Worker codex/gpt-6.1-sol em `orq/q04b` (2026-11-07; Antigravity bloqueado). Contrato da API na spec 03 §10.1. Padrões de UX do COMECE-AQUI §3 |
+| Q-04b | 1 | 03 | Tela do checklist de documentos por edital (sobre a API do Q-04a) | web | B | integrado | Integrado em 2026-11-07 (codex/gpt-6.1-sol, 1ª tentativa). Falta ensaio na stack real e 360 px (vai no Q-07) |
 | Q-05 | 2 | UI | `Table` do Untitled UI em Equipe, Auditoria e Empresas | web | C | integrado | Integrado em 2026-11-07 (codex/gpt-6-luna, 1ª tentativa). Tabela no desktop, cartões abaixo de `md` |
 | Q-06 | 2 | UI | Modo escuro em todo o front | web | B | integrado | Integrado em 2026-11-07 (codex/gpt-6.1-sol, 1ª tentativa). Sem conferência no navegador: vai no Q-07 |
 | Q-07 | 2 | UI | Conferência visual em 360 px de todas as telas, com lista de correções | web | B | bloqueado (Adriano) | Exige Antigravity (navegador). O Paseo só o inicia em `full-access` e o auto mode do orquestrador nega `create_agent` assim: liberar `mcp__paseo__create_agent` nas permissões do Claude Code ou conferir à mão. Usuário de teste (regra 19) |

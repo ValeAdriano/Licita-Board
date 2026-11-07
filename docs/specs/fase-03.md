@@ -91,7 +91,7 @@ Plano de blocos (modo rápido): (1) S3 de desenvolvimento (SeaweedFS) no compose
 
 ### 10.1 Checklist documental por edital (RF-03.10) · Q-04a, 2026-11-07
 
-**Feito (banco, worker, API; a tela é o Q-04b):**
+**Feito (banco, worker, API e tela Q-04b):**
 
 - Migration `20261128100000_checklist_documental.sql`: `priv.checklist_exigencias` (por acompanhamento = empresa x edital, uma por tipo de `pub.tipos_documento`: aplicável, conferência manual, regularidade fiscal, observação; auditada) e `priv.checklist_resultados` (situação calculada, documento que valeu, validade, dias para vencer, aviso ME/EPP, data de referência, data da sessão e se estava confirmada; dado derivado, sem auditoria, como `documento_alertas`). RLS nas duas: leitura com `documentos/visualizar`; a API não tem DML direto.
 - Escrita só por função: `priv.salvar_exigencia_checklist` (cria ou atualiza; regularidade fiscal, se não vier, é sugerida pela pasta `fiscal_trabalhista`), `priv.remover_exigencia_checklist`, `priv.recalcular_checklist`, todas com `documentos/editar`.
@@ -101,7 +101,9 @@ Plano de blocos (modo rápido): (1) S3 de desenvolvimento (SeaweedFS) no compose
 - API (`apps/api/src/documentos/checklist.controller.ts`): `GET /empresas/:e/acompanhamentos/:id/checklist`, `POST .../checklist/exigencias`, `POST .../checklist/recalcular`, `DELETE /empresas/:e/checklist/exigencias/:id`.
 - Testes: pgTAP `430_checklist_documental` e isolamento A x B das duas tabelas; pytest do job com banco (`tests/test_checklist.py`); e2e `checklist.e2e-spec.ts` (feliz, sem permissão, A x B).
 
-**Pendente:** tela (Q-04b); "recalculando" só reflete exigência editada depois do cálculo (versão liberada agora fica com o resultado anterior até o job rodar, segundos); quantidade de balanços exigíveis segue como "conferência manual" (§4.6).
+- Tela Q-04b: aba `?aba=documentos` em `Acompanhamento.tsx`, com `features/documentos/Checklist.tsx`; seis situações calculadas, validade/dias, abertura de versão liberada por download auditado, aviso ME/EPP da API recolhido, edição de exigências por permissão e releitura a cada 2,5 s limitada a cinco tentativas. Table no desktop e cartões no celular; formulário recolhido. Vitest cobre situações, ausência de edição, POST e parada das releituras. Validação visual em navegador (360 px/desktop, claro/escuro) e integração com API real ainda pendentes.
+
+**Pendente:** "recalculando" só reflete exigência editada depois do cálculo (versão liberada agora fica com o resultado anterior até o job rodar, segundos); quantidade de balanços exigíveis segue como "conferência manual" (§4.6).
 
 **⚖️ A validar com o jurídico:** texto do aviso ME/EPP (LC 123, art. 43, §1º) e se o MEI entra (hoje entra: ME, EPP ou MEI no enquadramento vigente na data do cálculo; o aviso só sinaliza, nunca dispensa).
 

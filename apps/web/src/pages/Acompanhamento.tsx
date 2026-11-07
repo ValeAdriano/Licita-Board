@@ -1,5 +1,6 @@
+import { Checklist } from '../features/documentos/Checklist'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { chamar } from '../api/cliente'
 import { useEnvio } from '../features/acesso/conta/useEnvio'
 import { useAcesso } from '../features/acesso/contexto'
@@ -9,13 +10,14 @@ import { Eventos } from '../features/agenda/Eventos'
 import { Itens } from '../features/agenda/Itens'
 import { DiffVersoes } from '../features/pesquisa/DiffVersoes'
 import type { Detalhe } from '../features/agenda/tiposAcompanhamento'
-import { AreaTexto, Aviso, Botao, CabecalhoPagina, Campo, Cartao, Etiqueta, Legenda, Pagina, Selecao } from '../ui'
+import { Abas, AreaTexto, Aviso, Botao, CabecalhoPagina, Campo, Cartao, Etiqueta, Legenda, Pagina, Selecao } from '../ui'
 
 const opcoes = (m: Record<string, string>) => Object.entries(m).map(([valor, rotulo]) => ({ valor, rotulo }))
 
 // Acompanhamento de um edital pela empresa: abertura (a data-base dos prazos), prazos, itens e histórico.
 export default function Acompanhamento() {
   const { id } = useParams()
+  const [busca, setBusca] = useSearchParams()
   const { empresa, pode } = useAcesso()
   const empresaId = empresa?.empresaId ?? null
   const det = useGet<Detalhe>(empresaId && id ? `/empresas/${empresaId}/acompanhamentos/${id}` : null)
@@ -49,6 +51,8 @@ export default function Acompanhamento() {
         }
       />
       <Cartao><p className="text-sm text-secondary [overflow-wrap:anywhere]"><bdi>{d.objeto}</bdi></p></Cartao>
+      <Abas rotulo="Seções do acompanhamento" ativa={busca.get('aba') === 'documentos' && pode('documentos', 'visualizar') ? 'documentos' : 'acompanhamento'} abas={[{ id: 'acompanhamento', rotulo: 'Acompanhamento' }, ...(pode('documentos', 'visualizar') ? [{ id: 'documentos', rotulo: 'Documentos do edital' }] : [])]} aoMudar={aba => setBusca(anterior => { const nova = new URLSearchParams(anterior); nova.set('aba', aba); return nova })} />
+      {busca.get('aba') === 'documentos' && pode('documentos', 'visualizar') ? <Checklist key={`${empresaId}/${id}`} empresaId={empresaId} acompanhamentoId={id} podeEditar={pode('documentos', 'editar')} /> : <>
       {d.aberturaReconfirmar ? <Aviso tipo="atencao" texto="A retificação mudou datas do edital: a abertura confirmada pode não valer mais. Reconfirme a data de abertura abaixo (os prazos calculados dependem dela)." /> : null}
       {d.editalVersaoAtual > d.editalVersaoVista ? <RetificacaoAviso empresaId={empresaId} d={d} podeEditar={podeEditar} aoMudar={mudou} /> : null}
       {recalculando ? <Aviso tipo="info" texto="Recalculando os prazos… eles aparecem em instantes." /> : null}
@@ -57,6 +61,7 @@ export default function Acompanhamento() {
       {d.aberturaConfirmada ? null : <Eventos empresaId={empresaId} d={d} responsaveis={responsaveis} podeEditar={podeEditar} aoMudar={mudou} />}
       <Itens empresaId={empresaId} d={d} responsaveis={responsaveis} podeCadastrar={pode('agenda', 'cadastrar')} podeEditar={podeEditar} aoMudar={det.recarregar} />
       <Gestao empresaId={empresaId} d={d} responsaveis={responsaveis} podeEditar={podeEditar} aoMudar={det.recarregar} />
+      </>}
     </Pagina>
   )
 }
