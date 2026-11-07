@@ -33,6 +33,9 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 - Permissão ausente devolve 404 (não 403) na API. Rota nova com `:empresa` entra no teste `rotas.e2e-spec.ts`.
 - `vv_worker` lê `core.usuarios` só por colunas (nunca `senha_hash`): grant de tabela inteira quebra o pgTAP 040 (aconteceu; corrigido pela migration 20261108140000).
 - Nova tabela `priv` com `on delete cascade` para `core.empresas` entra na lista do pgTAP `080_exclusao_dupla_aprovacao`.
+- Postgres separado para um worker (ex.: porta 5434): a imagem `vv-licitacoes-postgres` só sobe com `VV_OWNER_PASSWORD`, `VV_API_PASSWORD`, `VV_WORKER_PASSWORD` e `VV_DB` definidos (sem eles sai logo depois do initdb).
+- pytest com banco usa o CNPJ fixo `11222333000181`: teste que deixa empresa para trás quebra os outros com `empresas_cnpj_key`; gere CNPJ válido próprio (como `test_checklist.py`).
+- e2e `auth › força bruta` falha às vezes na suíte inteira (passa sozinho).
 - CSP estrita: sem `data:` em imagens, sem `style=` inline; o hash do `<style>` do react-aria está no Caddyfile (ADR-020).
 - Coleta PNCP está **desligada** para poupar disco: `update ops.fontes set ativa = true where slug = 'pncp'` religa.
 
@@ -49,7 +52,7 @@ Plano de marcos, MVP e sprints: [`../roadmap-marcos.md`](../roadmap-marcos.md) (
 | --- | --- | --- |
 | 00–01 Fundação, acessos | no main | aceite do Adriano, produção (VPS), Sentry |
 | 02 Empresas e produtos | no main | A x B de `priv`, decisões do jurídico |
-| 03 Documentos e certidões | no main | tela do checklist, A x B, retenção |
+| 03 Documentos e certidões | no main; checklist por edital com banco, job e API (Q-04a: migration `20261128100000`, job `checklist_documental`, `apps/api/src/documentos/checklist.controller.ts`) | tela do checklist (Q-04b), retenção; ⚖️ MEI no aviso ME/EPP |
 | 04 Pesquisa PNCP | no main, dados reais no Docker | Compras.gov.br (decisão), embeddings, ZIP, upload manual, amostra de 50 editais |
 | 05 Agenda ★ MVP | calendário, prazos, acompanhamento, **alertas D-5/D-3/D-1/dia, escalonamento, prazo perdido automático, .ics, documentos que vencem antes da disputa, diff de versões do edital, reavaliação ao retificar (abertura a reconfirmar)** | importar planilha (exportação CSV pronta; configuração de feriados próprios e D-N pronta; diff de versões já na tela de Acompanhamento e do Edital), feriados municipais oficiais; **regras de prazo NÃO validadas pelo jurídico** |
 | UI (ADR-020) | Untitled UI em todo o front | conferir 360 px e contraste do modo escuro em todas as telas (Q-07). Prontos: `Table` em todas as listas (Q-05); modo escuro com seletor Claro/Escuro/Sistema no shell (`src/tema/`, chave `vv.tema`, padrão Sistema, aplicado antes do React; Q-06) |

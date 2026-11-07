@@ -19,6 +19,8 @@ from worker.agenda_documentos import cruzar_todos as cruzar_documentos
 from worker.agenda_retificacao import reavaliar as reavaliar_retificacoes
 from worker.analise import analisar
 from worker.chave_ia import cliente_da_empresa, testar_chave
+from worker.checklist import calcular as calcular_checklist
+from worker.checklist import enfileirar as enfileirar_checklists
 from worker.documentos import Antivirus, Armazenamento, processar_versao
 from worker.email import (
     Enviador,
@@ -95,6 +97,7 @@ class Handlers:
             "importar_edital": self.importar_edital,
             "apurar_cobertura": self.apurar_cobertura,
             "calcular_prazos": self.calcular_prazos,
+            "checklist_documental": self.checklist_documental,
             "email_agenda": self.email_agenda,
             "analisar_item": self.analisar_item,
             "calcular_preco": self.calcular_preco,
@@ -334,6 +337,15 @@ class Handlers:
         # Só o id do acompanhamento vem no payload; empresa e datas são lidas do banco (T2).
         calcular_acompanhamento(conn, str(job["payload"]["acompanhamento_id"]))
 
+    def checklist_documental(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        # Só o id do acompanhamento vem no payload; a empresa do job tem de ser a dona dele (T2). Quem decide é rules/.
+        calcular_checklist(
+            conn,
+            str(job["payload"]["acompanhamento_id"]),
+            dt.datetime.now(dt.UTC),
+            job.get("empresa_id"),
+        )
+
     def email_agenda(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Só ids no payload: destinatário, prazo e órgão são relidos do banco (e o usuário precisa ainda ter acesso).
         with conn.cursor(row_factory=dict_row) as cur:
@@ -554,6 +566,8 @@ def consumir(
                                 cruzar_documentos(conn, agora)
                                 alertas_da_agenda(conn, agora)
                                 alertas_dos_contratos(conn, agora.astimezone(FUSO).date())
+                                # checklist documental: a situação muda com o calendário (um job por dia)
+                                enfileirar_checklists(conn, agora.astimezone(FUSO).date())
                                 if (
                                     agora.astimezone(FUSO).hour >= 7
                                 ):  # relatório diário: depois das 7h de Brasília

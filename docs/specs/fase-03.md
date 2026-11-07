@@ -67,7 +67,7 @@ Pastas por tipo com contagem e semáforo (válido, a vencer, vencido); lista de 
 
 ## 7. Jobs
 
-Worker: `verificar_arquivo` (ClamAV + magic + hash + mover), `alertas_documentos` (diário, relógio injetável para teste), `checklist_documental` (função pura em `rules/`, sem IA; quem decide é código).
+Worker: `verificar_arquivo` (ClamAV + magic + hash + mover), `alertas_documentos` (diário, relógio injetável para teste), `checklist_documental` (função pura em `rules/`, sem IA; quem decide é código). O job `checklist_documental` (`apps/worker/src/worker/checklist.py`) calcula UM acompanhamento por vez (payload só com o id) e é enfileirado ao salvar exigência, ao mudar a abertura, ao liberar versão ou mudar documento, por pedido da pessoa e uma vez por dia (desenho em §10).
 
 ## 8. Ameaças e critérios de aceite
 
@@ -86,3 +86,22 @@ Plano de blocos (modo rápido): (1) S3 de desenvolvimento (SeaweedFS) no compose
 7. **Atestado técnico:** quantidades como `numeric` com unidade de `pub.unidades`? *Recomendo:* sim.
 8. **Assinatura digitalizada e timbrado:** guardar como documentos dos tipos "assinatura" e "timbrado" ligados ao representante e à empresa? *Recomendo:* sim, ligando o `assinatura_documento_id` da Fase 02.
 9. **ClamAV em produção:** custo de memória (~1 GB). *Recomendo:* aceitar; o upload só vale depois da verificação.
+
+## 10. Estado da implementação
+
+### 10.1 Checklist documental por edital (RF-03.10) · Q-04a, 2026-11-07
+
+**Feito (banco, worker, API; a tela é o Q-04b):**
+
+- Migration `20261128100000_checklist_documental.sql`: `priv.checklist_exigencias` (por acompanhamento = empresa x edital, uma por tipo de `pub.tipos_documento`: aplicável, conferência manual, regularidade fiscal, observação; auditada) e `priv.checklist_resultados` (situação calculada, documento que valeu, validade, dias para vencer, aviso ME/EPP, data de referência, data da sessão e se estava confirmada; dado derivado, sem auditoria, como `documento_alertas`). RLS nas duas: leitura com `documentos/visualizar`; a API não tem DML direto.
+- Escrita só por função: `priv.salvar_exigencia_checklist` (cria ou atualiza; regularidade fiscal, se não vier, é sugerida pela pasta `fiscal_trabalhista`), `priv.remover_exigencia_checklist`, `priv.recalcular_checklist`, todas com `documentos/editar`.
+- Worker: não lê `priv.documentos`; recebe (tipo, validade, sem vencimento) da versão **liberada** mais recente por `priv.checklist_documentos` e o porte por `priv.checklist_me_epp` (security definer, execute só para `vv_worker`); grava por `priv.registrar_checklist`, que confere de novo empresa, exigências e documentos. Regra: `rules/checklist_documental.py` (inalterada).
+- Data da sessão = dia (America/Sao_Paulo) da `data_abertura` do acompanhamento, confirmada **ou não** (o resultado guarda `sessao_confirmada` para a tela avisar "data provisória").
+- Recálculo: gatilhos em `priv.acompanhamentos` (abertura), `priv.documento_versoes` (versão liberada) e `priv.documentos` (tipo, sem vencimento, arquivamento); rodada diária `priv.enfileirar_checklists` (um job por acompanhamento em aberto, por dia) chamada pelo agendador do worker. Chave do job por transação (vários gatilhos numa transação = um job).
+- API (`apps/api/src/documentos/checklist.controller.ts`): `GET /empresas/:e/acompanhamentos/:id/checklist`, `POST .../checklist/exigencias`, `POST .../checklist/recalcular`, `DELETE /empresas/:e/checklist/exigencias/:id`.
+- Testes: pgTAP `430_checklist_documental` e isolamento A x B das duas tabelas; pytest do job com banco (`tests/test_checklist.py`); e2e `checklist.e2e-spec.ts` (feliz, sem permissão, A x B).
+
+**Pendente:** tela (Q-04b); "recalculando" só reflete exigência editada depois do cálculo (versão liberada agora fica com o resultado anterior até o job rodar, segundos); quantidade de balanços exigíveis segue como "conferência manual" (§4.6).
+
+**⚖️ A validar com o jurídico:** texto do aviso ME/EPP (LC 123, art. 43, §1º) e se o MEI entra (hoje entra: ME, EPP ou MEI no enquadramento vigente na data do cálculo; o aviso só sinaliza, nunca dispensa).
+
