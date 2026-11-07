@@ -86,4 +86,39 @@ describe('resultados: fluxo e A x B', () => {
     await http().post(`/empresas/${empB}/participacoes/${part}/resultado`).set(bearer(b)).send({ resultado: 'cancelada' }).expect(404);
     expect(((await http().get(`/empresas/${empB}/participacoes/${part}/resultado`).set(bearer(b)).expect(200)).body)).toEqual({}); // sem resultado (e sem revelar a participação de A)
   });
+  for (const dona of ['A', 'B'] as const) {
+    it(`isolamento por endpoint: resultados de ${dona} intactos, sem evento ou job do invasor`, async () => {
+      const empresa = dona === 'A' ? empA : empB;
+      const outra = dona === 'A' ? empB : empA;
+      const token = dona === 'A' ? a : b;
+      const invasor = dona === 'A' ? b : a;
+      const marcador = crypto.randomUUID();
+      const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, objeto, hash_conteudo) select e.fonte_id, $2, e.orgao_id, $2, e.hash_conteudo from pub.editais e join priv.acompanhamentos a on a.edital_id = e.id where a.id = $1 returning id`, [acomp, marcador])).rows[0]?.id ?? '';
+      const ac = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1, $2) returning id`, [empresa, edital])).rows[0]?.id ?? '';
+      const item = (await admin.query<{ id: string }>(`insert into pub.edital_itens (edital_id, numero_item, descricao) values ($1, 1, 'Item matriz') returning id`, [edital])).rows[0]?.id;
+      const id = (await admin.query<{ id: string }>(`insert into priv.participacoes (empresa_id, acompanhamento_id, item_id) values ($1, $2, $3) returning id`, [empresa, ac, item])).rows[0]?.id ?? '';
+      const path = `participacoes/${id}/resultado`;
+      await http().post(`/empresas/${empresa}/${path}`).set(bearer(token)).send({ resultado: 'arrematada', valorFinal: '9876.5432', classificacao: 1 }).expect(200);
+      const get = async () => (await http().get(`/empresas/${empresa}/${path}`).set(bearer(token)).expect(200)).body as { valorFinal: string };
+      const antes = await get();
+      expect(antes.valorFinal).toBe('9876.5432');
+      const historico = async () => (await http().get(`/empresas/${empresa}/resultados?q=${marcador}`).set(bearer(token)).expect(200)).body as unknown[];
+      const lista = await historico(); expect(lista).toHaveLength(1);
+      const snapshot = async () => (await admin.query<Record<string, unknown>>(`select to_jsonb(p) as participacao, (select jsonb_agg(r) from priv.resultados_item r where r.participacao_id = p.id) as resultados, (select jsonb_agg(e) from priv.agenda_eventos e where e.acompanhamento_id = p.acompanhamento_id) as eventos from priv.participacoes p where p.id = $1`, [id])).rows;
+      const intactos = await snapshot();
+      const jobs = (await admin.query("select id from ops.jobs where tipo = 'calcular_prazos' order by id")).rows;
+      for (const e of [empresa, outra]) {
+        const r = await http().get(`/empresas/${e}/${path}`).set(bearer(invasor)).expect(e === empresa ? 404 : 200);
+        if (e === outra) expect(r.body).toEqual({});
+        const h = await http().get(`/empresas/${e}/resultados?q=${marcador}`).set(bearer(invasor)).expect(e === empresa ? 404 : 200);
+        if (e === outra) expect(h.body).toEqual([]);
+        await http().post(`/empresas/${e}/${path}`).set(bearer(invasor)).send({ resultado: 'perdida', valorFinal: '1.0000', classificacao: 2, motivo: 'Tentativa fictícia de alteração' }).expect(404);
+      }
+      expect(await get()).toEqual(antes);
+      expect(await historico()).toEqual(lista);
+      expect(await snapshot()).toEqual(intactos);
+      expect((await admin.query("select id from ops.jobs where tipo = 'calcular_prazos' order by id")).rows).toEqual(jobs);
+    });
+  }
+
 });

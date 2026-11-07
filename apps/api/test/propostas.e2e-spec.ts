@@ -104,4 +104,60 @@ describe('propostas: fluxo e A x B', () => {
     await http().post(`/empresas/${empB}/propostas/${v2}/aprovar`).set(bearer(b)).expect(400); // mesma resposta para id de A e id inexistente: nada é revelado
     await http().post(`/empresas/${empB}/acompanhamentos/${acomp}/propostas`).set(bearer(b)).send({}).expect(404);
   });
+  for (const dona of ['A', 'B'] as const) {
+    it(`isolamento por endpoint: propostas de ${dona} intactas, sem jobs ou URL para invasor`, async () => {
+      const empresa = dona === 'A' ? empA : empB;
+      const outra = dona === 'A' ? empB : empA;
+      const token = dona === 'A' ? a : b;
+      const su = await stepUp(app, dona === 'A' ? b : a, 'proposta_final');
+      if (dona === 'A') b = su.token; else a = su.token;
+      const invasor = su.token;
+      const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, objeto, hash_conteudo) select e.fonte_id, $2, e.orgao_id, e.objeto, e.hash_conteudo from pub.editais e join priv.acompanhamentos a on a.edital_id = e.id where a.id = $1 returning id`, [acomp, crypto.randomUUID()])).rows[0]?.id ?? '';
+      const ac = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1, $2) returning id`, [empresa, edital])).rows[0]?.id ?? '';
+      const item = (await admin.query<{ id: string }>(`insert into pub.edital_itens (edital_id, numero_item, descricao, quantidade) values ($1, 1, 'Item matriz', 10) returning id`, [edital])).rows[0]?.id;
+      const part = (await admin.query<{ id: string }>(`insert into priv.participacoes (empresa_id, acompanhamento_id, item_id) values ($1, $2, $3) returning id`, [empresa, ac, item])).rows[0]?.id;
+      await admin.query(`insert into priv.precificacoes (empresa_id, participacao_id, quantidade, calculado_em, preco_final_unit, total_proposta, aprovado_em, aprovado_por) values ($1, $2, 10, now(), 125, 1250, now(), (select usuario_id from core.vinculos where empresa_id = $1 limit 1))`, [empresa, part]);
+      const id = ((await http().post(`/empresas/${empresa}/acompanhamentos/${ac}/propostas`).set(bearer(token)).send({}).expect(201)).body as { id: string }).id;
+      await admin.query(`update priv.propostas set validada_em = now(), bloqueada = false where id = $1`, [id]);
+      const final = (await admin.query<{ id: string }>(`insert into priv.propostas (empresa_id, acompanhamento_id, versao, status, conteudo, total, arquivo_chave, arquivo_pdf_chave, arquivo_pdf_sha256, arquivo_sha256) values ($1, $2, 2, 'final', '[]', 1250, 'propostas/matriz.docx', 'propostas/matriz.pdf', repeat('b', 64), repeat('a', 64)) returning id`, [empresa, ac])).rows[0]?.id ?? '';
+      const conferencia = (await admin.query<{ id: string }>(`insert into priv.propostas (empresa_id, acompanhamento_id, versao, status, conteudo, total, bloqueada, validada_em) values ($1, $2, 3, 'conferencia', '[]', 1250, false, now()) returning id`, [empresa, ac])).rows[0]?.id ?? '';
+      const get = async () => (await http().get(`/empresas/${empresa}/acompanhamentos/${ac}/propostas`).set(bearer(token)).expect(200)).body as { propostas: { total: string }[] };
+      const antes = await get();
+      expect(antes.propostas).toHaveLength(3);
+      expect(antes.propostas[0]?.total).toBe('1250.0000');
+      const snapshot = async () => (await admin.query<Record<string, unknown>>('select * from priv.propostas where acompanhamento_id = $1 order by id', [ac])).rows;
+      const intactas = await snapshot();
+      const jobs = (await admin.query("select id from ops.jobs where tipo = 'gerar_proposta' order by id")).rows;
+      const rotas: { path: string; corpo?: object; ausente?: number }[] = [
+        { path: `acompanhamentos/${ac}/propostas` },
+        { path: `propostas/${id}/dados`, corpo: { validadeDias: 99 } },
+        { path: `propostas/${id}/validar` },
+        { path: `propostas/${id}/conferir`, ausente: 400 },
+        { path: `propostas/${conferencia}/devolver`, ausente: 400 },
+        { path: `propostas/${conferencia}/aprovar`, corpo: { stepUp: su.id }, ausente: 400 },
+        { path: `propostas/${final}/nova-versao` },
+        { path: `propostas/${final}/download`, corpo: { formato: 'docx' } },
+        { path: `propostas/${final}/download`, corpo: { formato: 'pdf' } },
+        { path: `propostas/${final}/pdf` },
+      ];
+      for (const e of [empresa, outra]) {
+        const lista = await http().get(`/empresas/${e}/acompanhamentos/${ac}/propostas`).set(bearer(invasor)).expect(e === empresa ? 404 : 200);
+        if (e === outra) expect((lista.body as { propostas: unknown[] }).propostas).toEqual([]);
+        for (const rota of rotas) {
+          const r = await http().post(`/empresas/${e}/${rota.path}`).set(bearer(invasor)).send(rota.corpo ?? {}).expect(e === empresa ? 404 : rota.ausente ?? 404);
+          expect(r.body).not.toHaveProperty('url');
+          // Algumas funções devolvem 400 para qualquer id ausente: comparar evita inferir existência.
+          if (e === outra && rota.ausente) {
+            const inexistente = rota.path.replace(id, crypto.randomUUID()).replace(conferencia, crypto.randomUUID());
+            const controle = await http().post(`/empresas/${e}/${inexistente}`).set(bearer(invasor)).send(rota.corpo ?? {}).expect(400);
+            expect(r.body).toEqual(controle.body);
+          }
+        }
+      }
+      expect(await get()).toEqual(antes);
+      expect(await snapshot()).toEqual(intactas);
+      expect((await admin.query("select id from ops.jobs where tipo = 'gerar_proposta' order by id")).rows).toEqual(jobs);
+    });
+  }
+
 });

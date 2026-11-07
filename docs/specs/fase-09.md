@@ -42,6 +42,6 @@
 - ✅ Valor é transportado como string decimal e escrita passa por função do banco: `apps/api/src/resultados/resultados.controller.ts`, `db/migrations/20261113100000_resultados.sql`.
 - 🟡 Gatilho de recurso está implementado, mas o cálculo do prazo continua marcado não validado pelo jurídico: `apps/worker/src/worker/agenda.py`.
 - ❌ Documentos posteriores, alerta em tempo real, busca por portal/valor e comprovante de envio da proposta: não localizados em `apps/api/src/resultados` nem `apps/web/src/features/resultados`.
-- ✅ A x B consta nos testes históricos da fase; pendente comprovação antes de uso real conforme regra 13 (não reexecutado nesta conferência).
+- ✅ Isolamento A x B por endpoint (Q-23, rodada 3): matriz nas 3 rotas `:empresa`, nos dois sentidos, com empresa da vítima e do invasor na URL; leitura e histórico sem dados alheios, escrita negada e resultado/participação/eventos/jobs intactos. `propostas.e2e-spec.ts` e `resultados.e2e-spec.ts`: 12/12 testes passaram juntos; pgTAP reexecutado no banco descartável.
 
 - 2026-11-05 · núcleo pronto: migration `20261113100000` (status ampliados, `priv.resultados_item`, `priv.registrar_resultado`), API `apps/api/src/resultados`, tela (botão "Resultado" em cada item e aba "Resultados" na Agenda). Testes: pgTAP 290 e isolamento A x B, e2e (fluxo, gatilho, histórico, A x B). Conferido na stack real: registrar "perdida" criou o evento "Intenção de recurso" na agenda (selo ⚖️ regra não validada) e o histórico mostrou o resultado.
