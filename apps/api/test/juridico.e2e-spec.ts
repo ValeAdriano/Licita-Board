@@ -163,4 +163,60 @@ describe('jurídico: fluxo e A x B', () => {
     await http().post(`/empresas/${empB}/juridico/pecas/${peca}/download`).set(bearer(b)).send({}).expect(404);
     await http().post(`/empresas/${empB}/juridico/pecas/${peca}/aprovar`).set(bearer(b)).expect(400);
   });
+  for (const dona of ['A', 'B'] as const) {
+    it(`isolamento por endpoint: peças e base de ${dona} intactas nas 19 rotas`, async () => {
+      const empresa = dona === 'A' ? empA : empB;
+      const outra = dona === 'A' ? empB : empA;
+      const token = dona === 'A' ? a : b;
+      const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, objeto, hash_conteudo) select e.fonte_id, $2, e.orgao_id, $2, e.hash_conteudo from pub.editais e join priv.acompanhamentos a on a.edital_id = e.id where a.id = $1 returning id`, [acomp, crypto.randomUUID()])).rows[0]?.id ?? '';
+      const ac = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1, $2) returning id`, [empresa, edital])).rows[0]?.id ?? '';
+      const raiz = `/empresas/${empresa}/juridico`;
+      const baseDados = { tipo: 'lei', numero: '999/FICTICIA', titulo: 'Fonte fictícia da matriz', linkOficial: 'https://exemplo.gov.br/matriz' };
+      const baseId = ((await http().post(`${raiz}/base`).set(bearer(token)).send(baseDados).expect(201)).body as { id: string }).id;
+      const id = ((await http().post(`${raiz}/acompanhamentos/${ac}/pecas`).set(bearer(token)).send({ tipo: 'impugnacao', titulo: 'Peça fictícia da matriz' }).expect(201)).body as { id: string }).id;
+      // Simula o worker: o download precisa negar também uma peça com arquivo final.
+      const final = (await admin.query<{ id: string }>(`insert into priv.pecas (empresa_id, acompanhamento_id, tipo, titulo) values ($1, $2, 'recurso', 'Final fictício') returning id`, [empresa, ac])).rows[0]?.id ?? '';
+      await admin.query(`update priv.pecas set status = 'final', arquivo_chave = 'pecas/matriz.docx', arquivo_pdf_chave = 'pecas/matriz.pdf', arquivo_sha256 = repeat('d', 64), gerado_em = now() where id = $1`, [final]);
+      const snapshot = async () => (await admin.query<Record<string, unknown>>(`select (select jsonb_agg(p order by p.id) from priv.pecas p where acompanhamento_id = $1) as pecas, (select to_jsonb(b) from priv.base_juridica b where id = $2) as base, (select jsonb_agg(i order by i.id) from priv.pecas_ia i where peca_id in ($3, $4)) as ia`, [ac, baseId, id, final])).rows;
+      await admin.query(`insert into priv.pecas_ia (empresa_id, peca_id, status) values ($1, $2, 'concluida')`, [empresa, id]);
+      const antes = await snapshot();
+      const jobs = async () => (await admin.query<{ id: string }>(`select id from ops.jobs where tipo in ('minutar_peca', 'processar_peca', 'ler_recurso', 'analisar_vencedora', 'sugerir_pecas', 'validar_tese', 'validar_parecer') and empresa_id in ($1, $2) order by id`, [empresa, outra])).rows;
+      const jobsAntes = await jobs();
+      for (const e of [empresa, outra]) {
+        const su = await stepUp(app, dona === 'A' ? b : a, 'aprovar_peca');
+        if (dona === 'A') b = su.token; else a = su.token;
+        const invasor = su.token;
+        const r = `/empresas/${e}/juridico`;
+        for (const path of ['base', `pecas?acompanhamento=${ac}`]) {
+          const resp = await http().get(`${r}/${path}`).set(bearer(invasor)).expect(e === empresa ? 404 : 200);
+          if (e === outra) expect(resp.body).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: baseId })]));
+          if (e === outra) expect(resp.body).not.toEqual(expect.arrayContaining([expect.objectContaining({ id })]));
+        }
+        await http().post(`${r}/base`).set(bearer(invasor)).send(baseDados).expect(e === empresa ? 404 : 201);
+        // Criar na própria empresa é permitido; jamais verificar/apagar a fonte alheia.
+        await http().post(`${r}/base/${baseId}/verificar`).set(bearer(invasor)).expect(404);
+        await http().delete(`${r}/base/${baseId}`).set(bearer(invasor)).expect(404);
+        await http().post(`${r}/acompanhamentos/${ac}/pecas`).set(bearer(invasor)).send({ tipo: 'recurso', titulo: 'Invasão fictícia' }).expect(404);
+        await http().get(`${r}/pecas/${id}`).set(bearer(invasor)).expect(404);
+        const historico = await http().get(`${r}/pecas/${id}/minuta-ia`).set(bearer(invasor)).expect(e === empresa ? 404 : 200);
+        if (e === outra) expect(historico.body).toEqual([]);
+        await http().put(`${r}/pecas/${id}/minuta`).set(bearer(invasor)).send({ minuta: 'Texto fictício de tentativa de alteração.' }).expect(e === empresa ? 404 : 400);
+        for (const [acao, corpo] of [
+          ['descartar', { justificativa: 'Tentativa fictícia de descarte' }], ['minuta-ia', {}], ['validar', {}], ['revisao', {}], ['devolver', {}],
+          ['aprovar', { stepUp: su.id }], ['protocolo', { numero: '2026/99', quando: '2026-11-10T10:00:00-03:00' }], ['resultado', { resultado: 'deferido' }], ['pdf', {}],
+        ] as const) {
+          // Funções de fluxo usam 400 também para ID inexistente; não revelam a peça.
+          const status = e === outra && ['descartar', 'revisao', 'devolver', 'aprovar', 'protocolo', 'resultado'].includes(acao) ? 400 : 404;
+          await http().post(`${r}/pecas/${id}/${acao}`).set(bearer(invasor)).send(corpo).expect(status);
+        }
+        for (const formato of ['docx', 'pdf']) {
+          const dl = await http().post(`${r}/pecas/${final}/download`).set(bearer(invasor)).send({ formato }).expect(404);
+          expect(dl.body).not.toHaveProperty('url');
+        }
+        expect(await snapshot()).toEqual(antes);
+        expect(await jobs()).toEqual(jobsAntes);
+      }
+    });
+  }
+
 });
