@@ -237,6 +237,19 @@ As entradas T13 a T16 são propostas para `docs/threat-model.md` na entrega da f
 
 ## 12. Estado da implementação (2026-11-05)
 
+### Conferência item a item (2026-11-07)
+
+- ✅ RF-05 agenda, acompanhamentos por edital, participações por item, eventos e histórico: `apps/api/src/agenda/agenda.controller.ts`, `apps/web/src/features/agenda/Calendario.tsx`, `db/migrations/20261108100000_agenda.sql`.
+- ✅ Cálculo e recálculo de prazos, preservação de override e prioridade da data do edital: `apps/worker/src/worker/agenda.py`, `apps/worker/src/worker/rules/prazos.py`.
+- 🟡 Regras de prazo e feriados: mecanismo/código e configuração por empresa existem, mas faltam validação jurídica dos casos e cadastro oficial municipal: `apps/worker/src/worker/rules/feriados.py`, `apps/web/src/features/agenda/Configuracao.tsx`.
+- ✅ Alertas, escalonamento, prazo perdido, avisos por documento com validade: `apps/worker/src/worker/agenda_alertas.py`, `apps/worker/src/worker/agenda_documentos.py`.
+- ✅ Diff de versão e aviso/reconfirmação após retificação: `apps/api/src/pesquisa/diff.ts`, `apps/worker/src/worker/agenda_retificacao.py`.
+- ✅ Exportação CSV e calendário .ics: `apps/api/src/agenda/csv.ts`, `apps/api/src/agenda/ics.ts`.
+- ✅ Parâmetro D-N e feriados próprios por empresa: `db/migrations/20261109110000_agenda_configuracao.sql`, `apps/web/src/features/agenda/Configuracao.tsx`.
+- ❌ Importação da planilha da operação (layout ainda não fornecido); a exportação existente é CSV, não importação: não há rota/tela de importação em `apps/api/src/agenda` e `apps/web/src/features/agenda`.
+- 🟡 Critérios dependentes de terceiros: CA-5 depende dos 30+ casos validados pelo jurídico; CA-7 depende da planilha real. CA-9 tem diff e reavaliação, mas texto/regra do aviso seguem pendentes de validação jurídica.
+- ❌ A x B completo antes de uso real conforme regra 13; embora haja evidência histórica de testes, esta conferência não reexecuta pgTAP/e2e.
+
 - **Pronto e verificado no Docker (conta real, dados reais do PNCP):** banco (feriados, regras NÃO validadas, acompanhamentos, participações, eventos, histórico imutável; pgTAP 230), `rules/prazos.py` e `rules/feriados.py` (casos TÉCNICOS, não os do jurídico), job `calcular_prazos` (histórico, override preservado, prazo do edital), API (e2e A x B), telas: agenda com calendário mês/semana/dia, prazos em tabela e cartões, editais acompanhados, acompanhamento (abertura, prazos, itens/participações, histórico) e o botão "Acompanhar" em oportunidades e no edital.
 - **Alertas e prazo perdido (pronto, 2026-11-05):** `worker/agenda_alertas.py` roda de hora em hora no consumidor leve (relógio injetável, `rules/alertas.py` puro). Um alerta por (evento, marco, usuário) em `priv.agenda_alertas`; em cada rodada vale só o marco mais urgente (worker parado não dispara rajada). Notificação interna + push para quem tem `agenda/visualizar` (exceto CLIENTE) e os responsáveis; e-mail só em D-1, no dia, escalonado e perdido (job `email_agenda`, payload só com ids). Escalonamento ao gestor (ADMIN_EMPRESA ou `agenda/aprovar`): "Sugerido" a ≤3 dias ou sem andamento a ≤1 dia. "Prazo perdido" automático (com histórico) só para prazo NÃO provisório e que não seja disputa. Tela: resumo no topo da Agenda (perdidos, vencem hoje, próximos 7 dias). pytest com banco (6 casos); o parâmetro D-N por empresa segue pendente.
 - **Exportação .ics (pronta, 2026-11-05):** `GET /empresas/:e/agenda/calendario.ics` (mesmos filtros da lista, permissão `agenda/visualizar`, anexo `text/calendar`), gerado por `agenda/ics.ts` (puro, com teste: UTC, escape contra injeção de campos, dobra de linha em 75 octetos, TENTATIVE para provisório, alarme de 1 dia). É um instantâneo: não se atualiza sozinho quando o prazo é recalculado (assinatura por URL exigiria token e fica de fora). Botão "Baixar .ics" na Agenda.

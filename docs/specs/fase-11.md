@@ -36,6 +36,14 @@
 
 ## 4. Estado
 
+- ✅ Contratos/atas, itens, empenhos, entregas, etapas, faturas, histórico, saldos calculados e alertas: `db/migrations/20261118100000_contratos.sql`, `apps/api/src/contratos/contratos.controller.ts`, `apps/web/src/features/contratos/Lista.tsx`.
+- ✅ Notificações internas dos alertas e banner/cadastro pré-preenchido para contratada sem contrato: `db/migrations/20261125100000_contratos_notificacoes.sql`, `apps/web/src/features/contratos/Pendentes.tsx`.
+- ✅ Anexos vinculados ao repositório da Fase 03 e pedido de reajuste/reequilíbrio como peça jurídica: `db/migrations/20261126100000_contratos_anexos_pedidos.sql`, `apps/web/src/features/contratos/Anexos.tsx`.
+- ✅ E-mail dos alertas está coberto pelo relatório diário opt-in: `apps/worker/src/worker/relatorio_diario.py`.
+- 🟡 Upload direto na tela não existe; primeiro cadastra em Cadastros → Documentos e então vincula: `apps/web/src/features/contratos/Anexos.tsx`.
+- 🟡 Pedido jurídico exige contrato ativo ligado a acompanhamento; contrato sem edital não abre pedido: `db/migrations/20261126100000_contratos_anexos_pedidos.sql`.
+- ✅ A x B e sigilo financeiro têm evidência histórica (pgTAP/e2e); regra 13 ainda exige manter cobertura antes de uso real, não reexecutada nesta conferência.
+
 - 2026-11-05 · spec aprovada; implementação em blocos (banco → API → tela).
 - **Núcleo pronto (2026-11-05):** migration `20261118100000` (contratos, itens, empenhos e itens, etapas, entregas, faturas, histórico; escrita só por função; o banco recusa empenho acima do saldo, entrega acima do empenhado, faturamento acima do saldo do contrato e recebido acima do faturado; valor do contrato = soma dos itens; aditivo atualiza valor e vigência e fica no histórico), API `apps/api/src/contratos` (alertas calculados em `alertas.ts`, puro e testado), telas `/contratos` e `/contratos/:id` (itens e saldos, empenhos e entregas, financeiro, histórico; item "Contratos" no menu). Financeiro com sigilo: sem `financeiro/visualizar` a API devolve `faturas: null` (nunca zeros enganosos). Testes: pgTAP 330 e 8 de isolamento A x B, e2e (saldos, limites, sigilo, histórico, A x B), vitest dos alertas. Conferido na stack real com contrato fictício: 10 × R$ 89.937,74 = R$ 899.377,40; empenho de 6 aceito e de 5 (saldo 4) recusado; a receber R$ 529.626,44 (faturado − retenção informada); alertas de vigência, garantia, entrega atrasada e pagamento vencido.
 - **Decisões que tomei (revisáveis):** janelas dos alertas (vigência e garantia 60 dias, entrega 5 dias; pagamento só quando vencido); retenções são valor informado (🧾 nenhuma alíquota é calculada); empenho só em contrato ativo; encerrar ou rescindir é irreversível.

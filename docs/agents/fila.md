@@ -1,6 +1,6 @@
 # Fila de desenvolvimento
 
-Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o orquestrador edita este arquivo**, no commit de integração. Montada a partir de [`COMECE-AQUI.md`](COMECE-AQUI.md) §4–§5 e das pendências das specs. Última atualização: 2026-11-06 (primeira versão; o orquestrador confere item a item contra a spec antes de disparar).
+Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o orquestrador edita este arquivo**, no commit de integração. Montada a partir de [`COMECE-AQUI.md`](COMECE-AQUI.md) §4–§5 e das pendências das specs. Última atualização: 2026-11-07 (Q-01 integrado; Q-03 já estava no `main`; Q-22 novo).
 
 - **Prioridade:** 1 = MVP e uso real primeiro; 2 = completa fase em curso; 3 = melhoria.
 - **Tier:** A Claude Opus · B Gemini 4 Argon (Antigravity) · B' GPT-6.1 Sol · C GPT-6 Luna ([tabela](orquestracao.md#2-roteamento-por-modelo)).
@@ -8,9 +8,9 @@ Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o 
 
 | ID | Pri | Fase | Item | Área | Tier | Status | Bloqueio / nota |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Q-01 | 1 | docs | Conferir as specs 05 a 12 contra o código e o `COMECE-AQUI.md` §4: marcar na seção de pendências o que já está no `main` e o que falta | docs/specs | C | em curso | Worker codex/gpt-6-luna em `orq/q01` (2026-11-07). Primeiro item: valida o ciclo inteiro com risco zero. Só lê código e edita specs |
+| Q-01 | 1 | docs | Conferir as specs 05 a 12 contra o código e o `COMECE-AQUI.md` §4: marcar na seção de pendências o que já está no `main` e o que falta | docs/specs | C | integrado | Integrado em 2026-11-07 (codex/gpt-6-luna, 1ª tentativa). Estado item a item na seção de estado de cada spec 05–12 |
 | Q-02 | 1 | 05+ | e2e A x B por endpoint das rotas com `:empresa` ainda sem teste (regra 13), começando pela Agenda (MVP) | api/test | B' | pronto | Leia `apps/api/test/apoio.ts` e `rotas.e2e-spec.ts`; recriar `vv_test` antes (armadilhas do COMECE-AQUI §3) |
-| Q-03 | 1 | 05 | Diff de versões do edital na tela da Agenda (o diff já existe na API) | web | B | pronto | Padrões de UX do COMECE-AQUI §3 |
+| Q-03 | 1 | 05 | Diff de versões do edital na tela da Agenda (o diff já existe na API) | web | B | integrado | Já estava no `main` (achado no Q-01): `DiffVersoes` em `pages/Acompanhamento.tsx` e `pages/Edital.tsx` |
 | Q-04 | 1 | 03 | Tela do checklist de documentos por edital (regra pura já existe) | web + api | B | pronto | Depende dos editais da Fase 04 (já no `main`) |
 | Q-05 | 2 | UI | `Table` do Untitled UI em Equipe, Auditoria e Empresas | web | C | pronto | Troca mecânica; tabela vira cards no celular |
 | Q-06 | 2 | UI | Modo escuro em todo o front | web | B | pronto | Só tokens de `src/ui`; CSP sem `style=` inline |
@@ -29,3 +29,4 @@ Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o 
 | Q-19 | 3 | 07 | Empate ficto na tela e reautenticação na aprovação de preço | web + api | A | bloqueado (Adriano) | ⚖️ empate e inexequibilidade; 🧾 tributos |
 | Q-20 | 3 | 08 | Declarações (8.4), modelo oficial e papel timbrado | web + worker | B | bloqueado (externo) | Modelos vêm da operação/jurídico |
 | Q-21 | 3 | 00–01 | VPS, S3 de produção, Sentry, ensaio de restauração | infra | A | bloqueado (Adriano) | Produção e fornecedores |
+| Q-22 | 3 | 12 | Excel da agenda (hoje só CSV e .ics), com o gerador próprio de `apps/api/src/exportacao` | api + web | C | pronto | Achado no Q-01 |

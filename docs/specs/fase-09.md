@@ -37,4 +37,11 @@
 
 ## 4. Estado
 
+- ✅ Status de participação e resultado por item, com motivos, validações, histórico e gatilho para intenção de recurso: `db/migrations/20261113100000_resultados.sql`, `apps/api/src/resultados/resultados.controller.ts`, `apps/web/src/features/resultados/RegistrarResultado.tsx`.
+- ✅ Histórico pesquisável por texto e filtros e distinção entre arrematada/adjudicada/homologada: `apps/web/src/features/resultados/Historico.tsx`, `apps/api/src/resultados/resultados.controller.ts`.
+- ✅ Valor é transportado como string decimal e escrita passa por função do banco: `apps/api/src/resultados/resultados.controller.ts`, `db/migrations/20261113100000_resultados.sql`.
+- 🟡 Gatilho de recurso está implementado, mas o cálculo do prazo continua marcado não validado pelo jurídico: `apps/worker/src/worker/agenda.py`.
+- ❌ Documentos posteriores, alerta em tempo real, busca por portal/valor e comprovante de envio da proposta: não localizados em `apps/api/src/resultados` nem `apps/web/src/features/resultados`.
+- ✅ A x B consta nos testes históricos da fase; pendente comprovação antes de uso real conforme regra 13 (não reexecutado nesta conferência).
+
 - 2026-11-05 · núcleo pronto: migration `20261113100000` (status ampliados, `priv.resultados_item`, `priv.registrar_resultado`), API `apps/api/src/resultados`, tela (botão "Resultado" em cada item e aba "Resultados" na Agenda). Testes: pgTAP 290 e isolamento A x B, e2e (fluxo, gatilho, histórico, A x B). Conferido na stack real: registrar "perdida" criou o evento "Intenção de recurso" na agenda (selo ⚖️ regra não validada) e o histórico mostrou o resultado.

@@ -56,6 +56,15 @@
 
 ## 5. Estado
 
+- ✅ Base jurídica verificada, fluxo de peças, conferência de citações, finais DOCX/PDF com hash e protocolo humano: `apps/api/src/juridico`, `apps/worker/src/worker/peca.py`, `apps/web/src/features/juridico`.
+- ✅ Minuta por IA, leitura de recurso de terceiro, parecer de viabilidade, sugestões de esclarecimento/impugnação, teses e indicadores: `apps/worker/src/worker/minuta_ia.py`, `apps/worker/src/worker/recurso.py`, `apps/worker/src/worker/parecer.py`, `apps/worker/src/worker/sugestao.py`, `apps/worker/src/worker/tese.py`.
+- 🟡 Recursos e documentos da concorrente ainda são inseridos como texto, sem upload de PDF/anexos: `apps/web/src/features/juridico`.
+- ❌ Checklist numérico automático da concorrente e integração das evidências das Fases 03/06: não localizado em `apps/api/src/juridico` nem `apps/worker/src/worker`.
+- 🟡 Busca de sugestões é sob pedido; não é acionada ao indexar edital: `apps/api/src/juridico/sugestoes.controller.ts`.
+- ❌ Modelos de peça em papel timbrado: não localizados em `apps/worker/src/worker`.
+- 🟡 Chave Anthropic real, qualidade da IA, base jurídica/fontes, modelos e prazos dependem de configuração/validação; IA segue opcional e sem decisão final.
+- ✅ Isolamento A x B tem evidência histórica para as tabelas/rotas citadas; pendente cumprir regra 13 antes de uso real, sem reexecução nesta conferência.
+
 - 2026-11-05 · spec aprovada; implementação em blocos (regras puras → banco → worker → API → tela).
 - **Núcleo pronto (2026-11-05):** `rules/citacoes.py` (conferência de citações contra a base verificada, 100%), migration `20261117100000` (`priv.base_juridica` e `priv.pecas`, fluxo por funções, final imutável por gatilho — só avançam protocolo, resultado e PDF), job `processar_peca` (`worker/peca.py`: valida, e com a peça aprovada gera .docx e PDF com SHA-256), API `apps/api/src/juridico`, telas `/juridico` (peças e base jurídica) e `/juridico/pecas/:id` (item "Jurídico" no menu). Testes: pytest (citações, job com banco), pgTAP 320 e isolamento A x B (2 tabelas), e2e (fluxo, imutabilidade, protocolo humano que marca o evento da agenda, A x B). **Conferido na stack real:** uma minuta com "Acórdão 999/2022" inventado foi BLOQUEADA, corrigida passou, foi à revisão, aprovada, e o worker gerou o .docx e o PDF com hash.
 - **Decisões que tomei (revisáveis):** a base nasce vazia e só entrada verificada vale; a verificação é de quem tem `juridico/aprovar_peca` e o cadastro de quem tem `elaborar_peca`; a minuta exige as cláusulas/páginas do edital (10.1); aprovar não exige outra pessoa que a autora (fica registrado quem elaborou e quem aprovou); a conferência reconhece Lei/LC/Decreto n/ano, artigo, Acórdão n/ano, Súmula n e Constituição, e um artigo só vale se alguma fonte verificada o traz.

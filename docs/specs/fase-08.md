@@ -60,6 +60,16 @@
 
 ## 6. Estado
 
+### Conferência item a item (2026-11-07)
+
+- ✅ Propostas versionadas, validação, aprovação, documento final imutável com hash e download: `apps/api/src/propostas/propostas.controller.ts`, `apps/worker/src/worker/proposta.py`, `apps/web/src/features/propostas/Propostas.tsx`.
+- ✅ Geração DOCX, PDF e valores por extenso: `apps/worker/src/worker/docx.py`, `apps/worker/src/worker/pdf.py`, `apps/worker/src/worker/rules/extenso.py`.
+- ❌ Modelo oficial do edital e papel timbrado: não localizados em `apps/worker/src/worker` nem `apps/web/src/features/propostas`.
+- ❌ Declarações (8.4) e checklist (8.5) ainda não aparecem como campos/fluxo da proposta em `apps/api/src/propostas` ou `apps/web/src/features/propostas`.
+- ❌ Registro do comprovante de envio ao portal: não localizado; envio/protocolo segue humano (regra 17).
+- 🟡 Texto-padrão da proposta depende de validação do jurídico.
+- ✅ Isolamento A x B consta nos testes históricos da migration/API; pendente cumprir regra 13 antes de uso real, sem reexecução nesta conferência.
+
 - 2026-11-05 · spec aprovada; implementação em blocos (regras puras → banco → worker → API → tela).
 - **Núcleo pronto (2026-11-05):** `rules/extenso.py` (valor por extenso, 100%), `rules/proposta.py` (validação 8.6, 100%), `worker/docx.py` (.docx só com a biblioteca padrão, 100%), migration `20261112100000` (`priv.propostas`: versões, fluxo, final imutável por gatilho, SHA-256), job `gerar_proposta` (`worker/proposta.py`), API `apps/api/src/propostas` (criar, dados, validar, conferir, devolver, aprovar, nova versão, download com URL de 60 s) e tela `/agenda/acompanhamentos/:id/proposta` (botão "Propostas" no acompanhamento). Testes: pytest (extenso, validação, docx, 5 do job com banco), pgTAP 280 e isolamento A x B, e2e (fluxo, imutabilidade, A x B). **Conferido ponta a ponta com a stack real:** divergências reais apareceram (representante, sessão não confirmada, quantidade, produto), foram resolvidas, o worker gerou o .docx no armazenamento, o SHA-256 gravado conferiu com o arquivo baixado e o texto tinha o extenso correto.
 - **PDF pronto (2026-11-05, decisão do Adriano):** LibreOffice (`libreoffice-writer`) na imagem do worker; `worker/pdf.py` converte o .docx final em PDF (processo filho sem shell, perfil temporário, limite de 120 s); o PDF tem SHA-256 próprio (`arquivo_pdf_*`, migration `20261114100000`). A final continua imutável: o único UPDATE permitido depois dela é gravar o PDF uma vez. Se a conversão falhar a final vale sem PDF e dá para pedir depois (`POST …/propostas/:id/pdf`). Download `{formato: 'docx'|'pdf'}`. Conferido na stack real: PDF de 1 página gerado, hash do arquivo baixado igual ao gravado. **Custo:** a imagem do worker cresceu (~500 MB).
