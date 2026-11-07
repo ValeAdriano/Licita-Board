@@ -14,7 +14,7 @@ Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o 
 | Q-04a | 1 | 03 | Checklist documental por edital: banco (exigências por edital + leitura de validade para o worker), job que roda `rules/checklist_documental.py`, API | db + worker + api | A | em curso | Worker claude/opus-5-5 em `orq/q04a` (2026-11-07). Trava de banco. Dividido do Q-04: só havia a regra pura |
 | Q-04b | 1 | 03 | Tela do checklist de documentos por edital (sobre a API do Q-04a) | web | B | bloqueado (Q-04a) | Padrões de UX do COMECE-AQUI §3 |
 | Q-05 | 2 | UI | `Table` do Untitled UI em Equipe, Auditoria e Empresas | web | C | integrado | Integrado em 2026-11-07 (codex/gpt-6-luna, 1ª tentativa). Tabela no desktop, cartões abaixo de `md` |
-| Q-06 | 2 | UI | Modo escuro em todo o front | web | B | pronto | Só tokens de `src/ui`; CSP sem `style=` inline |
+| Q-06 | 2 | UI | Modo escuro em todo o front | web | B | em curso | Worker antigravity/gemini-4-argon-high em `orq/q06` (2026-11-07). Só tokens de `src/ui`; CSP sem `style=` inline |
 | Q-07 | 2 | UI | Conferência visual em 360 px de todas as telas, com lista de correções | web | B | pronto | O Antigravity confere no navegador; usar usuário de teste (regra 19) |
 | Q-08 | 2 | 09 | Documentos posteriores à disputa (9.5) | web + api + db | A → B | pronto | Se precisar de migration: tier A faz o banco, depois B faz API e tela (dividir) |
 | Q-09 | 2 | 11 | Upload direto de anexo no contrato (hoje só vínculo com documentos da Fase 03) | web + api | B | pronto | Upload passa por quarentena/antivírus existentes; conferir fluxo da Fase 03 |
