@@ -144,4 +144,51 @@ describe('A x B: documentos, atestados e pesquisa de editais', () => {
     await http().get('/pesquisa/estado').set(bearer(a)).expect(200);
     await http().get('/pesquisa/estado').set(bearer(semEditais)).expect(403);
   });
+  // Todas as cinco rotas :empresa do PesquisaController, nos dois sentidos.
+  for (const dona of ['A', 'B'] as const) {
+    it(`isolamento por endpoint: pesquisa de ${dona} preservada contra a outra empresa`, async () => {
+      const empresa = dona === 'A' ? empA : empB;
+      const outra = dona === 'A' ? empB : empA;
+      const token = dona === 'A' ? a : b;
+      const invasor = dona === 'A' ? b : a;
+      const item = (await admin.query<{ item_id: string }>('select item_id from priv.oportunidades where id = $1', [opA])).rows[0]?.item_id;
+      const op = dona === 'A' ? opA : (await admin.query<{ id: string }>(
+        `insert into priv.oportunidades (empresa_id, edital_id, item_id, nota, faixa, versao_regra, edital_versao)
+         values ($1, $2, $3, 73, 'media', 'teste', 1) returning id`, [empresa, editalId, item])).rows[0]?.id ?? '';
+      const get = async (e: string, t: string, path: string) =>
+        (await http().get(`/empresas/${e}/${path}`).set(bearer(t)).expect(200)).body as unknown;
+      await admin.query(`update ops.fontes set ativa = true where slug = 'pncp'`);
+      try {
+        // Controles positivos: os corpos são aceitos para a dona, sem rede externa.
+        const importacao = { url: `https://pncp.gov.br/app/editais/11222333000181/2026/${dona === 'A' ? '23' : '24'}` };
+        const pesquisa = { inicio: '2026-11-01', fim: '2026-11-02', uf: 'PR' };
+        const criada = (await http().post(`/empresas/${empresa}/importacoes`).set(bearer(token)).send(importacao).expect(202)).body as { importacaoId: string };
+        await http().post(`/empresas/${empresa}/pesquisas`).set(bearer(token)).send(pesquisa).expect(202);
+        const antes = await get(empresa, token, 'oportunidades?encerradas=1');
+        const importacoes = await get(empresa, token, 'importacoes');
+        const execucoes = (await admin.query('select id from ops.execucoes order by id')).rows;
+        const jobs = (await admin.query('select id from ops.jobs order by id')).rows;
+        const rotas: { metodo: 'get' | 'post'; path: string; corpo?: object; recurso?: boolean }[] = [
+          { metodo: 'get', path: 'oportunidades?encerradas=1' },
+          { metodo: 'post', path: `oportunidades/${op}/triagem`, corpo: { triagem: 'descartada_pelo_usuario', motivo: 'Tentativa fictícia de invasão' }, recurso: true },
+          { metodo: 'post', path: 'pesquisas', corpo: pesquisa },
+          { metodo: 'post', path: 'importacoes', corpo: importacao },
+          { metodo: 'get', path: 'importacoes' },
+        ];
+        for (const rota of rotas) {
+          await http()[rota.metodo](`/empresas/${empresa}/${rota.path}`).set(bearer(invasor)).send(rota.corpo ?? {}).expect(404);
+          if (rota.recurso) await http()[rota.metodo](`/empresas/${outra}/${rota.path}`).set(bearer(invasor)).send(rota.corpo ?? {}).expect(404);
+        }
+        expect(await get(empresa, token, 'oportunidades?encerradas=1')).toEqual(antes);
+        expect(await get(empresa, token, 'importacoes')).toEqual(importacoes);
+        expect((await admin.query('select id from ops.execucoes order by id')).rows).toEqual(execucoes);
+        expect((await admin.query('select id from ops.jobs order by id')).rows).toEqual(jobs);
+        expect(JSON.stringify(await get(outra, invasor, 'oportunidades?encerradas=1'))).not.toContain(op);
+        expect(JSON.stringify(await get(outra, invasor, 'importacoes'))).not.toContain(criada.importacaoId);
+      } finally {
+        await admin.query(`update ops.fontes set ativa = false where slug = 'pncp'`);
+      }
+    });
+  }
+
 });
