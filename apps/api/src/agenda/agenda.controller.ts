@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res, StreamableFile } from '@nestjs/common';
 import type { Response } from 'express';
 import { type Transaction, sql } from 'kysely';
 import { z } from 'zod';
@@ -6,8 +6,9 @@ import { type RequisicaoVV, dadosDe, sessaoDe, validar } from '../auth/requisica
 import { Permissao } from '../auth/sessao.guard.js';
 import { ContextoService } from '../db/contexto.service.js';
 import type { Database } from '../db/db.module.js';
-import { type EventoCsv, gerarCsv } from './csv.js';
+import { CABECALHO, type EventoCsv, gerarCsv, montarLinhas } from './csv.js';
 import { type EventoIcs, gerarIcs } from './ics.js';
+import { TIPO_XLSX, gerarXlsx } from '../exportacao/xlsx.js';
 
 const instante = z.iso.datetime({ offset: true });
 const PRIORIDADES = ['baixa', 'normal', 'alta', 'urgente'] as const;
@@ -126,6 +127,17 @@ export class AgendaController {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="agenda-vv-licitacoes.csv"');
     return gerarCsv(eventos as unknown as EventoCsv[]);
+  }
+
+  // Exportação Excel com as mesmas linhas, filtros e permissão do CSV. Texto é gravado em linha pelo gerador (não vira fórmula).
+  @Permissao('agenda', 'exportar')
+  @Get('empresas/:empresa/agenda/eventos.xlsx')
+  async eventosXlsx(@Req() req: RequisicaoVV, @Res({ passthrough: true }) res: Response, @Param('empresa') empresa: string, @Query() consulta: unknown) {
+    const eventos = await this.listarEventos(req, empresa, validar(filtroEventos, consulta));
+    const buf = gerarXlsx([{ nome: 'Agenda', colunas: CABECALHO.map((titulo, i) => ({ titulo, largura: [4, 8, 9, 14].includes(i) ? 24 : i === 8 || i === 14 ? 48 : 18 })), linhas: montarLinhas(eventos as unknown as EventoCsv[]) }]);
+    res.setHeader('Content-Type', TIPO_XLSX);
+    res.setHeader('Content-Disposition', 'attachment; filename="agenda-vv-licitacoes.xlsx"');
+    return new StreamableFile(buf);
   }
 
   private listarEventos(req: RequisicaoVV, empresa: string, f: z.infer<typeof filtroEventos>) {

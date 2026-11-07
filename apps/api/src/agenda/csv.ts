@@ -21,11 +21,17 @@ export function celula(v: string): string {
 export const CABECALHO = ['Prazo (Brasília)', 'Data interna', 'Evento', 'Situação', 'Órgão', 'UF', 'Município', 'Edital', 'Objeto', 'Responsável',
   'Prioridade', 'Prazo provisório', 'Regra validada pelo jurídico', 'Origem do prazo', 'Aviso'];
 
-export function gerarCsv(eventos: EventoCsv[]): string {
-  const linhas = [CABECALHO, ...eventos.map((e) => [
+// Uma única montagem das colunas compartilhadas por CSV e Excel. Datas ficam formatadas em Brasília;
+// o gerador XLSX atual só aceita texto/número e, portanto, não grava datas nativas.
+export function montarLinhas(eventos: EventoCsv[]): string[][] {
+  return eventos.map((e) => [
     data(e.dataLimite), data(e.dataInterna), TIPO[e.tipo] ?? e.tipo, STATUS[e.status] ?? e.status, e.orgao, e.uf ?? '', e.municipio ?? '',
     e.numeroEdital ?? '', e.objeto, e.responsavel ?? '', PRIORIDADE[e.prioridade] ?? e.prioridade, e.provisorio ? 'Sim' : 'Não',
     e.regraValidada ? 'Sim' : 'Não', ORIGEM[e.origemPrazo] ?? e.origemPrazo, e.aviso ?? '',
-  ])];
+  ]);
+}
+
+export function gerarCsv(eventos: EventoCsv[]): string {
+  const linhas = [CABECALHO, ...montarLinhas(eventos)];
   return `﻿${linhas.map((l) => l.map(celula).join(';')).join('\r\n')}\r\n`;
 }

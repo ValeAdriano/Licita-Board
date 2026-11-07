@@ -58,7 +58,10 @@ export default function Agenda() {
         acoes={
           <>
             <Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/agenda/calendario.ics?${exportacao}`)}>Baixar .ics</Botao>
-            {pode('agenda', 'exportar') ? <Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/agenda/eventos.csv?${exportacao}`)}>Exportar planilha</Botao> : null}
+            {pode('agenda', 'exportar') ? <>
+              <Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/agenda/eventos.csv?${exportacao}`)}>Baixar CSV</Botao>
+              <Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/agenda/eventos.xlsx?${exportacao}`)}>Baixar Excel</Botao>
+            </> : null}
             <span className="flex items-center gap-2"><Botao variante="secundario" disabled>Importar planilha</Botao><Etiqueta cor="aviso">EM DESENVOLVIMENTO</Etiqueta></span>
           </>
         }

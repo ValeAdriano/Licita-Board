@@ -1,6 +1,6 @@
 # Fila de desenvolvimento
 
-Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o orquestrador edita este arquivo**, no commit de integração. Montada a partir de [`COMECE-AQUI.md`](COMECE-AQUI.md) §4–§5 e das pendências das specs. Última atualização: 2026-11-07 (Q-01, Q-02, Q-05, Q-06, Q-09 e Q-23/1 integrados; Q-03 já estava no `main`; Q-04 dividido; Q-22 novo).
+Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o orquestrador edita este arquivo**, no commit de integração. Montada a partir de [`COMECE-AQUI.md`](COMECE-AQUI.md) §4–§5 e das pendências das specs. Última atualização: 2026-11-07 (Q-01, Q-02, Q-05, Q-06, Q-09, Q-22 e Q-23/1–2 integrados; Q-03 já estava no `main`; Q-04 dividido; Q-22 novo).
 
 - **Prioridade:** 1 = MVP e uso real primeiro; 2 = completa fase em curso; 3 = melhoria.
 - **Tier:** A Claude Opus · B Gemini 4 Argon (Antigravity) · B' GPT-6.1 Sol · C GPT-6 Luna ([tabela](orquestracao.md#2-roteamento-por-modelo)).
@@ -31,6 +31,6 @@ Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o 
 | Q-19 | 3 | 07 | Empate ficto na tela e reautenticação na aprovação de preço | web + api | A | bloqueado (Adriano) | ⚖️ empate e inexequibilidade; 🧾 tributos |
 | Q-20 | 3 | 08 | Declarações (8.4), modelo oficial e papel timbrado | web + worker | B | bloqueado (externo) | Modelos vêm da operação/jurídico |
 | Q-21 | 3 | 00–01 | VPS, S3 de produção, Sentry, ensaio de restauração | infra | A | bloqueado (Adriano) | Produção e fornecedores |
-| Q-22 | 3 | 12 | Excel da agenda (hoje só CSV e .ics), com o gerador próprio de `apps/api/src/exportacao` | api + web | C | em curso | Worker codex/gpt-6-luna em `orq/q22` (2026-11-07). Achado no Q-01 |
+| Q-22 | 3 | 12 | Excel da agenda (hoje só CSV e .ics), com o gerador próprio de `apps/api/src/exportacao` | api + web | C | integrado | Integrado em 2026-11-07 (codex/gpt-6-luna, 1ª tentativa). Testes unitários verdes; e2e de rotas não rodou (banco ocupado): roda junto com a próxima rodada do Q-23 |
 | Q-23 | 1 | 02+ | e2e A x B por endpoint dos demais módulos com `:empresa` (um módulo por rodada: documentos, pesquisa, análises, preços, propostas, resultados, jurídico, contratos), no padrão da matriz de `agenda.e2e-spec.ts` | api/test | B' | em curso | Rodada 3 (propostas, resultados) com codex/gpt-6.1-sol em `orq/q23c`. Integradas (2026-11-07): rodada 1 pesquisa (5 rotas), rodada 2 análises (8) e preços (7), sem vazamento. Faltam a matriz completa (os demais têm só A x B parcial): propostas 10, resultados 3, jurídico 19, pareceres 9, recursos 7, sugestões 4, teses 9, contratos 17, dashboard 7, busca 1, tarefas 1, ia 5, acesso 4, ficha 11, contas 5, palavras-chave 6, procurações 8, produtos 12, representantes 5, documentos 10, atestados 3. Um worker por vez no `vv_test` da 5433 |
 | Q-24 | 3 | 11 | Upload no contrato: limite de tempo na verificação (hoje consulta a cada 1,5 s sem fim enquanto a aba estiver aberta) e retomada do vínculo pendente ao reabrir a aba | web | C | pronto | Achado ao integrar o Q-09 (`features/contratos/EnviarAnexo.tsx`) |

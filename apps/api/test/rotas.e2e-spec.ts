@@ -84,4 +84,8 @@ describe('cobertura de rotas', () => {
     }
     expect(new Set(publicas)).toEqual(PUBLICAS);
   });
+
+  it('registra a exportação Excel da agenda como rota protegida', () => {
+    expect(rotasRegistradas()).toContain('GET /empresas/:empresa/agenda/eventos.xlsx');
+  });
 });
