@@ -25,6 +25,17 @@ export class PropostasController {
     return this.contexto.comContexto(dadosDe(req, sessaoDe(req).token), fn);
   }
 
+  // As funções de fluxo usam 22023 tanto para ausência quanto para estado inválido.
+  // Distingue a ausência sob RLS na mesma transação da ação.
+  private qProposta<T>(req: RequisicaoVV, empresa: string, id: string, fn: (tx: Transaction<Database>) => Promise<T>): Promise<T> {
+    return this.q(req, async (tx) => {
+      const r = await sql`select id from priv.propostas
+        where id = ${id}::uuid and empresa_id = ${empresa}::uuid and deleted_at is null`.execute(tx);
+      if (!r.rows.length) throw new NotFoundException();
+      return fn(tx);
+    });
+  }
+
   @Permissao('propostas', 'visualizar')
   @Get('empresas/:empresa/acompanhamentos/:id/propostas')
   propostas(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
@@ -73,14 +84,14 @@ export class PropostasController {
   @Post('empresas/:empresa/propostas/:id/conferir')
   @HttpCode(204)
   async conferir(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
-    await this.q(req, (tx) => sql`select priv.conferir_proposta(${empresa}::uuid, ${id}::uuid)`.execute(tx));
+    await this.qProposta(req, empresa, id, (tx) => sql`select priv.conferir_proposta(${empresa}::uuid, ${id}::uuid)`.execute(tx));
   }
 
   @Permissao('propostas', 'editar')
   @Post('empresas/:empresa/propostas/:id/devolver')
   @HttpCode(204)
   async devolver(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
-    await this.q(req, (tx) => sql`select priv.devolver_proposta(${empresa}::uuid, ${id}::uuid)`.execute(tx));
+    await this.qProposta(req, empresa, id, (tx) => sql`select priv.devolver_proposta(${empresa}::uuid, ${id}::uuid)`.execute(tx));
   }
 
   @Permissao('propostas', 'aprovar')
@@ -89,7 +100,7 @@ export class PropostasController {
   async aprovar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
     const d = validar(aprovarStepUp, corpo ?? {});
     // A proposta final exige reautenticação (step-up 'proposta_final'); o banco confere o token.
-    await this.q(req, (tx) => sql`select priv.aprovar_proposta(${empresa}::uuid, ${id}::uuid, ${d.stepUp ?? null}::uuid)`.execute(tx));
+    await this.qProposta(req, empresa, id, (tx) => sql`select priv.aprovar_proposta(${empresa}::uuid, ${id}::uuid, ${d.stepUp ?? null}::uuid)`.execute(tx));
     return { status: 'gerando_documento' };
   }
 

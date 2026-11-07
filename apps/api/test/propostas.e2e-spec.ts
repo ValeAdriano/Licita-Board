@@ -92,6 +92,14 @@ describe('propostas: fluxo e A x B', () => {
     expect([200, 503]).toContain(dl.status); // 503 quando o armazenamento de teste não está ligado; nunca 404 para quem vê
   });
 
+  it('validação real de proposta visível continua 400 nas três ações', async () => {
+    // A versão 2 é um rascunho ainda não validado pelo worker.
+    for (const acao of ['conferir', 'devolver', 'aprovar']) {
+      await http().post(`/empresas/${empA}/propostas/${v2}/${acao}`).set(bearer(a)).send({}).expect(400);
+    }
+    await http().post(`/empresas/${empA}/propostas/${v2}/aprovar`).set(bearer(a)).send({ stepUp: 'inválido' }).expect(400);
+  });
+
   it('A x B: B não lê, não cria nem altera nada de A, nem baixa a final', async () => {
     await http().get(`/empresas/${empA}/acompanhamentos/${acomp}/propostas`).set(bearer(b)).expect(404);
     await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/propostas`).set(bearer(b)).send({}).expect(404);
@@ -101,7 +109,7 @@ describe('propostas: fluxo e A x B', () => {
     // empresa de B na rota com ids de A: o banco não encontra
     await http().get(`/empresas/${empB}/acompanhamentos/${acomp}/propostas`).set(bearer(b)).expect(200).then((r) => { expect((r.body as { propostas: unknown[] }).propostas).toHaveLength(0); });
     await http().post(`/empresas/${empB}/propostas/${prop}/download`).set(bearer(b)).expect(404);
-    await http().post(`/empresas/${empB}/propostas/${v2}/aprovar`).set(bearer(b)).expect(400); // mesma resposta para id de A e id inexistente: nada é revelado
+    await http().post(`/empresas/${empB}/propostas/${v2}/aprovar`).set(bearer(b)).expect(404); // proposta de outra empresa não é visível
     await http().post(`/empresas/${empB}/acompanhamentos/${acomp}/propostas`).set(bearer(b)).send({}).expect(404);
   });
   for (const dona of ['A', 'B'] as const) {
@@ -128,13 +136,13 @@ describe('propostas: fluxo e A x B', () => {
       const snapshot = async () => (await admin.query<Record<string, unknown>>('select * from priv.propostas where acompanhamento_id = $1 order by id', [ac])).rows;
       const intactas = await snapshot();
       const jobs = (await admin.query("select id from ops.jobs where tipo = 'gerar_proposta' order by id")).rows;
-      const rotas: { path: string; corpo?: object; ausente?: number }[] = [
+      const rotas: { path: string; corpo?: object; compararInexistente?: boolean }[] = [
         { path: `acompanhamentos/${ac}/propostas` },
         { path: `propostas/${id}/dados`, corpo: { validadeDias: 99 } },
         { path: `propostas/${id}/validar` },
-        { path: `propostas/${id}/conferir`, ausente: 400 },
-        { path: `propostas/${conferencia}/devolver`, ausente: 400 },
-        { path: `propostas/${conferencia}/aprovar`, corpo: { stepUp: su.id }, ausente: 400 },
+        { path: `propostas/${id}/conferir`, compararInexistente: true },
+        { path: `propostas/${conferencia}/devolver`, compararInexistente: true },
+        { path: `propostas/${conferencia}/aprovar`, corpo: { stepUp: su.id }, compararInexistente: true },
         { path: `propostas/${final}/nova-versao` },
         { path: `propostas/${final}/download`, corpo: { formato: 'docx' } },
         { path: `propostas/${final}/download`, corpo: { formato: 'pdf' } },
@@ -144,12 +152,12 @@ describe('propostas: fluxo e A x B', () => {
         const lista = await http().get(`/empresas/${e}/acompanhamentos/${ac}/propostas`).set(bearer(invasor)).expect(e === empresa ? 404 : 200);
         if (e === outra) expect((lista.body as { propostas: unknown[] }).propostas).toEqual([]);
         for (const rota of rotas) {
-          const r = await http().post(`/empresas/${e}/${rota.path}`).set(bearer(invasor)).send(rota.corpo ?? {}).expect(e === empresa ? 404 : rota.ausente ?? 404);
+          const r = await http().post(`/empresas/${e}/${rota.path}`).set(bearer(invasor)).send(rota.corpo ?? {}).expect(404);
           expect(r.body).not.toHaveProperty('url');
-          // Algumas funções devolvem 400 para qualquer id ausente: comparar evita inferir existência.
-          if (e === outra && rota.ausente) {
+          // Recurso alheio e inexistente têm a mesma resposta 404.
+          if (e === outra && rota.compararInexistente) {
             const inexistente = rota.path.replace(id, crypto.randomUUID()).replace(conferencia, crypto.randomUUID());
-            const controle = await http().post(`/empresas/${e}/${inexistente}`).set(bearer(invasor)).send(rota.corpo ?? {}).expect(400);
+            const controle = await http().post(`/empresas/${e}/${inexistente}`).set(bearer(invasor)).send(rota.corpo ?? {}).expect(404);
             expect(r.body).toEqual(controle.body);
           }
         }
