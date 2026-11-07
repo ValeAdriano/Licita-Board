@@ -8,7 +8,7 @@ Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o 
 
 | ID | Pri | Fase | Item | Área | Tier | Status | Bloqueio / nota |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Q-01 | 1 | docs | Conferir as specs 05 a 12 contra o código e o `COMECE-AQUI.md` §4: marcar na seção de pendências o que já está no `main` e o que falta | docs/specs | C | pronto | Primeiro item: valida o ciclo inteiro com risco zero. Só lê código e edita specs |
+| Q-01 | 1 | docs | Conferir as specs 05 a 12 contra o código e o `COMECE-AQUI.md` §4: marcar na seção de pendências o que já está no `main` e o que falta | docs/specs | C | em curso | Worker codex/gpt-6-luna em `orq/q01` (2026-11-07). Primeiro item: valida o ciclo inteiro com risco zero. Só lê código e edita specs |
 | Q-02 | 1 | 05+ | e2e A x B por endpoint das rotas com `:empresa` ainda sem teste (regra 13), começando pela Agenda (MVP) | api/test | B' | pronto | Leia `apps/api/test/apoio.ts` e `rotas.e2e-spec.ts`; recriar `vv_test` antes (armadilhas do COMECE-AQUI §3) |
 | Q-03 | 1 | 05 | Diff de versões do edital na tela da Agenda (o diff já existe na API) | web | B | pronto | Padrões de UX do COMECE-AQUI §3 |
 | Q-04 | 1 | 03 | Tela do checklist de documentos por edital (regra pura já existe) | web + api | B | pronto | Depende dos editais da Fase 04 (já no `main`) |
