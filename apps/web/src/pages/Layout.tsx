@@ -11,6 +11,7 @@ import { AcessoProvider, useAcesso } from '../features/acesso/contexto'
 import { BuscaRapida } from '../features/busca/BuscaRapida'
 import { TarefasProvider, useTarefas } from '../features/tarefas/TarefasContexto'
 import { SeletorEmpresa } from '../features/acesso/SeletorEmpresa'
+import { SeletorTema } from '../tema/SeletorTema'
 import { Botao, FaixaAmbiente, Marca } from '../ui'
 
 // Shell (RF-01.14) no padrão "sidebar" do Untitled UI: menu lateral fixo no desktop (≥ 1024 px) e, no
@@ -60,6 +61,7 @@ function Conteudo({ aoNavegar }: { aoNavegar?: () => void }) {
           <p className="truncate text-sm font-semibold text-primary">{usuario?.nome}</p>
           <p className="truncate text-sm text-tertiary">{usuario?.email}</p>
         </div>
+        <SeletorTema />
         <Botao variante="secundario" cheio onClick={() => void sair()}>
           <span className="inline-flex items-center gap-2">
             <LogOut01 className="size-4" aria-hidden="true" /> Sair

@@ -12,8 +12,8 @@ export function CodigoQr({ valor, rotulo }: { valor: string; rotulo: string }) {
     return { tamanho: n + 8, caminho: d } // 4 módulos de margem, como manda a especificação
   }, [valor])
   return (
-    <svg role="img" aria-label={rotulo} viewBox={`0 0 ${tamanho} ${tamanho}`} shapeRendering="crispEdges" className="mx-auto size-52 rounded-lg bg-white shadow-xs ring-1 ring-secondary">
-      <path d={caminho} fill="#000" />
+    <svg role="img" aria-label={rotulo} viewBox={`0 0 ${tamanho} ${tamanho}`} shapeRendering="crispEdges" className="mx-auto size-52 rounded-lg bg-qr-background shadow-xs ring-1 ring-secondary">
+      <path d={caminho} className="fill-qr-foreground" />
     </svg>
   )
 }

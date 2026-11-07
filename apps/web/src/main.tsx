@@ -1,5 +1,6 @@
 // Primeiro: tira o token de redefinição da URL antes de qualquer outra coisa (auth/fragmento.ts).
 import './auth/fragmento'
+import './tema/tema'
 import './styles/globals.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'

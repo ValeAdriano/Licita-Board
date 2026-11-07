@@ -45,9 +45,10 @@ X-Frame-Options: DENY
 
 Todos os componentes vêm do **Untitled UI React** (`src/components`, copiados pelo CLI `untitledui`, só os gratuitos) sobre react-aria e Tailwind 4; as telas usam a camada em `src/ui` (nomes em português). Tokens e tema em `src/styles/theme.css` (marca azul, Inter local).
 
+- Use tokens do tema, nunca cor fixa; QR mantém contraste branco/preto com tokens qr-background/qr-foreground para leitura óptica.
 - Tela nova: componentes de `src/ui` (ou `src/components`) e classes Tailwind com os tokens do tema (`text-primary`, `bg-secondary`, `ring-secondary`...). **Nada de CSS próprio nem `style={{}}`** (a CSP bloqueia estilo inline).
 - Layout: menu lateral a partir de 1024 px e cabeçalho com menu em painel no celular; página = `Pagina` + `CabecalhoPagina`; blocos em `Cartao`; abas com `Abas`; alertas com `Aviso`; selos com `Etiqueta`. Uma ação primária por tela.
-- Claro/escuro: o tema do Untitled UI usa a classe `dark-mode` (hoje só o claro está ligado); contraste e alvos de toque seguem o padrão do sistema. `prefers-reduced-motion` respeitado.
+- Claro/escuro: o tema do Untitled UI usa a classe `dark-mode` (Claro / Escuro / Sistema no shell, preferência local `vv.tema`; padrão Sistema); contraste e alvos de toque seguem o padrão do sistema. `prefers-reduced-motion` respeitado.
 - Componente copiado que precise de ajuste: edite o arquivo e registre o ajuste no ADR-020 (o `--overwrite` do CLI o desfaz).
 
 ## Estrutura
