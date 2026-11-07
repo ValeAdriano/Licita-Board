@@ -140,4 +140,64 @@ describe('agenda: fluxo e A x B', () => {
     expect((await http().get(`/empresas/${empA}/agenda/responsaveis`).set(bearer(leitor)).expect(200)).body).toHaveLength(2);
     await http().get(`/empresas/${empA}/agenda/responsaveis`).set(bearer(b)).expect(404);
   });
+
+  // Matriz explícita de todas as 20 rotas do AgendaController, nos dois sentidos.
+  for (const dona of ['A', 'B'] as const) {
+    it(`isolamento por endpoint: empresa ${dona} preservada contra a outra empresa`, async () => {
+      const empresa = dona === 'A' ? empA : empB;
+      const outra = dona === 'A' ? empB : empA;
+      const token = dona === 'A' ? a : b;
+      const invasor = dona === 'A' ? b : a;
+      const get = async (path: string) => (await http().get(`/empresas/${empresa}/${path}`).set(bearer(token)).expect(200)).body as unknown;
+      const id = ((await http().post(`/empresas/${empresa}/acompanhamentos`).set(bearer(token)).send({ editalId }).expect(201)).body as { id: string }).id;
+      await http().post(`/empresas/${empresa}/acompanhamentos/${id}/participacoes`).set(bearer(token)).send({ itemIds: [itemIds[7]] }).expect(201);
+      const detalhe = await get(`acompanhamentos/${id}`) as { itens: { participacaoId: string | null }[] };
+      const pid = detalhe.itens.find((i) => i.participacaoId)?.participacaoId ?? '';
+      const ev = (await admin.query<{ id: string }>(`insert into priv.agenda_eventos (empresa_id, acompanhamento_id, tipo, data_limite_legal) values ($1, $2, 'esclarecimento', '2026-12-20') returning id`, [empresa, id])).rows[0]?.id ?? '';
+      const feriado = { data: '2026-12-24', nome: 'Feriado fictício isolamento', abrangencia: 'uf', uf: 'PR' };
+      const fid = ((await http().post(`/empresas/${empresa}/agenda/feriados`).set(bearer(token)).send(feriado).expect(201)).body as { id: string }).id;
+      const op = (await admin.query<{ id: string }>(`insert into priv.oportunidades (empresa_id, edital_id, item_id, nota, faixa, versao_regra, edital_versao) values ($1, $2, $3, 80, 'alta', 'teste', 1) returning id`, [empresa, editalId, itemIds[6]])).rows[0]?.id ?? '';
+      const responsavel = (await get('agenda/responsaveis') as { id: string }[])[0]?.id ?? '';
+      const antes = await get(`acompanhamentos/${id}`);
+      const cfg = await get('agenda/configuracao');
+      const rotas: { metodo: 'get' | 'post' | 'patch' | 'delete'; path: string; corpo?: object; recurso?: boolean }[] = [
+        ...['responsaveis', 'eventos', 'calendario.ics', 'configuracao', 'eventos.csv', 'acompanhamentos'].map((p) => ({ metodo: 'get' as const, path: `agenda/${p}` })),
+        { metodo: 'get', path: `acompanhamentos/${id}`, recurso: true },
+        { metodo: 'post', path: 'agenda/feriados', corpo: { ...feriado, data: '2026-12-25' } },
+        { metodo: 'delete', path: `agenda/feriados/${fid}`, recurso: true },
+        { metodo: 'post', path: 'agenda/parametros', corpo: { diasInternos: 9 } },
+        { metodo: 'post', path: 'acompanhamentos', corpo: { editalId } },
+        { metodo: 'post', path: `oportunidades/${op}/acompanhar`, recurso: true },
+        { metodo: 'post', path: `acompanhamentos/${id}/abertura`, corpo: { data: '2026-12-22T10:00:00-03:00', origem: 'edital' }, recurso: true },
+        { metodo: 'patch', path: `acompanhamentos/${id}`, corpo: { prioridade: 'urgente' }, recurso: true },
+        { metodo: 'post', path: `acompanhamentos/${id}/participacoes`, corpo: { itemIds: [itemIds[6]] }, recurso: true },
+        { metodo: 'patch', path: `participacoes/${pid}`, corpo: { marca: 'Invasão fictícia' }, recurso: true },
+        { metodo: 'post', path: `acompanhamentos/${id}/fatos`, corpo: { tipo: 'intencao_recurso', dataBase: '2026-12-22T10:00:00-03:00' }, recurso: true },
+        { metodo: 'post', path: `eventos/${ev}/status`, corpo: { status: 'em_elaboracao' }, recurso: true },
+        { metodo: 'post', path: `eventos/${ev}/prazo`, corpo: { dataLimite: '2026-12-22T10:00:00-03:00', justificativa: 'Tentativa fictícia de alteração' }, recurso: true },
+        { metodo: 'post', path: `eventos/${ev}/responsavel`, corpo: { responsavelId: responsavel }, recurso: true },
+      ];
+      for (const rota of rotas) {
+        await http()[rota.metodo](`/empresas/${empresa}/${rota.path}`).set(bearer(invasor)).send(rota.corpo ?? {}).expect(404);
+        if (rota.recurso) await http()[rota.metodo](`/empresas/${outra}/${rota.path}`).set(bearer(invasor)).send(rota.corpo ?? {}).expect(404);
+      }
+      expect(await get(`acompanhamentos/${id}`)).toEqual(antes);
+      expect(await get('agenda/configuracao')).toEqual(cfg);
+      const outrosResponsaveis = (await http().get(`/empresas/${outra}/agenda/responsaveis`).set(bearer(invasor)).expect(200)).body as { id: string }[];
+      expect(outrosResponsaveis.map((r) => r.id)).not.toContain(responsavel);
+      const outraCfg = (await http().get(`/empresas/${outra}/agenda/configuracao`).set(bearer(invasor)).expect(200)).body as { feriados: { id: string }[] };
+      expect(outraCfg.feriados.map((f) => f.id)).not.toContain(fid);
+      expect((await admin.query(`select triagem from priv.oportunidades where id = $1`, [op])).rows[0]).toEqual({ triagem: 'nova' });
+      for (const path of ['agenda/eventos', 'agenda/acompanhamentos']) {
+        const r = await http().get(`/empresas/${outra}/${path}`).set(bearer(invasor)).expect(200);
+        expect(JSON.stringify(r.body)).not.toContain(id);
+        expect(JSON.stringify(r.body)).not.toContain(ev);
+      }
+      for (const path of ['calendario.ics', 'eventos.csv']) {
+        const r = await http().get(`/empresas/${outra}/agenda/${path}?acompanhamento=${id}`).set(bearer(invasor)).expect(200);
+        expect(r.text).not.toContain(ev);
+      }
+    });
+  }
+
 });
