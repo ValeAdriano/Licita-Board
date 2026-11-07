@@ -9,10 +9,11 @@ Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o 
 | ID | Pri | Fase | Item | Área | Tier | Status | Bloqueio / nota |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Q-01 | 1 | docs | Conferir as specs 05 a 12 contra o código e o `COMECE-AQUI.md` §4: marcar na seção de pendências o que já está no `main` e o que falta | docs/specs | C | integrado | Integrado em 2026-11-07 (codex/gpt-6-luna, 1ª tentativa). Estado item a item na seção de estado de cada spec 05–12 |
-| Q-02 | 1 | 05+ | e2e A x B por endpoint das rotas com `:empresa` ainda sem teste (regra 13), começando pela Agenda (MVP) | api/test | B' | pronto | Leia `apps/api/test/apoio.ts` e `rotas.e2e-spec.ts`; recriar `vv_test` antes (armadilhas do COMECE-AQUI §3) |
+| Q-02 | 1 | 05+ | e2e A x B por endpoint das rotas com `:empresa` ainda sem teste (regra 13), começando pela Agenda (MVP) | api/test | B' | em curso | Worker codex/gpt-6.1-sol em `orq/q02` (2026-11-07). Leia `apps/api/test/apoio.ts` e `rotas.e2e-spec.ts`; recriar `vv_test` antes (armadilhas do COMECE-AQUI §3) |
 | Q-03 | 1 | 05 | Diff de versões do edital na tela da Agenda (o diff já existe na API) | web | B | integrado | Já estava no `main` (achado no Q-01): `DiffVersoes` em `pages/Acompanhamento.tsx` e `pages/Edital.tsx` |
-| Q-04 | 1 | 03 | Tela do checklist de documentos por edital (regra pura já existe) | web + api | B | pronto | Depende dos editais da Fase 04 (já no `main`) |
-| Q-05 | 2 | UI | `Table` do Untitled UI em Equipe, Auditoria e Empresas | web | C | pronto | Troca mecânica; tabela vira cards no celular |
+| Q-04a | 1 | 03 | Checklist documental por edital: banco (exigências por edital + leitura de validade para o worker), job que roda `rules/checklist_documental.py`, API | db + worker + api | A | em curso | Worker claude/opus-5-5 em `orq/q04a` (2026-11-07). Trava de banco. Dividido do Q-04: só havia a regra pura |
+| Q-04b | 1 | 03 | Tela do checklist de documentos por edital (sobre a API do Q-04a) | web | B | bloqueado (Q-04a) | Padrões de UX do COMECE-AQUI §3 |
+| Q-05 | 2 | UI | `Table` do Untitled UI em Equipe, Auditoria e Empresas | web | C | em curso | Worker codex/gpt-6-luna em `orq/q05` (2026-11-07). Troca mecânica; tabela vira cards no celular |
 | Q-06 | 2 | UI | Modo escuro em todo o front | web | B | pronto | Só tokens de `src/ui`; CSP sem `style=` inline |
 | Q-07 | 2 | UI | Conferência visual em 360 px de todas as telas, com lista de correções | web | B | pronto | O Antigravity confere no navegador; usar usuário de teste (regra 19) |
 | Q-08 | 2 | 09 | Documentos posteriores à disputa (9.5) | web + api + db | A → B | pronto | Se precisar de migration: tier A faz o banco, depois B faz API e tela (dividir) |
