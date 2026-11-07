@@ -28,7 +28,7 @@ describe('Auditoria', () => {
   it('mostra o que foi feito, por quem (nome da equipe) e quando', async () => {
     render(<Auditoria />)
     expect(await screen.findByText('Criou permissão')).toBeInTheDocument()
-    expect(await screen.findByText(/Ana/)).toBeInTheDocument()
+    expect(await screen.findAllByText(/Ana/)).not.toHaveLength(0)
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/empresas/e1/auditoria')
   })
 

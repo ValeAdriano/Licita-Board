@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Aviso, Botao } from '../../../ui'
+import { Aviso, Botao, Table } from '../../../ui'
 import { cnpjLegivel } from '../cnpj'
 import { useAcesso } from '../contexto'
 import { useGet } from '../useGet'
@@ -52,7 +52,11 @@ export function Empresas() {
       <Aviso texto={empresas.erro} />
       {empresas.carregando ? <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Carregando…</p> : null}
       {empresas.dados?.length === 0 ? <p className="px-4 py-10 text-center text-sm text-tertiary">Nenhuma empresa cadastrada.</p> : null}
-      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
+      {empresas.dados?.length ? <>
+      <div className="hidden md:block overflow-hidden rounded-xl shadow-xs ring-1 ring-secondary">
+        <Table aria-label="Empresas" size="sm"><Table.Header><Table.Head id="empresa" isRowHeader label="Empresa" /><Table.Head id="cnpj" label="CNPJ" /><Table.Head id="acoes" label="Ações" /></Table.Header><Table.Body items={empresas.dados.map((e) => ({ ...e, key: e.id }))}>{(e) => <Table.Row id={e.id}><Table.Cell><bdi>{e.razaoSocial}</bdi></Table.Cell><Table.Cell>{cnpjLegivel(e.cnpj)}</Table.Cell><Table.Cell><span className="flex gap-2"><Botao variante="secundario" aria-label={`Abrir ${e.razaoSocial}`} onClick={() => { escolherEmpresa(e.id); void navegar('/equipe') }}>Abrir</Botao><Botao variante="texto" aria-label={`Excluir definitivamente ${e.razaoSocial}`} onClick={() => setExcluindo(e)}>Excluir…</Botao></span></Table.Cell></Table.Row>}</Table.Body></Table>
+      </div>
+      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary md:hidden">
         {empresas.dados?.map((e) => (
           <div key={e.id} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left flex-wrap">
             <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
@@ -79,6 +83,7 @@ export function Empresas() {
           </div>
         ))}
       </div>
+      </> : null}
     </div>
   )
 }

@@ -128,7 +128,7 @@ describe('Empresas', () => {
       </MemoryRouter>,
     )
     expect(await screen.findByText('CNPJ 11.222.333/0001-81')).toBeInTheDocument()
-    await u.click(screen.getByRole('button', { name: 'Abrir Alfa Ltda' }))
+    await u.click(screen.getAllByRole('button', { name: 'Abrir Alfa Ltda' })[0])
     expect(mocks.escolherEmpresa).toHaveBeenCalledWith('e1')
   })
 })

@@ -1,6 +1,6 @@
 # Fila de desenvolvimento
 
-Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o orquestrador edita este arquivo**, no commit de integração. Montada a partir de [`COMECE-AQUI.md`](COMECE-AQUI.md) §4–§5 e das pendências das specs. Última atualização: 2026-11-07 (Q-01 integrado; Q-03 já estava no `main`; Q-22 novo).
+Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o orquestrador edita este arquivo**, no commit de integração. Montada a partir de [`COMECE-AQUI.md`](COMECE-AQUI.md) §4–§5 e das pendências das specs. Última atualização: 2026-11-07 (Q-01 e Q-05 integrados; Q-03 já estava no `main`; Q-04 dividido; Q-22 novo).
 
 - **Prioridade:** 1 = MVP e uso real primeiro; 2 = completa fase em curso; 3 = melhoria.
 - **Tier:** A Claude Opus · B Gemini 4 Argon (Antigravity) · B' GPT-6.1 Sol · C GPT-6 Luna ([tabela](orquestracao.md#2-roteamento-por-modelo)).
@@ -13,7 +13,7 @@ Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o 
 | Q-03 | 1 | 05 | Diff de versões do edital na tela da Agenda (o diff já existe na API) | web | B | integrado | Já estava no `main` (achado no Q-01): `DiffVersoes` em `pages/Acompanhamento.tsx` e `pages/Edital.tsx` |
 | Q-04a | 1 | 03 | Checklist documental por edital: banco (exigências por edital + leitura de validade para o worker), job que roda `rules/checklist_documental.py`, API | db + worker + api | A | em curso | Worker claude/opus-5-5 em `orq/q04a` (2026-11-07). Trava de banco. Dividido do Q-04: só havia a regra pura |
 | Q-04b | 1 | 03 | Tela do checklist de documentos por edital (sobre a API do Q-04a) | web | B | bloqueado (Q-04a) | Padrões de UX do COMECE-AQUI §3 |
-| Q-05 | 2 | UI | `Table` do Untitled UI em Equipe, Auditoria e Empresas | web | C | em curso | Worker codex/gpt-6-luna em `orq/q05` (2026-11-07). Troca mecânica; tabela vira cards no celular |
+| Q-05 | 2 | UI | `Table` do Untitled UI em Equipe, Auditoria e Empresas | web | C | integrado | Integrado em 2026-11-07 (codex/gpt-6-luna, 1ª tentativa). Tabela no desktop, cartões abaixo de `md` |
 | Q-06 | 2 | UI | Modo escuro em todo o front | web | B | pronto | Só tokens de `src/ui`; CSP sem `style=` inline |
 | Q-07 | 2 | UI | Conferência visual em 360 px de todas as telas, com lista de correções | web | B | pronto | O Antigravity confere no navegador; usar usuário de teste (regra 19) |
 | Q-08 | 2 | 09 | Documentos posteriores à disputa (9.5) | web + api + db | A → B | pronto | Se precisar de migration: tier A faz o banco, depois B faz API e tela (dividir) |

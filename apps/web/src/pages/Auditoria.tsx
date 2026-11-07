@@ -3,7 +3,7 @@ import { useAcesso, type Vinculo } from '../features/acesso/contexto'
 import { descricao, nomeDoAutor, rotuloTabela, type Registro } from '../features/acesso/auditoria/rotulos'
 import type { Membro } from '../features/acesso/equipe/tipos'
 import { useGet } from '../features/acesso/useGet'
-import { Aviso, CabecalhoPagina, Pagina, Selecao } from '../ui'
+import { Aviso, CabecalhoPagina, Pagina, Selecao, Table } from '../ui'
 
 // Auditoria da empresa (Prompt 1.4, RF-01.2): quem fez o quê e quando. Só leitura; o registro é
 // imutável no banco. A API devolve os 200 mais recentes e só para quem tem auditoria/visualizar.
@@ -34,7 +34,11 @@ function AuditoriaDaEmpresa({ empresa }: { empresa: Vinculo }) {
       ) : null}
       {registros.carregando ? <p className="text-sm text-tertiary [overflow-wrap:anywhere]">Carregando…</p> : null}
       {registros.dados && lista.length === 0 ? <p className="px-4 py-10 text-center text-sm text-tertiary">Nada registrado ainda.</p> : null}
-      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
+      {lista.length ? <>
+      <div className="hidden md:block overflow-hidden rounded-xl shadow-xs ring-1 ring-secondary">
+        <Table aria-label="Auditoria" size="sm"><Table.Header><Table.Head id="acao" isRowHeader label="Ação" /><Table.Head id="autor" label="Autor" /><Table.Head id="data" label="Data e hora" /></Table.Header><Table.Body items={lista.map((r) => ({ ...r, key: r.id }))}>{(r) => <Table.Row id={r.id}><Table.Cell>{descricao(r)}</Table.Cell><Table.Cell><bdi>{nomeDoAutor(r.autor, nomes)}</bdi></Table.Cell><Table.Cell>{new Date(r.em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</Table.Cell></Table.Row>}</Table.Body></Table>
+      </div>
+      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary md:hidden">
         {lista.map((r) => (
           <div key={r.id} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left">
             <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
@@ -46,6 +50,7 @@ function AuditoriaDaEmpresa({ empresa }: { empresa: Vinculo }) {
           </div>
         ))}
       </div>
+      </> : null}
     </Pagina>
   )
 }
