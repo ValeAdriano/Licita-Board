@@ -125,4 +125,49 @@ describe('análise técnica: fluxo e A x B', () => {
     expect(d.requisitos).toHaveLength(0);
     expect(d.analises[0]?.linhas).toHaveLength(0); // a linha do requisito removido não aparece
   });
+
+  // Matriz completa das rotas :empresa; cada caso usa recursos novos da dona.
+  for (const dona of ['A', 'B'] as const) {
+    it(`isolamento por endpoint: analises de ${dona} intacta, sem jobs ou dados para invasor`, async () => {
+      const empresa = dona === 'A' ? empA : empB;
+      const outra = dona === 'A' ? empB : empA;
+      const token = dona === 'A' ? a : b;
+      const invasor = dona === 'A' ? b : a;
+      const origem = (await admin.query<{ edital_id: string; item_id: string }>(
+        `select a.edital_id, p.item_id from priv.participacoes p join priv.acompanhamentos a on a.id = p.acompanhamento_id where p.id = $1`, [part])).rows[0];
+      if (!origem) throw new Error('Participação de origem ausente');
+      const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, objeto, hash_conteudo) select fonte_id, $2, orgao_id, objeto, hash_conteudo from pub.editais where id = $1 returning id`, [origem.edital_id, crypto.randomUUID()])).rows[0]?.id ?? '';
+      const ac = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1, $2) returning id`, [empresa, edital])).rows[0]?.id ?? '';
+      const item = (await admin.query<{ id: string }>(`insert into pub.edital_itens (edital_id, numero_item, descricao, quantidade, valor_unitario_estimado) values ($1, 1, 'Item matriz', 10, 200) returning id`, [edital])).rows[0]?.id ?? '';
+      const id = (await admin.query<{ id: string }>(`insert into priv.participacoes (empresa_id, acompanhamento_id, item_id) values ($1, $2, $3) returning id`, [empresa, ac, item])).rows[0]?.id ?? '';
+      const get = async () => (await http().get(`/empresas/${empresa}/participacoes/${id}/analise`).set(bearer(token)).expect(200)).body as unknown;
+      const pr = (await admin.query<{ id: string }>(`insert into priv.produtos (empresa_id, categoria_id, codigo_interno, descricao) values ($1, (select id from pub.categorias where slug = 'veiculos'), $2, 'Produto matriz') returning id`, [empresa, `AXB-${dona}`])).rows[0]?.id ?? '';
+      const doc = (await admin.query<{ id: string }>(`insert into priv.documentos (empresa_id, tipo_id, descricao) values ($1, (select id from pub.tipos_documento limit 1), 'Ficha matriz') returning id`, [empresa])).rows[0]?.id ?? '';
+      const req = (await http().post(`/empresas/${empresa}/participacoes/${id}/requisitos`).set(bearer(token)).send({ nome: 'Requisito matriz', operador: 'sim' }).expect(201)).body as { id: string };
+      const an = (await http().post(`/empresas/${empresa}/participacoes/${id}/analises`).set(bearer(token)).send({ produtoId: pr }).expect(202)).body as { id: string };
+      const li = (await admin.query<{ id: string }>(`insert into priv.analise_linhas (empresa_id, analise_id, requisito_id, resultado) values ($1, $2, $3, 'A CONFIRMAR') returning id`, [empresa, an.id, req.id])).rows[0]?.id ?? '';
+      await admin.query(`update priv.requisitos_item set origem = 'ia', modelo_ia = 'teste', prompt_versao = 'req-v1', confirmado_em = null, confirmado_por = null where id = $1`, [req.id]);
+      const antes = await get();
+      const jobs = (await admin.query("select id from ops.jobs where tipo in ('analisar_item', 'extrair_requisitos') order by id")).rows;
+      const rotas: { metodo: 'get' | 'post' | 'delete'; path: string; corpo?: object }[] = [
+        { metodo: 'get', path: `participacoes/${id}/analise` },
+        { metodo: 'post', path: `participacoes/${id}/requisitos`, corpo: { nome: 'Intruso', operador: 'sim' } },
+        { metodo: 'delete', path: `requisitos/${req.id}` },
+        { metodo: 'post', path: `requisitos/${req.id}/confirmar` },
+        { metodo: 'post', path: `participacoes/${id}/analises`, corpo: { produtoId: pr } },
+        { metodo: 'post', path: `participacoes/${id}/extrair-requisitos` },
+        { metodo: 'post', path: `analise-linhas/${li}/ficha`, corpo: { documentoId: doc, pagina: 1, trecho: 'Ficha técnica fictícia' } },
+        { metodo: 'post', path: `analises/${an.id}/aprovar` },
+      ];
+      for (const rota of rotas) {
+        for (const e of [empresa, outra]) {
+          const r = await http()[rota.metodo](`/empresas/${e}/${rota.path}`).set(bearer(invasor)).send(rota.corpo ?? {}).expect(404);
+          expect(r.body).toEqual({ message: 'Not Found', statusCode: 404 });
+        }
+      }
+      expect(await get()).toEqual(antes);
+      expect((await admin.query("select id from ops.jobs where tipo in ('analisar_item', 'extrair_requisitos') order by id")).rows).toEqual(jobs);
+    });
+  }
+
 });

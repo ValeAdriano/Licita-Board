@@ -82,7 +82,7 @@
 - ❌ Cenários salvos: não localizados em `apps/api/src/precos` nem `apps/web/src/features/precos`.
 - 🟡 Valor por extenso: utilitário existe na Fase 08, mas não integrado à tela de preços: `apps/worker/src/worker/rules/extenso.py`.
 - ❌ Parâmetros tributários e percentuais de empate/inexequibilidade ainda aguardam validação do contador/jurídico; não há regra ativa que os determine.
-- ✅ Isolamento A x B consta com pgTAP/e2e históricos; pendente cumprir a regra 13 antes de uso real, sem reexecução nesta conferência.
+- ✅ Q-23 (rodada 2): matriz e2e A x B das 7 rotas `:empresa`, nos dois sentidos, com 404 para empresa e id alheios, recurso da dona intacto e nenhum job criado pela tentativa. Suítes análises/preços: 15 testes verdes; pgTAP executado no banco descartável. Sigilo de custos/margens preservado nas respostas de preços; valores monetários como string.
 
 - 2026-11-05 · spec aprovada; implementação em blocos (regras puras → banco → worker → API → tela).
 - **Núcleo pronto (2026-11-05):** `rules/precos.py` (Decimal, 100% de cobertura, casos de borda de arredondamento), migration `20261111100000` (`priv.precificacoes`, `priv.preco_linhas`; leitura só com `precos/ver_custos_margens`; escrita só por função; alçada: abaixo do mínimo exige justificativa e `precos/aprovar`; mudar insumo derruba a aprovação), job `calcular_preco` (`worker/preco.py`), API `apps/api/src/precos`, tela `/agenda/participacoes/:id/preco` (link "Preço" nos itens). Testes: pytest (15 das regras, 5 do job com banco), pgTAP 270 e 2 de isolamento A x B, e2e (sigilo de custos e A x B), formatação do front. Conferido no navegador com o worker real (conta fictícia): preço = custo ÷ (1 − percentuais − margem), arredondado e total conferidos à mão.

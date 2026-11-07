@@ -103,4 +103,48 @@ describe('preços: fluxo, sigilo e A x B', () => {
     await http().post(`/empresas/${empB}/precificacoes/${prec}/aprovar`).set(bearer(b)).send({}).expect(404);
     await http().delete(`/empresas/${empB}/preco-linhas/${linha}`).set(bearer(b)).expect(404);
   });
+
+  // Matriz completa das rotas :empresa; cada caso usa recursos novos da dona.
+  for (const dona of ['A', 'B'] as const) {
+    it(`isolamento por endpoint: precos de ${dona} intacta, sem jobs ou dados para invasor`, async () => {
+      const empresa = dona === 'A' ? empA : empB;
+      const outra = dona === 'A' ? empB : empA;
+      const token = dona === 'A' ? a : b;
+      const invasor = dona === 'A' ? b : a;
+      const origem = (await admin.query<{ edital_id: string; item_id: string }>(
+        `select a.edital_id, p.item_id from priv.participacoes p join priv.acompanhamentos a on a.id = p.acompanhamento_id where p.id = $1`, [part])).rows[0];
+      if (!origem) throw new Error('Participação de origem ausente');
+      const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, objeto, hash_conteudo) select fonte_id, $2, orgao_id, objeto, hash_conteudo from pub.editais where id = $1 returning id`, [origem.edital_id, crypto.randomUUID()])).rows[0]?.id ?? '';
+      const ac = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1, $2) returning id`, [empresa, edital])).rows[0]?.id ?? '';
+      const item = (await admin.query<{ id: string }>(`insert into pub.edital_itens (edital_id, numero_item, descricao, quantidade, valor_unitario_estimado) values ($1, 1, 'Item matriz', 10, 200) returning id`, [edital])).rows[0]?.id ?? '';
+      const id = (await admin.query<{ id: string }>(`insert into priv.participacoes (empresa_id, acompanhamento_id, item_id) values ($1, $2, $3) returning id`, [empresa, ac, item])).rows[0]?.id ?? '';
+      const get = async () => (await http().get(`/empresas/${empresa}/participacoes/${id}/preco`).set(bearer(token)).expect(200)).body as unknown;
+      const preco = (await http().post(`/empresas/${empresa}/participacoes/${id}/preco`).set(bearer(token)).send({}).expect(201)).body as { id: string };
+      const custo = { nome: `Custo reservado ${dona}`, tipo: 'aquisicao', categoria: 'custo', forma: 'por_unidade', valor: '9876.5432' };
+      const li = (await http().post(`/empresas/${empresa}/precificacoes/${preco.id}/linhas`).set(bearer(token)).send(custo).expect(201)).body as { id: string };
+      const positivo = (await get()) as { linhas: { valor: string }[]; precificacao: { quantidade: string } };
+      expect(positivo.linhas[0]?.valor).toBe('9876.5432');
+      expect(typeof positivo.precificacao.quantidade).toBe('string');
+      const antes = await get();
+      const jobs = (await admin.query("select id from ops.jobs where tipo = 'calcular_preco' order by id")).rows;
+      const rotas: { metodo: 'get' | 'post' | 'delete'; path: string; corpo?: object }[] = [
+        { metodo: 'get', path: `participacoes/${id}/preco` },
+        { metodo: 'post', path: `participacoes/${id}/preco`, corpo: {} },
+        { metodo: 'post', path: `precificacoes/${preco.id}/parametros`, corpo: { quantidade: '1', margemDesejada: '20', margemMinima: '10', casas: 2, arredondamento: 'half_up' } },
+        { metodo: 'post', path: `precificacoes/${preco.id}/linhas`, corpo: custo },
+        { metodo: 'delete', path: `preco-linhas/${li.id}` },
+        { metodo: 'post', path: `preco-linhas/${li.id}/validar` },
+        { metodo: 'post', path: `precificacoes/${preco.id}/aprovar`, corpo: {} },
+      ];
+      for (const rota of rotas) {
+        for (const e of [empresa, outra]) {
+          const r = await http()[rota.metodo](`/empresas/${e}/${rota.path}`).set(bearer(invasor)).send(rota.corpo ?? {}).expect(404);
+          expect(r.body).toEqual({ message: 'Not Found', statusCode: 404 });
+        }
+      }
+      expect(await get()).toEqual(antes);
+      expect((await admin.query("select id from ops.jobs where tipo = 'calcular_preco' order by id")).rows).toEqual(jobs);
+    });
+  }
+
 });

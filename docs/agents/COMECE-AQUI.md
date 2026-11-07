@@ -27,6 +27,7 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 
 - `db/scripts/test-local.sh` troca as senhas dos papéis `vv_*` do servidor por aleatórias: depois rode `scripts/dev-up.sh` (restaura as do `.env`) ou o login da API dá 500. Para rodar o e2e logo após, restaure à mão: `alter role vv_api password '<VV_API_PASSWORD do .env>'` (e `vv_owner`, `vv_worker`).
 - e2e da API: `DATABASE_URL_TEST` (vv_api no `vv_test`, porta 5433) e `DATABASE_URL_ADMIN_TEST` (postgres); não é idempotente em banco reaproveitado, então recrie o `vv_test` antes (test-local). Comando: `npx vitest run --project e2e <nome>` em `apps/api`.
+- Suítes e2e rodam em paralelo no mesmo `vv_test`: na matriz A x B, crie edital/item próprios por caso e compare jobs filtrando pelo `tipo` do módulo (senão uma suíte enxerga os jobs da outra).
 - Suítes de e2e (API) e de pytest com banco (worker) compartilham o `vv_test` e se poluem: rode uma, recrie o banco (`db/scripts/test-local.sh`), restaure as senhas e rode a outra (já deu falso negativo em `test_avaliacao`).
 - TOTP não aceita o mesmo código duas vezes (anti-replay): em script, espere a janela de 30 s.
 - Permissão ausente devolve 404 (não 403) na API. Rota nova com `:empresa` entra no teste `rotas.e2e-spec.ts`.
@@ -66,7 +67,7 @@ Plano de marcos, MVP e sprints: [`../roadmap-marcos.md`](../roadmap-marcos.md) (
 **Orquestração (2026-11-06):** a ordem de trabalho agora vive em [`fila.md`](fila.md), consumida por um orquestrador Claude no Paseo (`/orquestrar`; [`orquestracao.md`](orquestracao.md)). Workers (Antigravity/Gemini 4 Argon, Codex GPT-6.1 Sol e GPT-6 Luna) trabalham em worktrees `orq/<id>`; `scripts/conferir-entrega.py` repete o hook de proteção sobre o diff, porque só o Claude Code passa pelo hook. A lista abaixo continua como contexto; ao mudar de prioridade, mude a fila.
 
 1. Fase 05: importar planilha (bloqueado: falta o layout da planilha atual da operação; exportação CSV já existe).
-2. Fase 05 e anteriores: A x B (pgTAP e e2e) das tabelas `priv` novas **antes de uso real** (regra 13). Matriz e2e A x B por endpoint (todas as rotas, dois sentidos, recurso intacto) pronta em Agenda (Q-02) e Pesquisa (Q-23); os demais módulos têm A x B parcial (inventário na linha Q-23 da `fila.md`).
+2. Fase 05 e anteriores: A x B (pgTAP e e2e) das tabelas `priv` novas **antes de uso real** (regra 13). Matriz e2e A x B por endpoint (todas as rotas, dois sentidos, recurso intacto) pronta em Agenda (Q-02), Pesquisa, Análises e Preços (Q-23; em preços, B nunca recebe custo/margem de A); os demais módulos têm A x B parcial (inventário na linha Q-23 da `fila.md`).
 3. Fase 04: decidir Compras.gov.br com o Adriano (recomendação: só conferência cruzada).
 4. UI: `Table` nas telas restantes, modo escuro, revisão em 360 px.
 5. Infra: VPS, S3 de produção, ensaio de restauração do backup (precisa do Adriano).
