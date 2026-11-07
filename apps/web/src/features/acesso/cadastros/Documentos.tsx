@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { enviarVersao, validarArquivo } from '../../../documentos/upload'
 import { chamar, ErroApi } from '../../../api/cliente'
 import { Arquivo, Aviso, Botao, Campo, Etiqueta } from '../../../ui'
 import { Secao } from '../conta/Secao'
@@ -16,7 +17,6 @@ const PASTAS: Record<string, string> = {
   tecnica: 'Qualificação técnica', timbrado_modelos: 'Timbrado e modelos', juridico: 'Jurídico',
 }
 const STATUS: Record<string, string> = { valido: 'Válido', a_vencer: 'A vencer', vencido: 'Vencido', em_atualizacao: 'Em atualização', pendente: 'Pendente' }
-const MAX = 25 * 1024 * 1024
 
 // Repositório documental (Fase 03): o arquivo vai direto ao S3 por URL assinada, fica em quarentena e só é
 // liberado depois do antivírus, do tipo real e do SHA-256. Vencidos aparecem primeiro e em destaque.
@@ -97,15 +97,11 @@ function Detalhe({ empresaId, doc, tipo, pode, aoVoltar }: { empresaId: string; 
   const enviarArquivo = () =>
     enviar(async () => {
       const f = arquivo
-      if (!f) throw new ErroApi(400, 'Escolha um arquivo.')
-      if (f.size > MAX) throw new ErroApi(400, 'O arquivo passa de 25 MB.')
+      validarArquivo(f)
       setMsg('Enviando…')
-      const v = await chamar<{ versaoId: string; url: string }>('POST', `/empresas/${empresaId}/documentos/${doc.id}/versoes`, { nome: f.name, tamanho: f.size, emissao: emissao || null, validade: validade || null })
-      const put = await fetch(v.url, { method: 'PUT', body: f })
-      if (!put.ok) throw new ErroApi(502, 'Falha ao enviar o arquivo.')
-      await chamar('POST', `/empresas/${empresaId}/versoes/${v.versaoId}/concluir`)
+      const versaoId = await enviarVersao(empresaId, doc.id, f, emissao, validade)
       setMsg('Verificando o arquivo (antivírus e tipo)…')
-      const r = await aguardar(v.versaoId)
+      const r = await aguardar(versaoId)
       versoes.recarregar()
       setMsg(null)
       if (!r) return 'Verificação em andamento: volte em instantes.'

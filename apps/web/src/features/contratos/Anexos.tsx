@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Link } from 'react-router'
 import { chamar } from '../../api/cliente'
 import { Aviso, Botao, Campo, Cartao, Etiqueta, Legenda, Selecao, Vazio } from '../../ui'
@@ -6,6 +6,7 @@ import { useEnvio } from '../acesso/conta/useEnvio'
 import { useAcesso } from '../acesso/contexto'
 import { useGet } from '../acesso/useGet'
 import { STATUS_PECA, TIPO_PECA } from '../juridico/tipos'
+import { EnviarAnexo } from './EnviarAnexo'
 import { dia, ETAPAS, type Detalhe } from './tipos'
 
 interface Anexo { id: string; empenhoNumero: string | null; etapa: string | null; nota: string | null; documentoId: string; descricao: string | null; status: string | null; validade: string | null }
@@ -17,10 +18,13 @@ const COR_DOC: Record<string, 'sucesso' | 'aviso' | 'erro' | 'cinza'> = { vigent
 // Pedidos de reajuste e de reequilíbrio nascem aqui como peças do jurídico (⚖️ o sistema não calcula índice nem decide o direito).
 export function Anexos({ empresaId, id, d, editar }: { empresaId: string; id: string; d: Detalhe; editar: boolean }) {
   const { pode } = useAcesso()
-  const anexos = useGet<Anexo[]>(`/empresas/${empresaId}/contratos/${id}/anexos`)
+  const [rodada, setRodada] = useState(0)
+  const anexos = useGet<Anexo[]>(`/empresas/${empresaId}/contratos/${id}/anexos?rodada=${rodada}`)
   const docs = useGet<DocumentoLinha[]>(pode('documentos', 'visualizar') && editar ? `/empresas/${empresaId}/documentos` : null)
   const pedidos = useGet<Pedido[]>(`/empresas/${empresaId}/contratos/${id}/pedidos`)
   const [f, setF] = useState({ doc: '', empenho: '', etapa: '', nota: '' })
+  const [modo, setModo] = useState('existente')
+  const aoVincular = useCallback(() => setRodada((n) => n + 1), [])
   const [p, setP] = useState({ tipo: 'reajuste', titulo: '' })
   const { enviando, erro, enviar } = useEnvio()
   const base = `/empresas/${empresaId}/contratos/${id}`
@@ -28,16 +32,23 @@ export function Anexos({ empresaId, id, d, editar }: { empresaId: string; id: st
     <div className="flex flex-col gap-4">
       <Aviso texto={erro ?? anexos.erro} />
       <Cartao><h2>Anexos e documentos de regularidade</h2>
-        <Legenda>Escolha um documento já cadastrado no repositório (com antivírus, versões e alertas de validade). Sem empenho, o documento vale para o contrato inteiro (ex.: certidões durante a execução).</Legenda>
+        <Legenda>Envie um arquivo ou escolha um documento já cadastrado no repositório (com antivírus, versões e alertas de validade). Sem empenho, o documento vale para o contrato inteiro (ex.: certidões durante a execução).</Legenda>
+        {editar && pode('documentos', 'visualizar') ? <div className="flex flex-wrap gap-2">
+          <Botao variante="secundario" onClick={() => setModo('existente')}>Vincular existente</Botao>
+          {pode('documentos', 'cadastrar') ? <Botao variante="secundario" onClick={() => setModo('enviar')}>Enviar arquivo</Botao> : null}
+        </div> : null}
         {editar && pode('documentos', 'visualizar') ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Selecao rotulo="Documento" value={f.doc} onChange={(v) => setF({ ...f, doc: v })} vazio="Escolha" opcoes={(docs.dados ?? []).map((x) => ({ valor: x.id, rotulo: `${x.descricao.slice(0, 60)}${x.validade ? ` · vence ${dia(x.validade)}` : ''}` }))} />
+            {modo === 'existente' ? <Selecao rotulo="Documento" value={f.doc} onChange={(v) => setF({ ...f, doc: v })} vazio="Escolha" opcoes={(docs.dados ?? []).map((x) => ({ valor: x.id, rotulo: `${x.descricao.slice(0, 60)}${x.validade ? ` · vence ${dia(x.validade)}` : ''}` }))} /> : null}
             <Selecao rotulo="Empenho (opcional)" value={f.empenho} onChange={(v) => setF({ ...f, empenho: v, etapa: v ? f.etapa : '' })} vazio="Contrato inteiro" opcoes={d.empenhos.map((e) => ({ valor: e.id, rotulo: e.numero }))} />
             <Selecao rotulo="Etapa (opcional)" value={f.etapa} onChange={(v) => setF({ ...f, etapa: v })} vazio="Sem etapa" disabled={!f.empenho} opcoes={Object.entries(ETAPAS).map(([valor, rotulo]) => ({ valor, rotulo }))} />
             <Campo rotulo="Nota (opcional)" value={f.nota} onChange={(v) => setF({ ...f, nota: v })} maxLength={300} />
-            <div><Botao carregando={enviando} disabled={!f.doc} onClick={() => void enviar(async () => { await chamar('POST', `${base}/anexos`, { documentoId: f.doc, empenhoId: f.empenho || null, etapa: f.etapa || null, nota: f.nota.trim() || null }); setF({ doc: '', empenho: '', etapa: '', nota: '' }); anexos.recarregar() })}>Anexar</Botao></div>
+            {modo === 'existente' ? <div><Botao carregando={enviando} disabled={!f.doc} onClick={() => void enviar(async () => { await chamar('POST', `${base}/anexos`, { documentoId: f.doc, empenhoId: f.empenho || null, etapa: f.etapa || null, nota: f.nota.trim() || null }); setF({ doc: '', empenho: '', etapa: '', nota: '' }); anexos.recarregar() })}>Anexar</Botao></div> : null}
           </div>
         ) : null}
+        {editar && pode('documentos', 'visualizar') && pode('documentos', 'cadastrar') ? <div hidden={modo !== 'enviar'}><EnviarAnexo key={`${empresaId}/${id}`} empresaId={empresaId} base={base} destino={{ empenhoId: f.empenho || null, etapa: f.etapa || null, nota: f.nota.trim() || null }} aoVincular={aoVincular} /></div> : null}
+        {anexos.carregando ? <Legenda>Carregando anexos…</Legenda> : null}
+        <Aviso texto={docs.erro} />
         {(anexos.dados ?? []).length === 0 && !anexos.carregando ? <Vazio>Nenhum anexo. Cadastre o arquivo em <Link to="/cadastros">Cadastros → Documentos</Link> e anexe aqui.</Vazio> : null}
         {(anexos.dados ?? []).map((a) => (
           <div key={a.id} className="flex flex-wrap items-center gap-2 border-t border-secondary pt-2">

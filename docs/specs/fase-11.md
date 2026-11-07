@@ -40,7 +40,7 @@
 - ✅ Notificações internas dos alertas e banner/cadastro pré-preenchido para contratada sem contrato: `db/migrations/20261125100000_contratos_notificacoes.sql`, `apps/web/src/features/contratos/Pendentes.tsx`.
 - ✅ Anexos vinculados ao repositório da Fase 03 e pedido de reajuste/reequilíbrio como peça jurídica: `db/migrations/20261126100000_contratos_anexos_pedidos.sql`, `apps/web/src/features/contratos/Anexos.tsx`.
 - ✅ E-mail dos alertas está coberto pelo relatório diário opt-in: `apps/worker/src/worker/relatorio_diario.py`.
-- 🟡 Upload direto na tela não existe; primeiro cadastra em Cadastros → Documentos e então vincula: `apps/web/src/features/contratos/Anexos.tsx`.
+- ✅ Upload direto na aba de anexos: tipo e arquivo, quarentena e motivo da recusa; vínculo automático somente após liberação, com empenho/etapa escolhidos. Reutiliza o envio da Fase 03, sem alteração de API. A aba precisa permanecer aberta durante a verificação: `apps/web/src/features/contratos/Anexos.tsx`.
 - 🟡 Pedido jurídico exige contrato ativo ligado a acompanhamento; contrato sem edital não abre pedido: `db/migrations/20261126100000_contratos_anexos_pedidos.sql`.
 - ✅ A x B e sigilo financeiro têm evidência histórica (pgTAP/e2e); regra 13 ainda exige manter cobertura antes de uso real, não reexecutada nesta conferência.
 
