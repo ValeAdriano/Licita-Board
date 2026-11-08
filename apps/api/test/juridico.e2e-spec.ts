@@ -230,4 +230,46 @@ describe('jurídico: fluxo e A x B', () => {
     });
   }
 
+  for (const sentido of ['A → B', 'B → A']) {
+    it(`isolamento por endpoint: recursos de terceiros ${sentido}, sete rotas sem efeitos`, async () => {
+      const empresa = await criarEmpresa(`Recurso dona ${sentido}`);
+      const outra = await criarEmpresa(`Recurso invasora ${sentido}`);
+      const email = await criarUsuario('matriz-recurso-dona');
+      const emailInvasor = await criarUsuario('matriz-recurso-invasor');
+      await vincular(email, empresa); await vincular(emailInvasor, outra);
+      const token = await entrar(email); const invasor = await entrar(emailInvasor);
+      const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, objeto, hash_conteudo) select e.fonte_id, $2, e.orgao_id, $2, e.hash_conteudo from pub.editais e join priv.acompanhamentos a on a.edital_id = e.id where a.id = $1 returning id`, [acomp, crypto.randomUUID()])).rows[0]?.id ?? '';
+      const ac = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1, $2) returning id`, [empresa, edital])).rows[0]?.id ?? '';
+      const dados = { recorrente: 'Recorrente fictícia', publicadoEm: '2026-11-10T12:00:00-03:00', texto: 'Texto fictício do recurso para a matriz de isolamento entre empresas, sem dados reais.' };
+      const raiz = `/empresas/${empresa}/juridico`;
+      const rec = ((await http().post(`${raiz}/acompanhamentos/${ac}/recursos`).set(bearer(token)).send(dados).expect(201)).body as { id: string }).id;
+      const al = ((await http().post(`${raiz}/recursos/${rec}/alegacoes`).set(bearer(token)).send({ resumo: 'Alegação fictícia da matriz' }).expect(201)).body as { id: string }).id;
+      const snapshot = async () => (await admin.query<Record<string, unknown>>(`select
+        (select jsonb_agg(r order by r.id) from priv.recursos_terceiros r where empresa_id in ($1,$2)) recursos,
+        (select jsonb_agg(a order by a.id) from priv.recurso_alegacoes a where empresa_id in ($1,$2)) alegacoes,
+        (select jsonb_agg(p order by p.id) from priv.pecas p where empresa_id in ($1,$2)) pecas,
+        (select jsonb_agg(e order by e.id) from priv.agenda_eventos e where empresa_id in ($1,$2)) eventos,
+        (select jsonb_agg(j order by j.id) from ops.jobs j where empresa_id in ($1,$2) and tipo = 'ler_recurso') jobs`, [empresa, outra])).rows;
+      const antes = await snapshot();
+      const intacto = async () => { expect(await snapshot()).toEqual(antes); };
+      for (const e of [empresa, outra]) {
+        const r = `/empresas/${e}/juridico`;
+        for (const filtro of ['', `?acompanhamento=${ac}`]) {
+          const lista = await http().get(`${r}/recursos${filtro}`).set(bearer(invasor)).expect(e === empresa ? 404 : 200);
+          if (e === outra) expect(lista.body).toEqual([]);
+          await intacto();
+        }
+        await http().get(`${r}/recursos/${rec}`).set(bearer(invasor)).expect(404); await intacto();
+        await http().post(`${r}/acompanhamentos/${ac}/recursos`).set(bearer(invasor)).send(dados).expect(404);
+        await intacto();
+        await http().post(`${r}/recursos/${rec}/ler`).set(bearer(invasor)).expect(404); await intacto();
+        await http().post(`${r}/recursos/${rec}/alegacoes`).set(bearer(invasor)).send({ resumo: 'Tentativa fictícia' }).expect(404); await intacto();
+        await http().put(`${r}/alegacoes/${al}`).set(bearer(invasor)).send({ decisao: 'concordar' }).expect(404); await intacto();
+        await http().delete(`${r}/alegacoes/${al}`).set(bearer(invasor)).expect(404); await intacto();
+      }
+      const detalhe = await http().get(`${raiz}/recursos/${rec}`).set(bearer(token)).expect(200);
+      expect(detalhe.body).toMatchObject({ id: rec, texto: dados.texto, alegacoes: [expect.objectContaining({ id: al })] });
+    });
+  }
+
 });
