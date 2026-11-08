@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -76,4 +77,36 @@ describe('chave de IA: sigilo, permissão e A x B', () => {
     await http().delete(`/empresas/${empA}/ia/chave`).set(bearer(a)).expect(204);
     expect(((await http().get(`/empresas/${empA}/ia`).set(bearer(a)).expect(200)).body as { configurada: boolean }).configurada).toBe(false);
   });
+  for (const sentido of ['A → B', 'B → A']) {
+    for (const caso of [
+      { metodo: 'get', path: '/ia', corpo: {} },
+      { metodo: 'put', path: '/ia/chave', corpo: { chave: CHAVE } },
+      { metodo: 'delete', path: '/ia/chave', corpo: {} },
+      { metodo: 'post', path: '/ia/modelo', corpo: { modelo: 'claude-opus-5-5' } },
+      { metodo: 'post', path: '/ia/testar', corpo: {} },
+    ] as const) {
+      it(`matriz A x B IA ${sentido}: ${caso.metodo} ${caso.path}`, async () => {
+        const empresas = [await criarEmpresa('Matriz A fictícia'), await criarEmpresa('Matriz B fictícia')];
+        const emails = [await criarUsuario('q23-a'), await criarUsuario('q23-b')];
+        await Promise.all([vincular((emails[0] ?? ''), (empresas[0] ?? '')), vincular((emails[1] ?? ''), (empresas[1] ?? ''))]);
+        const usuarios = [await entrar((emails[0] ?? '')), await entrar((emails[1] ?? ''))] as const;
+        const i = sentido === 'A → B' ? 1 : 0;
+        const empresa = (empresas[i] ?? ''); const outra = (empresas[1 - i] ?? '');
+        const hash = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
+        for (let n = 0; n < 2; n++) await http().put(`/empresas/${(empresas[n] ?? '')}/ia/chave`).set(bearer(usuarios[n === 0 ? 0 : 1])).send({ chave: CHAVE.slice(0, -4) + (n === 0 ? 'aaaa' : 'bbbb') }).expect(204);
+        const snapshot = async () => hash((await admin.query(`select
+          (select jsonb_agg(t order by empresa_id) from priv.empresa_ia t where empresa_id = any($1)) as chaves,
+          (select jsonb_agg(t order by id) from ops.jobs t where empresa_id = any($1) and tipo = 'testar_chave_ia') as jobs`, [empresas])).rows);
+        const antes = await snapshot();
+        const r = await http()[caso.metodo](`/empresas/${empresa}${caso.path}`).set(bearer(usuarios[1-i === 0 ? 0 : 1])).send(caso.corpo).expect(404);
+        const ausente = await http()[caso.metodo](`/empresas/${crypto.randomUUID()}${caso.path}`).set(bearer(usuarios[1-i === 0 ? 0 : 1])).send(caso.corpo).expect(404);
+        expect(hash(r.body as unknown)).toBe(hash(ausente.body as unknown));
+        const propria = await http().get(`/empresas/${outra}/ia`).set(bearer(usuarios[1-i === 0 ? 0 : 1])).expect(200);
+        expect(propria.body).toMatchObject({ configurada: true, ultimos4: i === 0 ? 'bbbb' : 'aaaa' });
+        expect(Object.keys(propria.body as Record<string, unknown>).sort()).toEqual(['configurada', 'provedor', 'ultimos4', 'modelo', 'testeStatus', 'testeErro', 'testeEm', 'atualizadaEm', 'modelosDisponiveis', 'modeloPadrao'].sort());
+        expect(await snapshot()).toBe(antes);
+      });
+    }
+  }
+
 });

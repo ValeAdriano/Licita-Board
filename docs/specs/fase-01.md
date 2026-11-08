@@ -160,3 +160,5 @@ Parâmetros de segurança (ADR-012): Argon2id m=19 MiB, t=2, p=1; atraso progres
 5. **Alertas por e-mail:** login de dispositivo/IP novo e fator MFA cadastrado/removido.
 6. **Auditoria:** ADMIN_EMPRESA vê a da própria empresa via `auditoria/visualizar`.
 7. **Códigos de recuperação:** 10, de 20 caracteres base32 (~100 bits; reforço sobre os 10 da decisão original, decidido na revisão de segurança); gerar de novo invalida os anteriores e exige MFA nos últimos 5 min (não o step-up de fator ≥ 24 h, que impediria gerar códigos logo após o primeiro cadastro).
+
+- **Q-23 · rodada 12 (2026-11-08):** matriz e2e A x B nos dois sentidos para acesso: quatro rotas com empresa (usuários, leitura/criação de convites, auditoria), mais alteração de vínculo e revogação de convite por ID. Cada caso cria empresas e usuários próprios, compara recurso alheio com UUID inexistente e verifica estado intacto por SHA-256.

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -295,4 +296,44 @@ describe('acesso', () => {
     expect(porOperacao['INSERT']).toBe(2);
     expect(porOperacao['UPDATE']).toBeGreaterThanOrEqual(1);
   });
+  for (const sentido of ['A → B', 'B → A']) {
+    for (const caso of ['usuarios', 'convites', 'convidar', 'auditoria', 'vinculo', 'revogar'] as const) {
+      it(`matriz A x B acesso ${sentido}: ${caso}`, async () => {
+        const empresas = [await criarEmpresa('Matriz A fictícia'), await criarEmpresa('Matriz B fictícia')];
+        const emails = [await criarUsuario('q23-a'), await criarUsuario('q23-b')];
+        const vinculos = [await vincular((emails[0] ?? ''), (empresas[0] ?? '')), await vincular((emails[1] ?? ''), (empresas[1] ?? ''))];
+        const usuarios = [await entrar((emails[0] ?? '')), await entrar((emails[1] ?? ''))] as const;
+        const i = sentido === 'A → B' ? 1 : 0;
+        const empresa = (empresas[i] ?? ''); const outra = (empresas[1 - i] ?? '');
+        const hash = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
+        const dona = usuarios[i === 0 ? 0 : 1]; const invasora = usuarios[1-i === 0 ? 0 : 1];
+        const suDona = await stepUp(dona, 'alterar_permissoes');
+        const convite = ((await http().post(`/empresas/${empresa}/convites`).set(bearer(dona.token)).send({ email: `convite-${crypto.randomUUID()}@exemplo.com.br`, papel: 'OPERADOR', permissoes: [], stepUp: suDona }).expect(201)).body as { id: string }).id;
+        const snapshot = async () => hash((await admin.query(`select
+          (select jsonb_agg(t order by id) from core.vinculos t where empresa_id = any($1)) as vinculos,
+          (select jsonb_agg(t order by id) from core.permissoes t where empresa_id = any($1)) as permissoes,
+          (select jsonb_agg(t order by id) from core.convites t where empresa_id = any($1)) as convites`, [empresas])).rows);
+        const corpo = { email: 'invasao@exemplo.com.br', papel: 'CLIENTE', ativo: false, permissoes: [], stepUp: await stepUp(invasora, 'alterar_permissoes') };
+        const antes = await snapshot();
+        const chamar = (e: string, id: string) => {
+          if (caso === 'vinculo') return http().put(`/vinculos/${id}`).set(bearer(invasora.token)).send({ papel: corpo.papel, ativo: false, permissoes: [], stepUp: corpo.stepUp });
+          if (caso === 'revogar') return http().delete(`/convites/${id}`).set(bearer(invasora.token));
+          if (caso === 'convidar') return http().post(`/empresas/${e}/convites`).set(bearer(invasora.token)).send({ email: corpo.email, papel: corpo.papel, permissoes: [], stepUp: corpo.stepUp });
+          return http().get(`/empresas/${e}/${caso}`).set(bearer(invasora.token));
+        };
+        const r = await chamar(empresa, caso === 'vinculo' ? (vinculos[i] ?? '') : convite);
+        const ausente = await chamar(crypto.randomUUID(), crypto.randomUUID());
+        expect(r.status).toBe(caso === 'vinculo' || caso === 'revogar' ? 403 : 404);
+        expect(r.status).toBe(ausente.status);
+        expect(hash(r.body as unknown)).toBe(hash(ausente.body as unknown));
+        if (caso === 'usuarios' || caso === 'convites' || caso === 'auditoria') {
+          const propria = await http().get(`/empresas/${outra}/${caso}`).set(bearer(invasora.token)).expect(200);
+          const texto = JSON.stringify(propria.body);
+          for (const dado of [empresa, (emails[i] ?? ''), (vinculos[i] ?? ''), convite]) expect(texto.includes(dado)).toBe(false);
+        }
+        expect(await snapshot()).toBe(antes);
+      });
+    }
+  }
+
 });
