@@ -85,4 +85,62 @@ describe('parecer recursal: fluxo e A x B', () => {
     await http().delete(`${b0}/achados/${ach}`).set(bearer(leitor)).expect(404);
     await http().delete(`${b0}/achados/${ach}`).set(bearer(redator)).expect(204);
   });
+  for (const sentido of ['A → B', 'B → A']) {
+    it(`isolamento por endpoint: pareceres ${sentido}, nove rotas sem efeitos`, async () => {
+      // Empresas, usuários e edital exclusivos deste caso: nenhuma dependência da ordem das suítes.
+      const empresa = await criarEmpresa(`Parecer dona ${sentido}`);
+      const outra = await criarEmpresa(`Parecer invasora ${sentido}`);
+      const email = await criarUsuario('matriz-parecer-dona');
+      const invasorEmail = await criarUsuario('matriz-parecer-invasor');
+      await vincular(email, empresa); await vincular(invasorEmail, outra);
+      const token = await entrar(email); const invasor = await entrar(invasorEmail);
+      const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, objeto, hash_conteudo) select e.fonte_id, $2, e.orgao_id, $2, e.hash_conteudo from pub.editais e join priv.acompanhamentos a on a.edital_id = e.id where a.id = $1 returning id`, [acomp, crypto.randomUUID()])).rows[0]?.id ?? '';
+      const ac = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1, $2) returning id`, [empresa, edital])).rows[0]?.id ?? '';
+      const item = (await admin.query<{ id: string }>(`insert into pub.edital_itens (edital_id, numero_item, descricao) values ($1, 1, 'Item fictício da matriz') returning id`, [edital])).rows[0]?.id;
+      const participacao = (await admin.query<{ id: string }>(`insert into priv.participacoes (empresa_id, acompanhamento_id, item_id) values ($1, $2, $3) returning id`, [empresa, ac, item])).rows[0]?.id ?? '';
+      await admin.query(`insert into priv.resultados_item (empresa_id, participacao_id, resultado_final, motivo_perda, gatilho_recursal) values ($1, $2, 'perdida', 'Resultado fictício', true)`, [empresa, participacao]);
+      const raiz = `/empresas/${empresa}/juridico/pareceres`;
+      const id = ((await http().post(`${raiz}/participacao/${participacao}`).set(bearer(token)).send({ concorrente: 'Concorrente fictícia' }).expect(201)).body as { id: string }).id;
+      const dados = { tipo: 'outro', descricao: 'Achado fictício da matriz', prova: 'Prova fictícia', classificacao: 'moderada' };
+      const achado = ((await http().post(`${raiz}/${id}/achados`).set(bearer(token)).send(dados).expect(201)).body as { id: string }).id;
+      await http().put(`${raiz}/${id}/recomendacao`).set(bearer(token)).send({ recomendacao: 'recorrer', justificativa: 'Justificativa fictícia suficiente' }).expect(204);
+      // Simula a conferência do worker, permitindo abrir recurso se houvesse falha de isolamento.
+      await admin.query(`update priv.pareceres_recursais set validacao = '[]', validada_em = now(), bloqueado = false where id = $1`, [id]);
+      const snapshot = async () => (await admin.query<Record<string, unknown>>(`select
+        (select jsonb_agg(p order by p.id) from priv.pareceres_recursais p where empresa_id in ($1, $2)) pareceres,
+        (select jsonb_agg(a order by a.id) from priv.parecer_achados a where empresa_id in ($1, $2)) achados,
+        (select jsonb_agg(p order by p.id) from priv.pecas p where empresa_id in ($1, $2)) pecas,
+        (select jsonb_agg(j order by j.id) from ops.jobs j where empresa_id in ($1, $2) and tipo in ('validar_parecer', 'analisar_vencedora')) jobs`, [empresa, outra])).rows;
+      const antes = await snapshot();
+      for (const e of [empresa, outra]) {
+        const base = `/empresas/${e}/juridico/pareceres`;
+        const lista = await http().get(base).set(bearer(invasor)).expect(e === empresa ? 404 : 200);
+        if (e === outra) expect(lista.body).toEqual([]);
+        expect(await snapshot()).toEqual(antes);
+        const ausente = crypto.randomUUID();
+        const casos = [
+          { metodo: 'get', path: `/participacao/${participacao}`, vazio: `/participacao/${ausente}`, corpo: {} },
+          { metodo: 'post', path: `/participacao/${participacao}`, vazio: `/participacao/${ausente}`, corpo: { concorrente: 'Invasora fictícia' } },
+          { metodo: 'post', path: `/${id}/analisar`, vazio: `/${ausente}/analisar`, corpo: {} },
+          { metodo: 'post', path: `/${id}/achados`, vazio: `/${ausente}/achados`, corpo: dados },
+          { metodo: 'put', path: `/${id}/achados/${achado}`, vazio: `/${ausente}/achados/${ausente}`, corpo: dados },
+          { metodo: 'delete', path: `/achados/${achado}`, vazio: `/achados/${ausente}`, corpo: {} },
+          { metodo: 'put', path: `/${id}/recomendacao`, vazio: `/${ausente}/recomendacao`, corpo: { recomendacao: 'nao_recorrer', justificativa: 'Tentativa fictícia de alteração' } },
+          { metodo: 'post', path: `/${id}/recurso`, vazio: `/${ausente}/recurso`, corpo: {} },
+        ] as const;
+        for (const caso of casos) {
+          const resposta = await http()[caso.metodo](`${base}${caso.path}`).set(bearer(invasor)).send(caso.corpo);
+          // abrir_parecer usa 22023 para participação ausente: mesma resposta para UUID inexistente.
+          const esperado = e === outra && caso.metodo === 'post' && caso.path.startsWith('/participacao/') ? 400 : 404;
+          expect(resposta.status, caso.path).toBe(esperado);
+          if (resposta.status === 400) {
+            const inexistente = await http()[caso.metodo](`${base}${caso.vazio}`).set(bearer(invasor)).send(caso.corpo).expect(400);
+            expect(resposta.body, caso.path).toEqual(inexistente.body);
+          }
+          expect(await snapshot(), caso.path).toEqual(antes);
+        }
+      }
+    });
+  }
+
 });
