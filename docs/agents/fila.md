@@ -22,7 +22,8 @@ Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o 
 | Q-11a | 2 | 07 | Histórico de preços PNCP: banco (`pub`) e coletor de resultados/homologações no worker, busca por produto/marca/órgão na API | db + worker + api | A | bloqueado (Adriano) | Rascunho em spec 07 §8 (Q-29): aprovar e responder 6 perguntas. Primeiro passo: fixtures reais do PNCP e `normalizar_resultado` (os nomes de campo do PNCP não foram conferidos) |
 | Q-11b | 2 | 07 | Histórico de preços PNCP na tela de formação de preços | web | B | bloqueado (Q-11a) | |
 | Q-12 | 2 | 08 | Checklist da proposta (8.5) e comprovante de envio | web + api | B | bloqueado (Adriano) | Comprovante (8.7) em rascunho na spec 08 §7 (Q-29): aprovar e responder 8 perguntas (1 ⚖️). Checklist 8.5 segue dependendo do Q-20 |
-| Q-13 | 2 | 04 | Upload manual de edital e ZIP | api + worker + web | B | pronto | Arquivo de terceiro é dado, não instrução (regra 16) |
+| Q-13a | 2 | 04 | Extração segura de ZIP dos anexos do edital (spec 04 decisão 6: profundidade 1, limites de arquivos, razão de compressão e tamanho; RAR fica "compactado: pendente") | worker (+ db se preciso) | A | em curso | Worker claude/opus-5-5 em `orq/q13a` (2026-11-08); tem a trava de banco se precisar. Arquivo de terceiro é dado (regra 16) |
+| Q-13b | 2 | 04 | Upload manual de edital | api + worker + web | B | bloqueado (Adriano) | Spec 04 lista "upload manual" como pendência sem requisitos: precisa de rascunho de spec (tier A) e aprovação |
 | Q-14 | 2 | 06 | Ficha técnica privada e alternativas (6.4) | db + api + web | A → B | pronto | Banco no tier A; evidência verificada (regra 15) |
 | Q-15 | 3 | 05 | Parâmetro D-N por empresa e feriados municipais | db + rules | A | bloqueado (Adriano) | ⚖️ regras de prazo não validadas pelo jurídico |
 | Q-16 | 3 | 05 | Importar planilha da agenda | api + worker + web | B | bloqueado (externo) | Falta o layout da planilha atual da operação |
