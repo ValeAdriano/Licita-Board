@@ -3,7 +3,7 @@ import { type Transaction, sql } from 'kysely';
 import { z } from 'zod';
 import { type RequisicaoVV, dadosDe, sessaoDe, validar } from '../auth/requisicao.js';
 import { Permissao } from '../auth/sessao.guard.js';
-import { ContextoService } from '../db/contexto.service.js';
+import { codigoPg, ContextoService } from '../db/contexto.service.js';
 import type { Database } from '../db/db.module.js';
 import { alertas } from './alertas.js';
 
@@ -165,8 +165,17 @@ export class ContratosController {
   @HttpCode(201)
   async criar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Body() corpo: unknown) {
     const d = validar(contratoSchema, corpo);
-    const r = await this.q(req, (tx) => sql<{ id: string }>`select priv.criar_contrato(${empresa}::uuid, ${d.acompanhamentoId ?? null}::uuid, ${d.tipo}, ${d.numero}, ${d.orgao}, ${d.objeto}, ${d.vigenciaInicio}::date, ${d.vigenciaFim}::date,
-      ${d.gestorOrgao ?? null}, ${d.fiscalOrgao ?? null}, ${d.garantiaValor ?? null}::numeric, ${d.garantiaAte ?? null}::date) as id`.execute(tx));
+    const r = await this.q(req, async (tx) => {
+      try {
+        return await sql<{ id: string }>`select priv.criar_contrato(${empresa}::uuid, ${d.acompanhamentoId ?? null}::uuid, ${d.tipo}, ${d.numero}, ${d.orgao}, ${d.objeto}, ${d.vigenciaInicio}::date, ${d.vigenciaFim}::date,
+      ${d.gestorOrgao ?? null}, ${d.fiscalOrgao ?? null}, ${d.garantiaValor ?? null}::numeric, ${d.garantiaAte ?? null}::date) as id`.execute(tx);
+      } catch (e) {
+        // A FK composta confere a empresa sem exigir agenda/visualizar do operador.
+        if (codigoPg(e) === '23503' && typeof e === 'object' && e !== null && 'constraint' in e
+          && e.constraint === 'contratos_acompanhamento_id_empresa_id_fkey') throw new NotFoundException();
+        throw e;
+      }
+    });
     return { id: r.rows[0]?.id };
   }
 

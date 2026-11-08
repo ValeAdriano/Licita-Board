@@ -154,7 +154,7 @@ describe('contratos: saldos, financeiro e A x B', () => {
     await http().get(`/empresas/${empB}/contratos/${ct}`).set(bearer(b)).expect(404);
     expect(((await http().get(`/empresas/${empB}/contratos`).set(bearer(b)).expect(200)).body as unknown[])).toHaveLength(0);
     await http().post(`/empresas/${empB}/empenho-itens/${empItem}/entregas`).set(bearer(b)).send({ quantidade: '1', data: '2026-03-12' }).expect(404);
-    await http().post(`/empresas/${empB}/faturas/${nf}/pagamento`).set(bearer(b)).send({ pagoEm: '2026-04-20', valorRecebido: '1' }).expect(400);
+    await http().post(`/empresas/${empB}/faturas/${nf}/pagamento`).set(bearer(b)).send({ pagoEm: '2026-04-20', valorRecebido: '1' }).expect(400); // Q-31b: ausência e saldo ainda compartilham o erro do banco
   });
   for (const dona of ['A', 'B'] as const) {
     it(`isolamento por endpoint: contratos de ${dona} intactos nas 17 rotas`, async () => {
@@ -226,12 +226,12 @@ describe('contratos: saldos, financeiro e A x B', () => {
           expect(JSON.stringify(r.body)).not.toContain(id);
           for (const segredo of [ci, ei, eitem, f, doc, anexo, pendAc ?? '', '9876.5432', '12345.6789', '45678.9123']) expect(JSON.stringify(r.body)).not.toContain(segredo);
         } else {
-          // Compara também 400 de fluxo e coleções vazias com um recurso inexistente.
+          // Q-31b: pagamento/encerramento ainda usam 400 para ausência; compara com UUID inexistente.
           const rotaVazia = c.rota.replaceAll(id, ausente).replaceAll(anexo, ausente).replaceAll(ei, ausente).replaceAll(eitem, ausente).replaceAll(f, ausente);
           const corpoVazio = JSON.parse(JSON.stringify(c.corpo ?? {}).replaceAll(ac ?? '', ausente)) as object;
           const vazio = await http()[c.metodo](`/empresas/${outra}${rotaVazia}`).set(bearer(invasor)).send(corpoVazio);
           const esperado = c.metodo === 'get' && /\/(anexos|pedidos)$/.test(c.rota) ? 200
-            : c.rota === '/contratos' || /\/(pagamento|encerrar)$/.test(c.rota) ? 400 : 404;
+            : /\/(pagamento|encerrar)$/.test(c.rota) ? 400 : 404;
           expect(r.status, `${c.metodo} ${c.rota}: ${JSON.stringify(r.body)}`).toBe(esperado);
           expect(r.status).toBe(vazio.status);
           expect(r.body).toEqual(vazio.body);
