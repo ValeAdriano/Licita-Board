@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     # (a ausência em 30 min alerta por fora) e o contato que o robô informa no User-Agent.
     pesquisa_heartbeat_url: str = ""
     robo_contato: str = ""
+    # Anexo em ZIP (decisão 6 da Fase 04): limites da extração; estourou um, o ZIP inteiro é recusado.
+    zip_max_arquivos: int = 50
+    zip_max_total_mb: int = 200
+    zip_max_arquivo_mb: int = 50
+    zip_max_razao: int = 100
     # IA de extração de requisitos (Fase 06, decisão do Adriano em 2026-11-05): chave do provedor (Anthropic). Vazia = IA DESLIGADA.
     # A chave só vem do ambiente (.env fora do git), nunca de código; o modelo é configurável.
     anthropic_api_key: SecretStr = SecretStr("")

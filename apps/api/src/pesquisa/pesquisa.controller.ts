@@ -135,7 +135,8 @@ export class PesquisaController {
           from pub.edital_itens where edital_id = ${id}::uuid and tipo = 'item' order by numero_item limit 2000`.execute(tx)).rows;
       const arquivos = (await sql`
         select id, tipo, titulo, url_origem as "urlOrigem", coletado_em as "coletadoEm", tamanho::text as tamanho, sha256, tipo_real as "tipoReal",
-               status_arquivo as "statusArquivo", motivo, paginas, status_extracao as "statusExtracao"
+               status_arquivo as "statusArquivo", motivo, paginas, status_extracao as "statusExtracao",
+               arquivo_pai_id as "arquivoPaiId", status_compactado as "statusCompactado", motivo_compactado as "motivoCompactado"
           from pub.edital_arquivos where edital_id = ${id}::uuid order by tipo, titulo`.execute(tx)).rows;
       const versoes = (await sql`
         select versao, coletada_em as "coletadaEm", campos_alterados as "camposAlterados"

@@ -38,6 +38,7 @@ from worker.pesquisa.agenda import agendar, vigiar
 from worker.pesquisa.arquivos import baixar, extrair_texto
 from worker.pesquisa.cobertura import apurar
 from worker.pesquisa.coleta import coletar
+from worker.pesquisa.compactados import Limites
 from worker.pesquisa.http import ClienteHttp, ErroPermanente
 from worker.pesquisa.importacao import importar
 from worker.pesquisa.relevancia import avaliar_edital
@@ -221,7 +222,14 @@ class Handlers:
         ua = f"VV-Licitacoes-Robo/1.0 (+{self._s.robo_contato or 'contato-nao-configurado'})"
         rps = float(f["parametros"].get("requisicoes_por_segundo", 2))
         http = ClienteHttp(ua, list(f["hosts_permitidos"]), rps)
-        baixar(conn, arquivo_id, http, self._s3, self._antivirus)  # type: ignore[arg-type]
+        mb = 1024 * 1024
+        limites = Limites(
+            max_arquivos=self._s.zip_max_arquivos,
+            max_total=self._s.zip_max_total_mb * mb,
+            max_arquivo=self._s.zip_max_arquivo_mb * mb,
+            max_razao=self._s.zip_max_razao,
+        )
+        baixar(conn, arquivo_id, http, self._s3, self._antivirus, limites=limites)  # type: ignore[arg-type]
 
     def extrair_texto(self, conn: psycopg.Connection[Any], job: Job) -> None:
         assert self._s3 is not None  # noqa: S101
