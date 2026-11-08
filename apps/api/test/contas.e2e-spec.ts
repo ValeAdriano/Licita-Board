@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -216,4 +217,52 @@ describe('contas bancárias e PIX', () => {
     const n = await http().get('/notificacoes').set(bearer(a.token)).expect(200);
     expect((n.body as { titulo: string }[]).some((x) => x.titulo === 'Uma conta bancária da empresa foi removida')).toBe(true);
   });
+
+  // Q-23: uma fixture independente por endpoint e sentido; nenhum dado sensível em asserções.
+  for (const sentido of ['A → B', 'B → A']) {
+    for (const caso of [
+      { metodo: 'get', path: '/contas', corpo: {} },
+      { metodo: 'post', path: '/contas', corpo: NOVA },
+      { metodo: 'patch', path: '/contas/ID', corpo: {titularNome: "Tentativa fictícia"} },
+      { metodo: 'post', path: '/contas/ID/remover', corpo: {} },
+      { metodo: 'post', path: '/contas/ID/revelar', corpo: {campo: "conta"} }
+    ] as const) {
+      it(`matriz A x B contas ${sentido}: ${caso.metodo.toUpperCase()} :empresa${caso.path}`, async () => {
+        const empresas = [await criarEmpresa('Matriz fictícia A'), await criarEmpresa('Matriz fictícia B')];
+        const emails = [await criarUsuario('matriz-a'), await criarUsuario('matriz-b')];
+        await vincular(emails[0] ?? '', empresas[0] ?? '');
+        await vincular(emails[1] ?? '', empresas[1] ?? '');
+        const usuarios = [await entrar(emails[0] ?? ''), await entrar(emails[1] ?? '')] as const;
+        const indice = sentido === 'A → B' ? 1 : 0;
+        const empresa = empresas[indice] ?? '';
+        const outra = empresas[1 - indice] ?? '';
+        const dona = usuarios[indice === 1 ? 1 : 0];
+        const invasora = usuarios[indice === 1 ? 0 : 1];
+        const auth = (c: Conta) => bearer(c.token);
+        const raiz = `/empresas/${empresa}`;
+        const su = await stepUp(dona);
+        const id = ((await http().post(`${raiz}/contas`).set(auth(dona)).send({ ...NOVA, stepUp: su }).expect(201)).body as { id: string }).id;
+        const hash = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
+        const snapshot = async () => hash((await admin.query(`select (select jsonb_agg(t order by to_jsonb(t)::text) from core.empresa_contas t where empresa_id in ($1, $2)) as t0, (select jsonb_agg(t order by to_jsonb(t)::text) from core.revelacoes_dados t where empresa_id in ($1, $2)) as revelacoes`, [empresa, outra])).rows);
+        const antes = await snapshot();
+        for (const e of [empresa, outra]) {
+          if (e === outra && !caso.path.includes('ID') && caso.metodo !== 'get') continue;
+          const caminho = caso.path.replace('ID', id);
+          const corpo = { ...caso.corpo, stepUp: await stepUp(invasora) };
+          const resposta = await http()[caso.metodo](`/empresas/${e}${caminho}`).set(auth(invasora)).send(corpo);
+          if (e === outra && !caso.path.includes('ID')) {
+            expect(resposta.status).toBe(200);
+            expect(resposta.body).toEqual([]);
+          } else {
+            expect(resposta.status).toBe(404);
+            const ausente = await http()[caso.metodo](`/empresas/${e === empresa ? crypto.randomUUID() : outra}${caso.path.replace('ID', crypto.randomUUID())}`).set(auth(invasora)).send(corpo);
+            expect(resposta.status).toBe(ausente.status);
+            expect(hash(resposta.body)).toBe(hash(ausente.body));
+          }
+          expect(await snapshot()).toBe(antes);
+        }
+      });
+    }
+  }
+
 });

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -163,4 +164,62 @@ describe('empresa (ficha completa)', () => {
     expect(aud.rows.length).toBeGreaterThan(0);
     expect(aud.rows.every((r) => r.valor === '[redigido]')).toBe(true);
   });
+
+  // Q-23: uma fixture independente por endpoint e sentido; nenhum dado sensível em asserções.
+  for (const sentido of ['A → B', 'B → A']) {
+    for (const caso of [
+      { metodo: 'get', path: '', corpo: {} },
+      { metodo: 'patch', path: '', corpo: {nomeFantasia: "Tentativa fictícia"} },
+      { metodo: 'get', path: '/cnaes', corpo: {} },
+      { metodo: 'put', path: '/cnaes', corpo: {cnaes: ["4511102"]} },
+      { metodo: 'get', path: '/contatos', corpo: {} },
+      { metodo: 'post', path: '/contatos', corpo: {tipo: "email", valor: "novo@matriz.test"} },
+      { metodo: 'patch', path: '/contatos/ID', corpo: {valor: "alterado@matriz.test"} },
+      { metodo: 'delete', path: '/contatos/ID', corpo: {} },
+      { metodo: 'get', path: '/enquadramentos', corpo: {} },
+      { metodo: 'post', path: '/enquadramentos', corpo: {porte: "ME", dataReferencia: "2027-01-01", fonte: "outra"} },
+      { metodo: 'get', path: '/enquadramento?data=2026-01-01', corpo: {} }
+    ] as const) {
+      it(`matriz A x B empresa ${sentido}: ${caso.metodo.toUpperCase()} :empresa${caso.path}`, async () => {
+        const empresas = [await criarEmpresa('Matriz fictícia A'), await criarEmpresa('Matriz fictícia B')];
+        const emails = [await criarUsuario('matriz-a'), await criarUsuario('matriz-b')];
+        await vincular(emails[0] ?? '', empresas[0] ?? '');
+        await vincular(emails[1] ?? '', empresas[1] ?? '');
+        const usuarios = [await entrar(emails[0] ?? ''), await entrar(emails[1] ?? '')] as const;
+        const indice = sentido === 'A → B' ? 1 : 0;
+        const empresa = empresas[indice] ?? '';
+        const outra = empresas[1 - indice] ?? '';
+        const dona = usuarios[indice === 1 ? 1 : 0];
+        const invasora = usuarios[indice === 1 ? 0 : 1];
+        const auth = (c: string) => bearer(c);
+        const raiz = `/empresas/${empresa}`;
+        const id = ((await http().post(`${raiz}/contatos`).set(auth(dona)).send({ tipo: 'email', valor: 'privado@matriz.test', principal: true }).expect(201)).body as { id: string }).id;
+        await http().put(`${raiz}/cnaes`).set(auth(dona)).send({ cnaes: ['4511101'] }).expect(204);
+        await http().post(`${raiz}/enquadramentos`).set(auth(dona)).send({ porte: 'EPP', dataReferencia: '2025-01-01', fonte: 'declaracao' }).expect(201);
+        const hash = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
+        const snapshot = async () => hash((await admin.query(`select (select jsonb_agg(t order by to_jsonb(t)::text) from core.empresas t where id in ($1, $2)) as t0,
+(select jsonb_agg(t order by to_jsonb(t)::text) from core.empresa_contatos t where empresa_id in ($1, $2)) as t1,
+(select jsonb_agg(t order by to_jsonb(t)::text) from core.empresa_cnaes t where empresa_id in ($1, $2)) as t2,
+(select jsonb_agg(t order by to_jsonb(t)::text) from core.empresa_enquadramentos t where empresa_id in ($1, $2)) as t3`, [empresa, outra])).rows);
+        const antes = await snapshot();
+        for (const e of (caso.path.includes('ID') ? [empresa, outra] : [empresa])) {
+          if (e === outra && !caso.path.includes('ID') && caso.metodo !== 'get') continue;
+          const caminho = caso.path.replace('ID', id);
+          const corpo = { ...caso.corpo };
+          const resposta = await http()[caso.metodo](`/empresas/${e}${caminho}`).set(auth(invasora)).send(corpo);
+          if (e === outra && !caso.path.includes('ID')) {
+            expect(resposta.status).toBe(200);
+            expect(resposta.body).toEqual([]);
+          } else {
+            expect(resposta.status).toBe(404);
+            const ausente = await http()[caso.metodo](`/empresas/${e === empresa ? crypto.randomUUID() : outra}${caso.path.replace('ID', crypto.randomUUID())}`).set(auth(invasora)).send(corpo);
+            expect(resposta.status).toBe(ausente.status);
+            expect(hash(resposta.body)).toBe(hash(ausente.body));
+          }
+          expect(await snapshot()).toBe(antes);
+        }
+      });
+    }
+  }
+
 });

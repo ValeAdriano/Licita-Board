@@ -192,7 +192,7 @@ Os do Prompt Mestre, mais os do Plano, cada um com a prova.
 | CA-6 | Signatário com poderes ou procuração vencidos é bloqueado | pgTAP `signatario_valido` com as bordas de data (4.3 e 4.4) e e2e do endpoint |
 | CA-7 | Dado bancário e PIX cifrados em campo, mascarados e auditados | Teste: o valor não aparece em `select` direto como `vv_api`, nem na auditoria, nem no log; vetores de cifra; e2e de "revelar" auditado |
 | CA-8 | Conversão de unidade exata | pgTAP com os vetores da regra 7 (decimal, sem `float`) |
-| CA-9 | Toda tabela nova de `priv` e `core` tem A x B; todo endpoint novo tem e2e A x B | `scripts/check_isolation_coverage.py` e o CI |
+| CA-9 | Toda tabela nova de `priv` e `core` tem A x B; todo endpoint novo tem e2e A x B | Q-23 rodada 9: matriz bidirecional das 21 rotas de ficha (11), contas/PIX (5) e representantes (5), fixtures por caso, ID alheio pela empresa própria, comparação com UUID inexistente e estado intacto; 66 e2e verdes nas três suítes. Produtos, procurações e palavras-chave ainda sem matriz completa. `scripts/check_isolation_coverage.py` para tabelas. |
 | CA-10 | Persistência: dados continuam após sair e entrar | e2e (como o da Fase 01) estendido |
 
 ## 10. Plano de PRs (cada um < 500 linhas por commit)
