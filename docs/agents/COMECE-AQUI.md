@@ -68,6 +68,8 @@ Plano de marcos, MVP e sprints: [`../roadmap-marcos.md`](../roadmap-marcos.md) (
 
 ## 5. Próximos passos sugeridos (ordem)
 
+**Specs em rascunho (2026-11-08, Q-29):** 7.5 histórico de preços PNCP (spec 07 §8), 8.7 comprovante de envio (spec 08 §7) e 9.5 documentos posteriores (spec 09 §5) esperam a aprovação do Adriano; sem ela, só ajustar o texto.
+
 **Orquestração (2026-11-06):** a ordem de trabalho agora vive em [`fila.md`](fila.md), consumida por um orquestrador Claude no Paseo (`/orquestrar`; [`orquestracao.md`](orquestracao.md)). Workers (Antigravity/Gemini 4 Argon, Codex GPT-6.1 Sol e GPT-6 Luna) trabalham em worktrees `orq/<id>`; `scripts/conferir-entrega.py` repete o hook de proteção sobre o diff, porque só o Claude Code passa pelo hook. A lista abaixo continua como contexto; ao mudar de prioridade, mude a fila.
 
 1. Fase 05: importar planilha (bloqueado: falta o layout da planilha atual da operação; exportação CSV já existe).
