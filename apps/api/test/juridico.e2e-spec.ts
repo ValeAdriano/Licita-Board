@@ -66,6 +66,19 @@ describe('jurídico: fluxo e A x B', () => {
     await http().post(`/empresas/${empA}/juridico/pecas/${peca}/revisao`).set(bearer(redator)).expect(400); // o worker ainda não validou
   });
 
+  it('peça inexistente devolve 404 em todas as ações; estado inválido continua 400', async () => {
+    const raiz = `/empresas/${empA}/juridico/pecas/${crypto.randomUUID()}`;
+    await http().put(`${raiz}/minuta`).set(bearer(a)).send({ minuta: 'Minuta fictícia de teste.' }).expect(404);
+    for (const [acao, corpo] of [
+      ['descartar', { justificativa: 'Descarte fictício de teste' }], ['revisao', {}], ['devolver', {}], ['aprovar', {}],
+      ['protocolo', { numero: '2026/99', quando: '2026-11-10T10:00:00-03:00' }], ['resultado', { resultado: 'deferido' }],
+      ['minuta-ia', {}], ['validar', {}], ['pdf', {}],
+    ] as const) {
+      await http().post(`${raiz}/${acao}`).set(bearer(a)).send(corpo).expect(404);
+    }
+    await http().post(`/empresas/${empA}/juridico/pecas/${peca}/aprovar`).set(bearer(a)).expect(400); // minuta ainda não enviada à revisão
+  });
+
   it('fluxo: revisão só validada; aprovar só com aprovar_peca; protocolo é humano e marca o evento; final imutável', async () => {
     await admin.query(`update priv.pecas set validada_em = now(), bloqueada = false where id = $1`, [peca]); // worker simulado
     await http().post(`/empresas/${empA}/juridico/pecas/${peca}/revisao`).set(bearer(redator)).expect(204);
@@ -161,7 +174,7 @@ describe('jurídico: fluxo e A x B', () => {
     await http().get(`/empresas/${empB}/juridico/pecas/${peca}`).set(bearer(b)).expect(404);
     expect(((await http().get(`/empresas/${empB}/juridico/pecas`).set(bearer(b)).expect(200)).body as unknown[])).toHaveLength(0);
     await http().post(`/empresas/${empB}/juridico/pecas/${peca}/download`).set(bearer(b)).send({}).expect(404);
-    await http().post(`/empresas/${empB}/juridico/pecas/${peca}/aprovar`).set(bearer(b)).expect(400);
+    await http().post(`/empresas/${empB}/juridico/pecas/${peca}/aprovar`).set(bearer(b)).expect(404);
   });
   for (const dona of ['A', 'B'] as const) {
     it(`isolamento por endpoint: peças e base de ${dona} intactas nas 19 rotas`, async () => {
@@ -200,14 +213,12 @@ describe('jurídico: fluxo e A x B', () => {
         await http().get(`${r}/pecas/${id}`).set(bearer(invasor)).expect(404);
         const historico = await http().get(`${r}/pecas/${id}/minuta-ia`).set(bearer(invasor)).expect(e === empresa ? 404 : 200);
         if (e === outra) expect(historico.body).toEqual([]);
-        await http().put(`${r}/pecas/${id}/minuta`).set(bearer(invasor)).send({ minuta: 'Texto fictício de tentativa de alteração.' }).expect(e === empresa ? 404 : 400);
+        await http().put(`${r}/pecas/${id}/minuta`).set(bearer(invasor)).send({ minuta: 'Texto fictício de tentativa de alteração.' }).expect(404);
         for (const [acao, corpo] of [
           ['descartar', { justificativa: 'Tentativa fictícia de descarte' }], ['minuta-ia', {}], ['validar', {}], ['revisao', {}], ['devolver', {}],
           ['aprovar', { stepUp: su.id }], ['protocolo', { numero: '2026/99', quando: '2026-11-10T10:00:00-03:00' }], ['resultado', { resultado: 'deferido' }], ['pdf', {}],
         ] as const) {
-          // Funções de fluxo usam 400 também para ID inexistente; não revelam a peça.
-          const status = e === outra && ['descartar', 'revisao', 'devolver', 'aprovar', 'protocolo', 'resultado'].includes(acao) ? 400 : 404;
-          await http().post(`${r}/pecas/${id}/${acao}`).set(bearer(invasor)).send(corpo).expect(status);
+          await http().post(`${r}/pecas/${id}/${acao}`).set(bearer(invasor)).send(corpo).expect(404);
         }
         for (const formato of ['docx', 'pdf']) {
           const dl = await http().post(`${r}/pecas/${final}/download`).set(bearer(invasor)).send({ formato }).expect(404);
