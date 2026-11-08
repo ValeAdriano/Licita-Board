@@ -82,11 +82,11 @@ describe('acesso', () => {
   it('A x B: funções do banco recusam vínculo e convite de B mesmo com step-up de A', async () => {
     const su = await stepUp(a, 'alterar_permissoes');
     await http().put(`/vinculos/${vinculoB}`).set(bearer(a.token))
-      .send({ papel: 'CLIENTE', ativo: false, permissoes: [], stepUp: su }).expect(403);
+      .send({ papel: 'CLIENTE', ativo: false, permissoes: [], stepUp: su }).expect(404);
     const conviteB = await admin.query<{ id: string }>(
       `insert into core.convites (empresa_id, email, papel, criado_por)
        select $1, 'alvo@teste.local', 'OPERADOR', id from core.usuarios where email = $2 returning id`, [empB, b.email]);
-    await http().delete(`/convites/${conviteB.rows[0]?.id ?? ''}`).set(bearer(a.token)).expect(403);
+    await http().delete(`/convites/${conviteB.rows[0]?.id ?? ''}`).set(bearer(a.token)).expect(404);
     const n = await admin.query<{ id: string }>(
       `insert into core.notificacoes (usuario_id, tipo, titulo) select id, 'sistema', 'só de B' from core.usuarios
         where email = $1 returning id`, [b.email]);
@@ -112,6 +112,30 @@ describe('acesso', () => {
     const usuarios = await http().get(`/empresas/${empA}/usuarios`).set(bearer(a.token)).expect(200);
     const op = (usuarios.body as { vinculoId: string; permissoes: string[] }[]).find((u) => u.vinculoId === vinculoOp);
     expect(op?.permissoes).toEqual(['empresas:editar', 'empresas:visualizar']);
+  });
+
+  // Q-36: na mesma empresa, quem não tem administrar_permissoes recebe o mesmo 404 de id inexistente;
+  // convite já revogado também (a função não separa os casos); step-up errado continua 403.
+  it('vínculo e convite: sem permissão ou já decidido = 404 igual ao inexistente; step-up errado = 403', async () => {
+    const op = await entrar(await criarUsuario('acesso-q36-op'));
+    await vincular(op.email, empA, 'OPERADOR', ['usuarios:visualizar', 'permissoes:visualizar']);
+    const alvo = await vincular(await criarUsuario('acesso-q36-alvo'), empA, 'OPERADOR', ['empresas:visualizar']);
+    const suA = await stepUp(a, 'alterar_permissoes');
+    const convite = ((await http().post(`/empresas/${empA}/convites`).set(bearer(a.token))
+      .send({ email: `q36-${crypto.randomUUID()}@exemplo.com.br`, papel: 'OPERADOR', permissoes: [], stepUp: suA })
+      .expect(201)).body as { id: string }).id;
+    const corpo = { papel: 'CLIENTE', ativo: false, permissoes: [], stepUp: crypto.randomUUID() };
+    const semPermissao = await http().put(`/vinculos/${alvo}`).set(bearer(op.token)).send(corpo).expect(404);
+    const inexistente = await http().put(`/vinculos/${crypto.randomUUID()}`).set(bearer(op.token)).send(corpo).expect(404);
+    expect(semPermissao.body).toEqual(inexistente.body);
+    await http().delete(`/convites/${convite}`).set(bearer(op.token)).expect(404);
+    await http().delete(`/convites/${crypto.randomUUID()}`).set(bearer(op.token)).expect(404);
+    // Admin com step-up inválido: 403 (o app abre a reautenticação), não 404.
+    await http().put(`/vinculos/${alvo}`).set(bearer(a.token)).send({ ...corpo, stepUp: crypto.randomUUID() }).expect(403);
+    await http().delete(`/convites/${convite}`).set(bearer(a.token)).expect(204);
+    await http().delete(`/convites/${convite}`).set(bearer(a.token)).expect(404);
+    const estado = await admin.query<{ papel: string; ativo: boolean }>('select papel, ativo from core.vinculos where id = $1', [alvo]);
+    expect(estado.rows[0]).toEqual({ papel: 'OPERADOR', ativo: true });
   });
 
   it('convite: admin convida com step-up, o convidado vê e aceita, e passa a ver a empresa', async () => {
@@ -323,7 +347,7 @@ describe('acesso', () => {
         };
         const r = await chamar(empresa, caso === 'vinculo' ? (vinculos[i] ?? '') : convite);
         const ausente = await chamar(crypto.randomUUID(), crypto.randomUUID());
-        expect(r.status).toBe(caso === 'vinculo' || caso === 'revogar' ? 403 : 404);
+        expect(r.status).toBe(404);
         expect(r.status).toBe(ausente.status);
         expect(hash(r.body as unknown)).toBe(hash(ausente.body as unknown));
         if (caso === 'usuarios' || caso === 'convites' || caso === 'auditoria') {
