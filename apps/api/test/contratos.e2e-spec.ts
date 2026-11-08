@@ -156,4 +156,94 @@ describe('contratos: saldos, financeiro e A x B', () => {
     await http().post(`/empresas/${empB}/empenho-itens/${empItem}/entregas`).set(bearer(b)).send({ quantidade: '1', data: '2026-03-12' }).expect(404);
     await http().post(`/empresas/${empB}/faturas/${nf}/pagamento`).set(bearer(b)).send({ pagoEm: '2026-04-20', valorRecebido: '1' }).expect(400);
   });
+  for (const dona of ['A', 'B'] as const) {
+    it(`isolamento por endpoint: contratos de ${dona} intactos nas 17 rotas`, async () => {
+      const empresas = [await criarEmpresa('Matriz A fictícia'), await criarEmpresa('Matriz B fictícia')] as const;
+      const usuarios = [await criarUsuario('matriz-a'), await criarUsuario('matriz-b')] as const;
+      await vincular(usuarios[0], empresas[0]); await vincular(usuarios[1], empresas[1]);
+      const tokens = [await entrar(usuarios[0]), await entrar(usuarios[1])] as const;
+      const empresa = empresas[dona === 'A' ? 0 : 1];
+      const outra = empresas[dona === 'A' ? 1 : 0];
+      const token = tokens[dona === 'A' ? 0 : 1];
+      const invasor = tokens[dona === 'A' ? 1 : 0];
+      const raiz = `/empresas/${empresa}`;
+      const novoContrato = { numero: crypto.randomUUID(), orgao: 'Órgão fictício matriz', objeto: 'Objeto fictício isolado', vigenciaInicio: '2026-01-01', vigenciaFim: '2030-12-31' };
+      const id = ((await http().post(`${raiz}/contratos`).set(bearer(token)).send(novoContrato).expect(201)).body as { id: string }).id;
+      const itemCorpo = { numeroItem: 1, descricao: 'Item fictício', quantidade: '10', valorUnitario: '9876.5432' };
+      const ci = ((await http().post(`${raiz}/contratos/${id}/itens`).set(bearer(token)).send(itemCorpo).expect(201)).body as { id: string }).id;
+      const empenhoCorpo = { numero: 'EMP-matriz', emitidoEm: '2026-02-01', itens: [{ contratoItemId: ci, quantidade: '4' }] };
+      const ei = ((await http().post(`${raiz}/contratos/${id}/empenhos`).set(bearer(token)).send(empenhoCorpo).expect(201)).body as { id: string }).id;
+      const eitem = (await admin.query<{ id: string }>('select id from priv.empenho_itens where empenho_id = $1', [ei])).rows[0]?.id ?? '';
+      const faturaCorpo = { numeroNf: 'NF-matriz', emitidaEm: '2026-03-01', valor: '12345.6789', vencimento: '2026-04-01', empenhoId: ei };
+      const f = ((await http().post(`${raiz}/contratos/${id}/faturas`).set(bearer(token)).send(faturaCorpo).expect(201)).body as { id: string }).id;
+      const doc = (await admin.query<{ id: string }>(`insert into priv.documentos (empresa_id, tipo_id, descricao) select $1, id, 'Documento fictício matriz' from pub.tipos_documento limit 1 returning id`, [empresa])).rows[0]?.id ?? '';
+      const anexo = ((await http().post(`${raiz}/contratos/${id}/anexos`).set(bearer(token)).send({ documentoId: doc }).expect(201)).body as { id: string }).id;
+      const ed = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, orgao_id, id_externo, objeto, hash_conteudo) select id, (select id from pub.orgaos limit 1), $1, 'Matriz contratos', repeat('a',64) from ops.fontes limit 1 returning id`, [crypto.randomUUID()])).rows[0]?.id;
+      const ac = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1,$2) returning id`, [empresa, ed])).rows[0]?.id;
+      await admin.query('update priv.contratos set acompanhamento_id = $1 where id = $2', [ac, id]);
+      await http().post(`${raiz}/contratos/${id}/pedidos`).set(bearer(token)).send({ tipo: 'reajuste', titulo: 'Pedido fictício matriz' }).expect(201);
+      const pendEd = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, orgao_id, id_externo, objeto, hash_conteudo) select fonte_id, orgao_id, $2, objeto, hash_conteudo from pub.editais where id = $1 returning id`, [ed, crypto.randomUUID()])).rows[0]?.id;
+      const pendAc = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1,$2) returning id`, [empresa, pendEd])).rows[0]?.id;
+      const pendItem = (await admin.query<{ id: string }>(`insert into pub.edital_itens (edital_id, numero_item, descricao) values ($1,1,'Pendente matriz') returning id`, [pendEd])).rows[0]?.id;
+      const pendPa = (await admin.query<{ id: string }>(`insert into priv.participacoes (empresa_id, acompanhamento_id, item_id) values ($1,$2,$3) returning id`, [empresa, pendAc, pendItem])).rows[0]?.id;
+      await admin.query(`insert into priv.resultados_item (empresa_id, participacao_id, resultado_final, valor_final) values ($1,$2,'contratada','45678.9123')`, [empresa, pendPa]);
+      expect(JSON.stringify((await http().get(`${raiz}/contratos/pendentes-de-cadastro`).set(bearer(token)).expect(200)).body)).toContain(pendAc);
+      const snapshot = async () => {
+        const dados: unknown[] = [];
+        for (const tabela of ['contratos', 'contrato_itens', 'empenhos', 'empenho_itens', 'empenho_etapas', 'entregas', 'faturas', 'contrato_eventos', 'contrato_anexos', 'pecas', 'documentos']) {
+          dados.push((await admin.query(`select to_jsonb(t) as linha from priv.${tabela} t where empresa_id = $1 order by id`, [empresa])).rows);
+        }
+        return dados;
+      };
+      const antes = await snapshot();
+      const ausente = crypto.randomUUID();
+      type Caso = { metodo: 'get' | 'post' | 'delete'; rota: string; corpo?: object };
+      const casos: Caso[] = [
+        { metodo: 'get', rota: '/contratos' },
+        { metodo: 'get', rota: '/contratos/pendentes-de-cadastro' },
+        { metodo: 'post', rota: '/contratos', corpo: { ...novoContrato, numero: crypto.randomUUID(), acompanhamentoId: ac } },
+        { metodo: 'get', rota: `/contratos/${id}` },
+        { metodo: 'get', rota: `/contratos/${id}/anexos` },
+        { metodo: 'post', rota: `/contratos/${id}/anexos`, corpo: { documentoId: doc } },
+        { metodo: 'delete', rota: `/contratos/${id}/anexos/${anexo}` },
+        { metodo: 'get', rota: `/contratos/${id}/pedidos` },
+        { metodo: 'post', rota: `/contratos/${id}/pedidos`, corpo: { tipo: 'reajuste', titulo: 'Tentativa fictícia' } },
+        { metodo: 'post', rota: `/contratos/${id}/itens`, corpo: itemCorpo },
+        { metodo: 'post', rota: `/contratos/${id}/empenhos`, corpo: empenhoCorpo },
+        { metodo: 'post', rota: `/empenhos/${ei}/etapa`, corpo: { etapa: 'transporte' } },
+        { metodo: 'post', rota: `/empenho-itens/${eitem}/entregas`, corpo: { quantidade: '1', data: '2026-03-02' } },
+        { metodo: 'post', rota: `/contratos/${id}/faturas`, corpo: faturaCorpo },
+        { metodo: 'post', rota: `/faturas/${f}/pagamento`, corpo: { pagoEm: '2026-04-01', valorRecebido: '1' } },
+        { metodo: 'post', rota: `/contratos/${id}/eventos`, corpo: { tipo: 'aditivo', data: '2026-03-01', descricao: 'Tentativa fictícia', novoValor: '99999' } },
+        { metodo: 'post', rota: `/contratos/${id}/encerrar`, corpo: { status: 'encerrado' } },
+      ];
+      for (const c of casos) {
+        await http()[c.metodo](`${raiz}${c.rota}`).set(bearer(invasor)).send(c.corpo ?? {}).expect(404);
+        const url = `/empresas/${outra}${c.rota}`;
+        const r = await http()[c.metodo](url).set(bearer(invasor)).send(c.corpo ?? {});
+        if (c.metodo === 'get' && ['/contratos', '/contratos/pendentes-de-cadastro'].includes(c.rota)) {
+          expect(r.status).toBe(200);
+          expect(JSON.stringify(r.body)).not.toContain(id);
+          for (const segredo of [ci, ei, eitem, f, doc, anexo, pendAc ?? '', '9876.5432', '12345.6789', '45678.9123']) expect(JSON.stringify(r.body)).not.toContain(segredo);
+        } else {
+          // Compara também 400 de fluxo e coleções vazias com um recurso inexistente.
+          const rotaVazia = c.rota.replaceAll(id, ausente).replaceAll(anexo, ausente).replaceAll(ei, ausente).replaceAll(eitem, ausente).replaceAll(f, ausente);
+          const corpoVazio = JSON.parse(JSON.stringify(c.corpo ?? {}).replaceAll(ac ?? '', ausente)) as object;
+          const vazio = await http()[c.metodo](`/empresas/${outra}${rotaVazia}`).set(bearer(invasor)).send(corpoVazio);
+          const esperado = c.metodo === 'get' && /\/(anexos|pedidos)$/.test(c.rota) ? 200
+            : c.rota === '/contratos' || /\/(pagamento|encerrar)$/.test(c.rota) ? 400 : 404;
+          expect(r.status, `${c.metodo} ${c.rota}: ${JSON.stringify(r.body)}`).toBe(esperado);
+          expect(r.status).toBe(vazio.status);
+          expect(r.body).toEqual(vazio.body);
+          if (r.status === 200) expect(r.body).toEqual([]);
+        }
+        expect(await snapshot()).toEqual(antes);
+      }
+      // Um contrato próprio também não pode vincular o documento de outra empresa.
+      const proprio = ((await http().post(`/empresas/${outra}/contratos`).set(bearer(invasor)).send({ ...novoContrato, numero: crypto.randomUUID() }).expect(201)).body as { id: string }).id;
+      await http().post(`/empresas/${outra}/contratos/${proprio}/anexos`).set(bearer(invasor)).send({ documentoId: doc }).expect(404);
+      expect(await snapshot()).toEqual(antes);
+    });
+  }
+
 });

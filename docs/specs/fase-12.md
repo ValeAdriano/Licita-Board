@@ -36,7 +36,7 @@
 - ✅ Exportação Excel e impressão em PDF: `apps/api/src/exportacao/xlsx.ts`, `apps/web/src/features/dashboard/Painel.tsx`.
 - 🟡 Margens e preços vencedores anteriores não integram o relatório; o histórico comercial de preços PNCP ainda falta: `apps/api/src/dashboard/dashboard.controller.ts`.
 - ✅ Excel de resultados/comercial, indicadores jurídicos e agenda; exportação da agenda reutiliza as linhas do CSV e o gerador próprio: `apps/api/src/exportacao/xlsx.ts`, `apps/api/src/agenda/csv.ts`, `apps/api/src/agenda/agenda.controller.ts`.
-- ✅ A x B e permissões têm evidência e2e histórica; regra 13 exige cobertura antes de uso real, não reexecutada nesta conferência.
+- ✅ Q-23 (rodada 5): matriz e2e A x B por endpoint nas 7 rotas de dashboard/relatórios, nos dois sentidos, com empresas próprias por caso; CSV e XML descompactado do Excel sem IDs, marcadores ou valores da outra empresa; assinatura diária e resultados da dona intactos.
 
 
 - 2026-11-05 · núcleo pronto: API `apps/api/src/dashboard` (`/dashboard`, `/relatorios/comercial`, `/relatorios/resultados.csv`), painel e relatório comercial no Início (`features/dashboard/Painel.tsx`). Testes: e2e (indicadores iguais aos registros, `null` sem permissão, B isolado, relatório comercial com taxa e motivos, CSV). Conferido na stack real: "valores a receber" do painel igual ao do contrato fictício da Fase 11 (R$ 529.626,44).

@@ -136,4 +136,48 @@ describe('dashboard: indicadores, permissões e A x B', () => {
     await http().get(`/empresas/${empA}/relatorios/resultados.csv`).set(bearer(b)).expect(404);
     await http().get(`/empresas/${empA}/relatorios/resultados.csv`).set(bearer(semExportar)).expect(404); // sem exportar
   });
+  for (const dona of ['A', 'B'] as const) {
+    it(`isolamento por endpoint: dashboard/relatórios de ${dona} nas 7 rotas`, async () => {
+      const empresas = [await criarEmpresa('Matriz A fictícia'), await criarEmpresa('Matriz B fictícia')] as const;
+      const usuarios = [await criarUsuario('matriz-a'), await criarUsuario('matriz-b')] as const;
+      await vincular(usuarios[0], empresas[0]); await vincular(usuarios[1], empresas[1]);
+      const tokens = [await entrar(usuarios[0]), await entrar(usuarios[1])] as const;
+      const empresa = empresas[dona === 'A' ? 0 : 1];
+      const outra = empresas[dona === 'A' ? 1 : 0];
+      const token = tokens[dona === 'A' ? 0 : 1];
+      const invasor = tokens[dona === 'A' ? 1 : 0];
+      const marcador = `MATRIZ-${crypto.randomUUID()}`;
+      const valor = dona === 'A' ? '87654.3211' : '76543.2122';
+      const ed = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, orgao_id, id_externo, objeto, hash_conteudo) select id, (select id from pub.orgaos limit 1), $1, $1, repeat('c',64) from ops.fontes limit 1 returning id`, [marcador])).rows[0]?.id;
+      const item = (await admin.query<{ id: string }>(`insert into pub.edital_itens (edital_id, numero_item, descricao) values ($1,1,$2) returning id`, [ed, marcador])).rows[0]?.id;
+      const ac = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1,$2) returning id`, [empresa, ed])).rows[0]?.id;
+      const pa = (await admin.query<{ id: string }>(`insert into priv.participacoes (empresa_id, acompanhamento_id, item_id, marca, modelo) values ($1,$2,$3,$4,'Fictício') returning id`, [empresa, ac, item, marcador])).rows[0]?.id;
+      const resultado = (await admin.query<{ id: string }>(`insert into priv.resultados_item (empresa_id, participacao_id, resultado_final, valor_final) values ($1,$2,'homologada',$3) returning id`, [empresa, pa, valor])).rows[0]?.id ?? '';
+      const snapshot = async () => (await admin.query<Record<string, unknown>>(`select (select jsonb_agg(r order by r.id) from priv.resultados_item r where empresa_id = $1) as resultados, (select jsonb_agg(s order by s.id) from priv.relatorio_diario_assinaturas s where empresa_id = $1) as assinaturas`, [empresa])).rows;
+      const raiz = `/empresas/${empresa}`;
+      await http().put(`${raiz}/relatorio-diario`).set(bearer(token)).send({ ativo: true }).expect(204);
+      const antes = await snapshot();
+      for (const rota of ['dashboard', 'relatorios/comercial', 'relatorios/comercial.xlsx', 'relatorios/resultados.csv', 'relatorios/resultados.xlsx', 'relatorio-diario']) {
+        await http().get(`${raiz}/${rota}`).set(bearer(invasor)).expect(404);
+        const url = `/empresas/${outra}/${rota}`;
+        let conteudo: string;
+        if (rota.endsWith('.xlsx')) {
+          conteudo = [...partesXlsx(await baixar(url, invasor)).values()].join('');
+          const proprio = [...partesXlsx(await baixar(`${raiz}/${rota}`, token)).values()].join('');
+          expect(proprio).toContain(valor);
+        } else {
+          const r = await http().get(url).set(bearer(invasor)).expect(200);
+          conteudo = rota.endsWith('.csv') ? r.text : JSON.stringify(r.body);
+          if (rota.endsWith('.csv')) expect((await http().get(`${raiz}/${rota}`).set(bearer(token)).expect(200)).text).toContain(valor);
+        }
+        for (const segredo of [marcador, valor, resultado, ac ?? '', pa ?? '']) expect(conteudo).not.toContain(segredo);
+        expect(await snapshot()).toEqual(antes);
+      }
+      await http().put(`${raiz}/relatorio-diario`).set(bearer(invasor)).send({ ativo: false }).expect(404);
+      await http().put(`/empresas/${outra}/relatorio-diario`).set(bearer(invasor)).send({ ativo: true }).expect(204);
+      expect(await snapshot()).toEqual(antes);
+      expect((await http().get(`${raiz}/relatorio-diario`).set(bearer(token)).expect(200)).body).toEqual({ ativo: true });
+    });
+  }
+
 });
