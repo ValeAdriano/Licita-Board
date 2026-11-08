@@ -181,4 +181,96 @@ describe('fase 02', () => {
     }
   }
 
+  // Rodada 10: cada linha gera dois casos, com empresas/usuários/objetos exclusivos.
+  for (const sentido of ['A → B', 'B → A']) {
+    for (const caso of [
+      ['get', '/produtos', {}],
+      ['post', '/produtos', { codigoInterno: 'tentativa', descricao: 'Tentativa fictícia' }],
+      ['get', '/produtos/P', {}],
+      ['patch', '/produtos/P', { descricao: 'Tentativa fictícia' }],
+      ['post', '/produtos/P/arquivar', {}],
+      ['get', '/produtos/P/precos', {}],
+      ['put', '/produtos/P/precos', { precoCusto: '1', precoReferencia: '2' }],
+      ['get', '/produtos/P/atributos', {}],
+      ['put', '/produtos/P/atributos', { atributos: [] }],
+      ['get', '/produtos/P/fichas', {}],
+      ['post', '/produtos/P/fichas', { fabricante: 'Tentativa', modelo: 'Fictício' }],
+      ['patch', '/fichas/F', { situacao: 'descontinuada' }],
+      ['get', '/representantes/R/poderes', {}],
+      ['put', '/representantes/R/poderes', { poderes: [] }],
+      ['get', '/representantes/R/procuracoes', {}],
+      ['post', '/representantes/R/procuracoes', { dataEmissao: '2026-01-01', poderes: ['assinar_proposta'] }],
+      ['patch', '/procuracoes/C', { numero: 'Tentativa', poderes: [] }],
+      ['post', '/procuracoes/C/revogar', { data: '2026-02-01' }],
+      ['post', '/procuracoes/C/arquivar', {}],
+      ['get', '/representantes/R/signatario-valido?data=2026-02-01&poder=assinar_proposta', {}],
+      ['get', '/palavras-chave', {}],
+      ['post', '/palavras-chave', { tipo: 'palavra', termo: 'Tentativa' }],
+      ['patch', '/palavras-chave/T', { termo: 'Tentativa', ativo: false }],
+      ['post', '/palavras-chave/T/arquivar', {}],
+      ['post', '/palavras-chave-filtros', { tipo: 'uf', uf: 'RJ' }],
+      ['post', '/palavras-chave-filtros/L/arquivar', {}],
+    ] as const) {
+      const [metodo, path, corpo] = caso;
+      it(`matriz rodada 10 ${sentido}: ${metodo.toUpperCase()} :empresa${path}`, async () => {
+        const empresas = [await criarEmpresa('Rodada 10 fictícia A'), await criarEmpresa('Rodada 10 fictícia B')];
+        const contas: Conta[] = [];
+        for (const empresa of empresas) {
+          const email = await criarUsuario('rodada10');
+          await vincular(email, empresa);
+          contas.push(await entrar(email));
+        }
+        const indice = sentido === 'A → B' ? 1 : 0;
+        const empresa = empresas[indice] ?? '';
+        const propria = empresas[1 - indice] ?? '';
+        const dona = contas[indice];
+        if (!dona) throw new Error('fixture sem dona');
+        const invasora = contas[1 - indice];
+        if (!invasora) throw new Error('fixture sem invasora');
+        const raiz = `/empresas/${empresa}`;
+        const criar = async (path: string, body: object) => ((await http().post(raiz + path).set(bearer(dona.token)).send(body).expect(201)).body as { id: string }).id;
+        const categoriaId = ((await http().get('/catalogo/categorias').set(bearer(dona.token)).expect(200)).body as { id: string; slug: string }[]).find((c) => c.slug === 'veiculos')?.id ?? '';
+        const P = await criar('/produtos', { categoriaId, codigoInterno: 'reservado', descricao: 'Produto fictício reservado' });
+        await http().put(`${raiz}/produtos/${P}/precos`).set(bearer(dona.token)).send({ precoCusto: '98765.4321', precoReferencia: '123456.7890' }).expect(204);
+        const documento = (await admin.query<{ id: string }>(`insert into priv.documentos (empresa_id, tipo_id, descricao, sem_vencimento) select $1, id, 'Arquivo fictício reservado', true from pub.tipos_documento where slug = 'outro' returning id`, [empresa])).rows[0]?.id ?? '';
+        const F = (await admin.query<{ id: string }>(`insert into priv.fichas_tecnicas (empresa_id, produto_id, versao_ficha, fabricante, modelo, documento_id, fonte_oficial) values ($1, $2, 1, 'Fabricante reservado', 'Modelo reservado', $3, 'https://arquivo.exemplo.invalid/ficha-reservada') returning id`, [empresa, P, documento])).rows[0]?.id ?? '';
+        const atributos = ((await http().get(`/catalogo/atributos?categoria=${categoriaId}`).set(bearer(dona.token)).expect(200)).body as { id: string; tipo: string; unidadePadraoId: string | null }[]);
+        const atributo = atributos.find((x) => x.tipo === 'numero' && x.unidadePadraoId);
+        if (!atributo) throw new Error('fixture sem atributo numérico');
+        {
+          await http().put(`${raiz}/produtos/${P}/atributos`).set(bearer(dona.token)).send({ atributos: [{ atributoId: atributo.id, valorNumero: '110', unidadeId: atributo.unidadePadraoId }] }).expect(204);
+        }
+        const R = await criar('/representantes', { tipo: 'PROCURADOR', nome: 'Outorgado fictício reservado', cpf: '52998224725' });
+        await http().put(`${raiz}/representantes/${R}/poderes`).set(bearer(dona.token)).send({ poderes: ['assinar_proposta'] }).expect(204);
+        const C = await criar(`/representantes/${R}/procuracoes`, { numero: 'Reservado', observacao: 'Observação fictícia reservada', dataEmissao: '2026-01-01', poderes: ['assinar_proposta'] });
+        await admin.query('update core.procuracoes set documento_id = $1 where id = $2', [documento, C]);
+        const T = await criar('/palavras-chave', { tipo: 'palavra', termo: 'Termo reservado' });
+        const L = await criar('/palavras-chave-filtros', { tipo: 'restricao', texto: 'Filtro reservado' });
+        const ids: Record<string, string> = { P, F, R, C, T, L };
+        const caminho = (ausente: boolean) => path.replace(/\b[PFRCTL]\b/g, (k) => ausente ? crypto.randomUUID() : (ids[k] ?? ''));
+        const hash = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
+        const tabelas = ['priv.documentos', 'priv.produtos', 'priv.produto_precos', 'priv.produto_atributos', 'priv.fichas_tecnicas', 'core.representantes', 'core.representante_poderes', 'core.procuracoes', 'core.procuracao_poderes', 'priv.palavras_chave', 'priv.palavras_chave_filtros'];
+        const snapshot = async () => hash(await Promise.all(tabelas.map(async (t) =>
+          (await admin.query<{ dado: unknown }>(`select to_jsonb(t) as dado from ${t} t where empresa_id = any($1::uuid[]) order by to_jsonb(t)::text`, [empresas])).rows)));
+        const antes = await snapshot();
+        const body = path === '/produtos' && metodo === 'post' ? { ...corpo, categoriaId } : corpo;
+        // Empresa alheia: guard; empresa própria + ID alheio: controller/RLS.
+        for (const e of [empresa, propria]) {
+          const temId = /\b[PFRCTL]\b/.test(path);
+          if (e === propria && !temId && metodo !== 'get') continue;
+          const r = await http()[metodo](`/empresas/${e}${caminho(false)}`).set(bearer(invasora.token)).send(body);
+          const ausente = await http()[metodo](`/empresas/${e === empresa ? crypto.randomUUID() : propria}${caminho(true)}`).set(bearer(invasora.token)).send(body);
+          const esperado = e === empresa ? 404 : metodo === 'get' && path !== '/produtos/P' && !path.includes('signatario') ? 200 : path === '/representantes/R/procuracoes' && metodo === 'post' ? 400 : 404;
+          expect(r.status).toBe(esperado);
+          expect(r.status).toBe(ausente.status);
+          expect(hash(r.body)).toBe(hash(ausente.body));
+          if (esperado === 200) {
+            expect(r.body).toEqual(path === '/palavras-chave' ? { termos: [], filtros: [] } : path.endsWith('/precos') ? { precoCusto: null, precoReferencia: null } : []);
+          }
+          expect(await snapshot()).toBe(antes);
+        }
+      });
+    }
+  }
+
 });
