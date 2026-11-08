@@ -1,6 +1,8 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
+import { S3Servico } from '../src/documentos/s3.service.js';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { SENHA, admin, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
 
 // A x B dos endpoints da Fase 03 (documentos, atestados) e da Fase 04 (oportunidades, edital, importação,
@@ -167,7 +169,7 @@ describe('A x B: documentos, atestados e pesquisa de editais', () => {
         const antes = await get(empresa, token, 'oportunidades?encerradas=1');
         const importacoes = await get(empresa, token, 'importacoes');
         const execucoes = (await admin.query('select id from ops.execucoes order by id')).rows;
-        const jobs = (await admin.query('select id from ops.jobs order by id')).rows;
+        const jobs = (await admin.query("select id from ops.jobs where tipo in ('importar_edital', 'coletar_fonte') order by id")).rows;
         const rotas: { metodo: 'get' | 'post'; path: string; corpo?: object; recurso?: boolean }[] = [
           { metodo: 'get', path: 'oportunidades?encerradas=1' },
           { metodo: 'post', path: `oportunidades/${op}/triagem`, corpo: { triagem: 'descartada_pelo_usuario', motivo: 'Tentativa fictícia de invasão' }, recurso: true },
@@ -182,13 +184,101 @@ describe('A x B: documentos, atestados e pesquisa de editais', () => {
         expect(await get(empresa, token, 'oportunidades?encerradas=1')).toEqual(antes);
         expect(await get(empresa, token, 'importacoes')).toEqual(importacoes);
         expect((await admin.query('select id from ops.execucoes order by id')).rows).toEqual(execucoes);
-        expect((await admin.query('select id from ops.jobs order by id')).rows).toEqual(jobs);
+        expect((await admin.query("select id from ops.jobs where tipo in ('importar_edital', 'coletar_fonte') order by id")).rows).toEqual(jobs);
         expect(JSON.stringify(await get(outra, invasor, 'oportunidades?encerradas=1'))).not.toContain(op);
         expect(JSON.stringify(await get(outra, invasor, 'importacoes'))).not.toContain(criada.importacaoId);
       } finally {
         await admin.query(`update ops.fontes set ativa = false where slug = 'pncp'`);
       }
     });
+  }
+
+  // Q-23 rodada 11: recurso, usuários e empresas próprios por endpoint e sentido.
+  for (const sentido of ['A → B', 'B → A']) {
+    for (const caso of [
+      { metodo: 'get', path: '/documentos' },
+      { metodo: 'post', path: '/documentos' },
+      { metodo: 'post', path: '/documentos/DOC/arquivar' },
+      { metodo: 'get', path: '/documentos/DOC/versoes' },
+      { metodo: 'get', path: '/documentos/DOC/pendencias' },
+      { metodo: 'post', path: '/documentos/DOC/pendencias' },
+      { metodo: 'post', path: '/pendencias/PID/falha' },
+      { metodo: 'post', path: '/documentos/DOC/versoes' },
+      { metodo: 'post', path: '/versoes/VID/concluir' },
+      { metodo: 'post', path: '/versoes/VID/download' },
+      { metodo: 'get', path: '/atestados' },
+      { metodo: 'post', path: '/atestados' },
+      { metodo: 'post', path: '/atestados/AT/arquivar' },
+    ] as const) {
+      it(`matriz documental A x B ${sentido}: ${caso.metodo.toUpperCase()} ${caso.path}`, async () => {
+        const empresas = [await criarEmpresa('Documental matriz A'), await criarEmpresa('Documental matriz B')];
+        const emails = [await criarUsuario('doc-matriz-a'), await criarUsuario('doc-matriz-b')];
+        await vincular(emails[0] ?? '', empresas[0] ?? '');
+        await vincular(emails[1] ?? '', empresas[1] ?? '');
+        const tokens = [await entrar(emails[0] ?? ''), await entrar(emails[1] ?? '')];
+        const i = sentido === 'A → B' ? 1 : 0;
+        const empresa = empresas[i] ?? ''; const outra = empresas[1 - i] ?? '';
+        const dona = tokens[i] ?? ''; const invasora = tokens[1 - i] ?? '';
+        const tipo = (await admin.query<{ id: string }>('select id from pub.tipos_documento limit 1')).rows[0]?.id;
+        const unidade = (await admin.query<{ id: string }>('select id from pub.unidades limit 1')).rows[0]?.id;
+        const novo = { tipoId: tipo, descricao: 'Documento privado da matriz' };
+        const doc = ((await http().post(`/empresas/${empresa}/documentos`).set(bearer(dona)).send(novo).expect(201)).body as { id: string }).id;
+        const atestado = { documentoId: doc, contratante: 'Contratante fictício', objeto: 'Fornecimento fictício', itens: [{ descricao: 'Item fictício', quantidade: '2.0000', unidadeId: unidade }] };
+        const at = ((await http().post(`/empresas/${empresa}/atestados`).set(bearer(dona)).send(atestado).expect(201)).body as { id: string }).id;
+        // Assinatura simulada: nenhum S3/antivírus/provedor externo é chamado.
+        const enviar = vi.spyOn(app.get(S3Servico), 'urlParaEnviar').mockResolvedValue('https://s3.example.test/envio');
+        const baixar = vi.spyOn(app.get(S3Servico), 'urlParaBaixar').mockResolvedValue('https://s3.example.test/download');
+        try {
+          const vid = ((await http().post(`/empresas/${empresa}/documentos/${doc}/versoes`).set(bearer(dona)).send({ nome: 'privado.pdf', tamanho: 128 }).expect(201)).body as { versaoId: string }).versaoId;
+          await admin.query(`update priv.documento_versoes set status_arquivo = 'liberado' where id = $1`, [vid]);
+          const pid = ((await http().post(`/empresas/${empresa}/documentos/${doc}/pendencias`).set(bearer(dona)).send({ instrucoes: 'Renovar documento fictício' }).expect(201)).body as { pendenciaId: string }).pendenciaId;
+          const hash = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
+          const tabelas = ['documentos', 'documento_versoes', 'documento_pendencias', 'documento_downloads', 'atestados_tecnicos', 'atestado_itens'];
+          const snapshot = async () => hash(await Promise.all(tabelas.map(async (t) =>
+            (await admin.query<{ linha: unknown }>(`select to_jsonb(t) as linha from priv.${t} t where empresa_id in ($1, $2) order by to_jsonb(t)::text`, [empresa, outra])).rows)));
+          const antes = await snapshot();
+          const corpo = caso.path === '/documentos' ? novo : caso.path === '/atestados' ? atestado
+            : caso.path.endsWith('/falha') ? { detalhe: 'Falha fictícia' }
+              : caso.path.endsWith('/pendencias') ? { instrucoes: 'Tentativa fictícia' }
+                : { nome: 'intruso.pdf', tamanho: 128 };
+          const caminho = (ausente: boolean) => caso.path.replace('DOC', ausente ? crypto.randomUUID() : doc).replace('VID', ausente ? crypto.randomUUID() : vid).replace('PID', ausente ? crypto.randomUUID() : pid).replace('AT', ausente ? crypto.randomUUID() : at);
+          enviar.mockClear(); baixar.mockClear();
+          // Empresa alheia sempre indistinguível de empresa inexistente.
+          const negada = await http()[caso.metodo](`/empresas/${empresa}${caminho(false)}`).set(bearer(invasora)).send(corpo);
+          const inexistente = await http()[caso.metodo](`/empresas/${crypto.randomUUID()}${caminho(true)}`).set(bearer(invasora)).send(corpo);
+          expect(negada.status).toBe(404);
+          expect(hash(negada.body)).toBe(hash(inexistente.body));
+          expect(await snapshot()).toBe(antes);
+          // IDs alheios na própria rota; criação de atestado também tenta FK de documento alheio.
+          if (/DOC|VID|PID|AT/.test(caso.path) || caso.path === '/atestados' && caso.metodo === 'post') {
+            const r = await http()[caso.metodo](`/empresas/${outra}${caminho(false)}`).set(bearer(invasora)).send(corpo);
+            const ausente = await http()[caso.metodo](`/empresas/${outra}${caminho(true)}`).set(bearer(invasora)).send(caso.path === '/atestados' ? { ...atestado, documentoId: crypto.randomUUID() } : corpo);
+            const esperado = caso.metodo === 'get' ? 200 : caso.path === '/atestados' ? 400 : 404;
+            expect(r.status).toBe(esperado);
+            expect(r.status).toBe(ausente.status);
+            expect(hash(r.body)).toBe(hash(ausente.body));
+            if (r.status === 200) expect(r.body).toEqual([]);
+          }
+          expect(await snapshot()).toBe(antes);
+          expect(enviar).not.toHaveBeenCalled(); expect(baixar).not.toHaveBeenCalled();
+          for (const path of ['/documentos', '/atestados']) {
+            const lista = await http().get(`/empresas/${outra}${path}`).set(bearer(invasora)).expect(200);
+            expect(lista.body).toEqual([]);
+          }
+          // Controle positivo da mesma rota/corpo: o guard não mascara fixture inválida.
+          if (caso.path.endsWith('/concluir')) {
+            await admin.query(`update priv.documento_versoes set status_arquivo = 'quarentena' where id = $1`, [vid]);
+          }
+          if (caso.metodo === 'post' && caso.path === '/documentos/DOC/pendencias') {
+            await http().post(`/empresas/${empresa}/pendencias/${pid}/falha`).set(bearer(dona)).send({ detalhe: 'Encerrar fixture antes da nova solicitação' }).expect(204);
+          }
+          const positiva = await http()[caso.metodo](`/empresas/${empresa}${caminho(false)}`).set(bearer(dona)).send(corpo);
+          const status = caso.metodo === 'get' || caso.path.endsWith('/download') ? 200
+            : /arquivar|falha/.test(caso.path) ? 204 : caso.path.endsWith('/concluir') ? 202 : 201;
+          expect(positiva.status).toBe(status);
+        } finally { enviar.mockRestore(); baixar.mockRestore(); }
+      });
+    }
   }
 
 });
