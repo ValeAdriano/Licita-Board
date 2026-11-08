@@ -86,7 +86,7 @@ describe('contratos: saldos, financeiro e A x B', () => {
     await http().post(`/empresas/${empA}/contratos/${crypto.randomUUID()}/encerrar`).set(bearer(operador)).send({ status: 'encerrado' }).expect(404);
     await http().post(`/empresas/${empA}/contratos/${ct}/encerrar`).set(bearer(operador)).send({ status: 'encerrado' }).expect(204);
     await http().post(`/empresas/${empA}/contratos/${ct}/encerrar`).set(bearer(operador)).send({ status: 'encerrado' }).expect(400); // só contrato ativo
-    await http().post(`/empresas/${empA}/contratos/${ct}/empenhos`).set(bearer(operador)).send({ numero: 'EMP-9', emitidoEm: '2026-07-01', itens: [{ contratoItemId: item, quantidade: '1' }] }).expect(404); // contrato não está ativo
+    await http().post(`/empresas/${empA}/contratos/${ct}/empenhos`).set(bearer(operador)).send({ numero: 'EMP-9', emitidoEm: '2026-07-01', itens: [{ contratoItemId: item, quantidade: '1' }] }).expect(400); // contrato não está ativo (estado, 22023; Q-35)
   });
 
   it('contratada sem contrato aparece como pendente de cadastro com os dados do edital; cadastrar com o acompanhamento tira da lista; A x B', async () => {

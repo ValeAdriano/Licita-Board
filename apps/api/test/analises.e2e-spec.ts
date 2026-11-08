@@ -113,7 +113,7 @@ describe('análise técnica: fluxo e A x B', () => {
     await http().post(`/empresas/${empA}/requisitos/${sug}/confirmar`).set(bearer(leitor)).expect(404);
     await http().post(`/empresas/${empB}/requisitos/${sug}/confirmar`).set(bearer(b)).expect(404);
     await http().post(`/empresas/${empA}/requisitos/${sug}/confirmar`).set(bearer(editor)).expect(204);
-    await http().post(`/empresas/${empA}/requisitos/${sug}/confirmar`).set(bearer(editor)).expect(404); // já confirmado
+    await http().post(`/empresas/${empA}/requisitos/${sug}/confirmar`).set(bearer(editor)).expect(400); // já confirmado (estado, 22023; Q-35)
     await http().post(`/empresas/${empA}/participacoes/${part}/extrair-requisitos`).set(bearer(b)).expect(404);
     await admin.query(`delete from priv.requisitos_item where id = $1`, [sug]);
   });

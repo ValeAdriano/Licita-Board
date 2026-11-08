@@ -95,11 +95,10 @@ describe('sugestões de peças: fluxo e A x B', () => {
         expect(await snapshot()).toEqual(antes);
         for (const path of [`/acompanhamentos/${acompanhamento}/sugestoes`, `/sugestoes/${id}/aceitar`, `/sugestoes/${id}/descartar`]) {
           const corpo = { justificativa: 'Tentativa fictícia de descarte' };
-          const esperado = e === outra && path.endsWith('/descartar') ? 400 : 404;
-          const r = await http().post(base + path).set(bearer(invasor)).send(corpo).expect(esperado);
-          if (esperado === 400) {
-            // Ausência e estado inválido compartilham 22023; não distingue ID alheio.
-            const vazio = await http().post(`${base}/sugestoes/${crypto.randomUUID()}/descartar`).set(bearer(invasor)).send(corpo).expect(400);
+          const r = await http().post(base + path).set(bearer(invasor)).send(corpo).expect(404);
+          if (e === outra && path.endsWith('/descartar')) {
+            // Q-34: sugestão alheia e inexistente são o mesmo 404 (P0002), nunca o 400 de estado.
+            const vazio = await http().post(`${base}/sugestoes/${crypto.randomUUID()}/descartar`).set(bearer(invasor)).send(corpo).expect(404);
             expect(r.body).toEqual(vazio.body);
           }
           expect(await snapshot(), path).toEqual(antes);

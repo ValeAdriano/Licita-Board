@@ -108,4 +108,4 @@ Plano de blocos (modo rápido): (1) S3 de desenvolvimento (SeaweedFS) no compose
 **⚖️ A validar com o jurídico:** texto do aviso ME/EPP (LC 123, art. 43, §1º) e se o MEI entra (hoje entra: ME, EPP ou MEI no enquadramento vigente na data do cálculo; o aviso só sinaliza, nunca dispensa).
 
 
-- Q-23, rodada 11: matriz e2e A x B das 10 rotas de documentos e 3 de atestados em `pesquisa.e2e-spec.ts`, nos dois sentidos, fixtures por caso, UUID inexistente, snapshot por hash e assinatura S3 simulada. POST de atestado com documento alheio pela própria empresa: 400 indistinguível de documento inexistente; leituras de versões/pendências retornam lista vazia. Checklist fora desta rodada.
+- Q-23, rodada 11: matriz e2e A x B das 10 rotas de documentos e 3 de atestados em `pesquisa.e2e-spec.ts`, nos dois sentidos, fixtures por caso, UUID inexistente, snapshot por hash e assinatura S3 simulada. POST de atestado com documento alheio pela própria empresa: desde o Q-34 responde 404 (checagem prévia na API, mesmo filtro da FK), indistinguível de documento inexistente; leituras de versões/pendências retornam lista vazia. Checklist fora desta rodada.

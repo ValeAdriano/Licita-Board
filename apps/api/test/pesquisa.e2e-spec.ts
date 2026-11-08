@@ -253,7 +253,7 @@ describe('A x B: documentos, atestados e pesquisa de editais', () => {
           if (/DOC|VID|PID|AT/.test(caso.path) || caso.path === '/atestados' && caso.metodo === 'post') {
             const r = await http()[caso.metodo](`/empresas/${outra}${caminho(false)}`).set(bearer(invasora)).send(corpo);
             const ausente = await http()[caso.metodo](`/empresas/${outra}${caminho(true)}`).set(bearer(invasora)).send(caso.path === '/atestados' ? { ...atestado, documentoId: crypto.randomUUID() } : corpo);
-            const esperado = caso.metodo === 'get' ? 200 : caso.path === '/atestados' ? 400 : 404;
+            const esperado = caso.metodo === 'get' ? 200 : 404; // atestado com documento alheio: 404 (Q-34), não o 400 da FK
             expect(r.status).toBe(esperado);
             expect(r.status).toBe(ausente.status);
             expect(hash(r.body)).toBe(hash(ausente.body));

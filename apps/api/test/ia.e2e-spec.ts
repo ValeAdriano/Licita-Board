@@ -39,7 +39,7 @@ describe('chave de IA: sigilo, permissão e A x B', () => {
     const r = await http().put(`/empresas/${empA}/ia/chave`).set(bearer(a)).send({ chave: 'minha-chave-secreta-invalida-123' }).expect(400);
     expect(JSON.stringify(r.body)).not.toContain('minha-chave-secreta');
     await http().put(`/empresas/${empA}/ia/chave`).set(bearer(a)).send({ chave: CHAVE, modelo: 'gpt-9' }).expect(400);
-    await http().post(`/empresas/${empA}/ia/testar`).set(bearer(a)).expect(404); // sem chave cadastrada
+    await http().post(`/empresas/${empA}/ia/testar`).set(bearer(a)).expect(400); // sem chave cadastrada (estado, 22023; Q-35)
   });
 
   it('cadastra a chave: o banco guarda só o envelope cifrado e a API nunca a devolve', async () => {

@@ -79,6 +79,10 @@ export class ProcuracoesController {
     const d = validar(novaSchema, corpo);
     const lista = [...new Set(d.poderes)];
     return this.q(req, async (tx) => {
+      // Representante ausente ou de outra empresa é 404, não o 400 genérico da FK (representante_id, empresa_id). Mesmo
+      // filtro da FK (sem deleted_at); o insert com returning já exige representantes/visualizar pela RLS de leitura.
+      const rep = await sql`select 1 from core.representantes where id = ${id}::uuid and empresa_id = ${empresa}::uuid`.execute(tx);
+      if (!rep.rows.length) throw new NotFoundException();
       const p = (await sql<{ id: string }>`
         insert into core.procuracoes (empresa_id, representante_id, numero, data_emissao, data_validade, observacao)
         values (${empresa}::uuid, ${id}::uuid, ${d.numero ?? null}, ${d.dataEmissao}::date, ${d.dataValidade ?? null}::date, ${d.observacao ?? null})

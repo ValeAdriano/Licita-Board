@@ -76,7 +76,7 @@ describe('propostas: fluxo e A x B', () => {
     await http().post(`/empresas/${empA}/propostas/${prop}/download`).set(bearer(a)).expect(404); // ainda não é final
     await admin.query(`update priv.propostas set status = 'final', arquivo_chave = 'propostas/teste/proposta-v1.docx', arquivo_sha256 = repeat('b', 64), gerado_em = now() where id = $1`, [prop]); // worker simulado
     await http().post(`/empresas/${empA}/propostas/${prop}/devolver`).set(bearer(editor)).expect(400); // final não volta
-    await http().post(`/empresas/${empA}/propostas/${prop}/dados`).set(bearer(editor)).send({ validadeDias: 90 }).expect(404); // só rascunho se edita
+    await http().post(`/empresas/${empA}/propostas/${prop}/dados`).set(bearer(editor)).send({ validadeDias: 90 }).expect(400); // só rascunho se edita (estado, 22023; Q-35)
     const nv = await http().post(`/empresas/${empA}/propostas/${prop}/nova-versao`).set(bearer(editor)).send({}).expect(201);
     v2 = (nv.body as { id: string }).id;
     const d = (await http().get(`/empresas/${empA}/acompanhamentos/${acomp}/propostas`).set(bearer(a)).expect(200)).body as { propostas: { id: string; versao: number; status: string; temArquivo: boolean }[] };
@@ -88,7 +88,7 @@ describe('propostas: fluxo e A x B', () => {
     const jobs = Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'gerar_proposta'`)).rows[0]?.count);
     await http().post(`/empresas/${empA}/propostas/${prop}/pdf`).set(bearer(leitor)).expect(202); // pedir o PDF enfileira o worker
     expect(Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'gerar_proposta'`)).rows[0]?.count)).toBe(jobs + 1);
-    await http().post(`/empresas/${empA}/propostas/${v2}/pdf`).set(bearer(leitor)).expect(404); // rascunho não tem PDF
+    await http().post(`/empresas/${empA}/propostas/${v2}/pdf`).set(bearer(leitor)).expect(400); // rascunho não tem PDF (estado, 22023; Q-35)
     expect([200, 503]).toContain(dl.status); // 503 quando o armazenamento de teste não está ligado; nunca 404 para quem vê
   });
 

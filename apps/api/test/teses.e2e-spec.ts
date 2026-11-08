@@ -144,11 +144,10 @@ describe('teses e indicadores: fluxo e A x B', () => {
           { metodo: 'post', path: `/pecas/${pecaId}/teses/${id}`, vazio: `/pecas/${ausente}/teses/${ausente}`, corpo: {} },
         ] as const;
         for (const caso of casos) {
-          const esperado = e === outra && (caso.path.startsWith('/pecas/') || caso.path.endsWith('/aprovar')) ? 400 : 404;
-          const r = await http()[caso.metodo](base + caso.path).set(bearer(invasor)).send(caso.corpo).expect(esperado);
-          if (esperado === 400) {
-            // usar_tese e aprovar_tese usam 22023 para ausência e estado inválido.
-            const vazio = await http()[caso.metodo](base + caso.vazio).set(bearer(invasor)).send(caso.corpo).expect(400);
+          const r = await http()[caso.metodo](base + caso.path).set(bearer(invasor)).send(caso.corpo).expect(404);
+          if (e === outra) {
+            // Q-34: tese/peça alheia e inexistente são o mesmo 404 (P0002), nunca o 400 de estado.
+            const vazio = await http()[caso.metodo](base + caso.vazio).set(bearer(invasor)).send(caso.corpo).expect(404);
             expect(r.body).toEqual(vazio.body);
           }
           expect(await snapshot(), caso.path).toEqual(antes);

@@ -40,6 +40,10 @@ export class AtestadosController {
   async criar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Body() corpo: unknown) {
     const d = validar(atestadoSchema, corpo);
     return this.q(req, async (tx) => {
+      // Documento ausente ou de outra empresa é 404, não o 400 genérico da FK (documento_id, empresa_id). Mesmo filtro
+      // da FK (sem deleted_at); o insert com returning já exige documentos/visualizar pela RLS de leitura.
+      const doc = await sql`select 1 from priv.documentos where id = ${d.documentoId}::uuid and empresa_id = ${empresa}::uuid`.execute(tx);
+      if (!doc.rows.length) throw new NotFoundException();
       const novo = (await sql<{ id: string }>`
         insert into priv.atestados_tecnicos (empresa_id, documento_id, contratante, objeto, periodo_inicio, periodo_fim)
         values (${empresa}::uuid, ${d.documentoId}::uuid, ${d.contratante}, ${d.objeto}, ${d.periodoInicio ?? null}::date, ${d.periodoFim ?? null}::date)

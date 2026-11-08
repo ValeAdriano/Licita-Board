@@ -260,7 +260,7 @@ describe('fase 02', () => {
           if (e === propria && !temId && metodo !== 'get') continue;
           const r = await http()[metodo](`/empresas/${e}${caminho(false)}`).set(bearer(invasora.token)).send(body);
           const ausente = await http()[metodo](`/empresas/${e === empresa ? crypto.randomUUID() : propria}${caminho(true)}`).set(bearer(invasora.token)).send(body);
-          const esperado = e === empresa ? 404 : metodo === 'get' && path !== '/produtos/P' && !path.includes('signatario') ? 200 : path === '/representantes/R/procuracoes' && metodo === 'post' ? 400 : 404;
+          const esperado = e === empresa ? 404 : metodo === 'get' && path !== '/produtos/P' && !path.includes('signatario') ? 200 : 404; // procuração com representante alheio: 404 (Q-34)
           expect(r.status).toBe(esperado);
           expect(r.status).toBe(ausente.status);
           expect(hash(r.body)).toBe(hash(ausente.body));
