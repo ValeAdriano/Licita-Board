@@ -10,7 +10,7 @@ import { BENEFICIO, moeda, quando } from '../features/pesquisa/formato'
 import { Aviso, Botao, CabecalhoPagina, Campo, Cartao, Etiqueta, Legenda, Pagina } from '../ui'
 
 interface Item { id: string; numeroItem: number; descricao: string; quantidade: string | null; unidadeMedida: string | null; valorUnitario: string | null; valorTotal: string | null; beneficio: string; retirado: boolean }
-interface Arquivo { id: string; tipo: string; titulo: string | null; urlOrigem: string; statusArquivo: string; motivo: string | null; tamanho: string | null; paginas: number | null; statusExtracao: string }
+interface Arquivo { id: string; tipo: string; titulo: string | null; urlOrigem: string; statusArquivo: string; motivo: string | null; tamanho: string | null; paginas: number | null; statusExtracao: string; arquivoPaiId: string | null; statusCompactado: 'extraido' | 'pendente' | 'recusado' | null; motivoCompactado: string | null }
 interface Versao { versao: number; coletadaEm: string; camposAlterados: string[] }
 interface Edital {
   id: string; idExterno: string; numeroEdital: string | null; modalidade: string | null; objeto: string; valorEstimado: string | null; situacao: string | null
@@ -100,23 +100,47 @@ function Arquivos({ arquivos }: { arquivos: Arquivo[] }) {
       const r = await chamar<{ url: string }>('POST', `/editais/arquivos/${a.id}/download`)
       window.location.assign(r.url)
     })
+  const porId = new Map(arquivos.map((a) => [a.id, a]))
+  const principais = arquivos.filter((a) => !a.arquivoPaiId || !porId.has(a.arquivoPaiId))
+  const cartao = (a: Arquivo) => (
+    <div className="flex min-h-14 w-full flex-wrap items-center gap-3 px-4 py-3 text-left">
+      <div className="flex min-w-0 flex-1 flex-col gap-1 [overflow-wrap:anywhere]">
+        <strong><bdi>{a.titulo ?? a.tipo}</bdi></strong>
+        {a.arquivoPaiId ? <span className="text-sm text-tertiary">Dentro de <bdi>{porId.get(a.arquivoPaiId)?.titulo ?? 'compactado de origem'}</bdi></span> : null}
+        {a.statusCompactado ? (
+          <div className="flex flex-wrap gap-1">
+            <Etiqueta cor={a.statusCompactado === 'extraido' ? 'sucesso' : 'aviso'}>
+              Compactado: {a.statusCompactado === 'extraido' ? 'extraído' : a.statusCompactado}
+            </Etiqueta>
+          </div>
+        ) : null}
+        {a.motivoCompactado ? <p className={a.statusCompactado === 'extraido' ? 'text-sm text-tertiary' : 'text-sm font-medium text-warning-primary'}>{a.motivoCompactado}</p> : null}
+        <span className="text-sm text-tertiary [overflow-wrap:anywhere]">
+          {ARQUIVO[a.statusArquivo] ?? a.statusArquivo}{a.motivo ? ` (${a.motivo})` : ''} · texto: {a.statusExtracao}{a.paginas ? ` · ${a.paginas} páginas` : ''}
+        </span>
+      </div>
+      {a.statusArquivo === 'liberado' ? <Botao variante="secundario" onClick={() => void baixar(a)}>Baixar</Botao> : null}
+    </div>
+  )
   return (
     <div className="flex flex-col gap-4">
       <h2>Arquivos originais ({arquivos.length})</h2>
       <Aviso texto={erro} />
-      <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
-        {arquivos.map((a) => (
-          <div key={a.id} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left flex-wrap">
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
-              <strong><bdi>{a.titulo ?? a.tipo}</bdi></strong>
-              <span className="text-sm text-tertiary [overflow-wrap:anywhere]">
-                {ARQUIVO[a.statusArquivo] ?? a.statusArquivo}{a.motivo ? ` (${a.motivo})` : ''} · texto: {a.statusExtracao}{a.paginas ? ` · ${a.paginas} páginas` : ''}
-              </span>
-            </span>
-            {a.statusArquivo === 'liberado' ? <Botao variante="secundario" onClick={() => void baixar(a)}>Baixar</Botao> : null}
-          </div>
-        ))}
-      </div>
+      <ul aria-label="Arquivos do edital" className="flex min-w-0 flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
+        {principais.map((a) => {
+          const filhos = arquivos.filter((filho) => filho.arquivoPaiId === a.id)
+          return (
+            <li key={a.id} className="min-w-0">
+              {cartao(a)}
+              {filhos.length ? (
+                <ul aria-label={`Arquivos dentro de ${a.titulo ?? a.tipo}`} className="ml-3 min-w-0 border-l border-secondary sm:ml-6">
+                  {filhos.map((filho) => <li key={filho.id}>{cartao(filho)}</li>)}
+                </ul>
+              ) : null}
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }
