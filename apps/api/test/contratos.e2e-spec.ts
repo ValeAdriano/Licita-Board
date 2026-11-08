@@ -67,7 +67,8 @@ describe('contratos: saldos, financeiro e A x B', () => {
     expect(antes.faturas[0]?.aReceber).toBe('352000.2000'); // 360.000,20 - 8.000 de retenção informada
     expect(antes.faturas[0]?.diasAtraso).toBeGreaterThan(0); // vencida e sem pagamento
     expect(antes.alertas.some((x) => x.tipo === 'pagamento')).toBe(true);
-    await http().post(`/empresas/${empA}/faturas/${nf}/pagamento`).set(bearer(a)).send({ pagoEm: '2026-04-20', valorRecebido: '999999' }).expect(400);
+    await http().post(`/empresas/${empA}/faturas/${nf}/pagamento`).set(bearer(a)).send({ pagoEm: '2026-04-20', valorRecebido: '999999' }).expect(400); // acima do faturado
+    await http().post(`/empresas/${empA}/faturas/${crypto.randomUUID()}/pagamento`).set(bearer(a)).send({ pagoEm: '2026-04-20', valorRecebido: '1' }).expect(404);
     await http().post(`/empresas/${empA}/faturas/${nf}/pagamento`).set(bearer(a)).send({ pagoEm: '2026-04-20', valorRecebido: '352000.20', ocorrencia: 'Retenções aplicadas pelo órgão' }).expect(204);
     const depois = (await http().get(`/empresas/${empA}/contratos/${ct}`).set(bearer(a)).expect(200)).body as { faturas: { aReceber: string; diasAtraso: number }[]; alertas: { tipo: string }[] };
     expect([depois.faturas[0]?.aReceber, depois.faturas[0]?.diasAtraso, depois.alertas.some((x) => x.tipo === 'pagamento')]).toEqual(['0.0000', 0, false]);
@@ -82,8 +83,9 @@ describe('contratos: saldos, financeiro e A x B', () => {
     await http().post(`/empresas/${empA}/contratos/${ct}/eventos`).set(bearer(operador)).send({ tipo: 'prorrogacao', data: '2026-06-02', descricao: 'Voltando a vigência', novaVigencia: '2026-01-01' }).expect(400);
     const d = (await http().get(`/empresas/${empA}/contratos/${ct}`).set(bearer(operador)).expect(200)).body as { contrato: { valorTotal: string; vigenciaFim: string }; eventos: { tipo: string; valorAntes: string | null; valorDepois: string | null }[] };
     expect([d.contrato.valorTotal, d.contrato.vigenciaFim, d.eventos[0]?.valorAntes, d.eventos[0]?.valorDepois]).toEqual(['1000000.0000', '2027-06-30', '900005.0000', '1000000.0000']);
+    await http().post(`/empresas/${empA}/contratos/${crypto.randomUUID()}/encerrar`).set(bearer(operador)).send({ status: 'encerrado' }).expect(404);
     await http().post(`/empresas/${empA}/contratos/${ct}/encerrar`).set(bearer(operador)).send({ status: 'encerrado' }).expect(204);
-    await http().post(`/empresas/${empA}/contratos/${ct}/encerrar`).set(bearer(operador)).send({ status: 'encerrado' }).expect(400);
+    await http().post(`/empresas/${empA}/contratos/${ct}/encerrar`).set(bearer(operador)).send({ status: 'encerrado' }).expect(400); // só contrato ativo
     await http().post(`/empresas/${empA}/contratos/${ct}/empenhos`).set(bearer(operador)).send({ numero: 'EMP-9', emitidoEm: '2026-07-01', itens: [{ contratoItemId: item, quantidade: '1' }] }).expect(404); // contrato não está ativo
   });
 
@@ -154,7 +156,8 @@ describe('contratos: saldos, financeiro e A x B', () => {
     await http().get(`/empresas/${empB}/contratos/${ct}`).set(bearer(b)).expect(404);
     expect(((await http().get(`/empresas/${empB}/contratos`).set(bearer(b)).expect(200)).body as unknown[])).toHaveLength(0);
     await http().post(`/empresas/${empB}/empenho-itens/${empItem}/entregas`).set(bearer(b)).send({ quantidade: '1', data: '2026-03-12' }).expect(404);
-    await http().post(`/empresas/${empB}/faturas/${nf}/pagamento`).set(bearer(b)).send({ pagoEm: '2026-04-20', valorRecebido: '1' }).expect(400); // Q-31b: ausência e saldo ainda compartilham o erro do banco
+    await http().post(`/empresas/${empB}/faturas/${nf}/pagamento`).set(bearer(b)).send({ pagoEm: '2026-04-20', valorRecebido: '1' }).expect(404);
+    await http().post(`/empresas/${empB}/contratos/${ct}/encerrar`).set(bearer(b)).send({ status: 'rescindido' }).expect(404);
   });
   for (const dona of ['A', 'B'] as const) {
     it(`isolamento por endpoint: contratos de ${dona} intactos nas 17 rotas`, async () => {
@@ -226,12 +229,11 @@ describe('contratos: saldos, financeiro e A x B', () => {
           expect(JSON.stringify(r.body)).not.toContain(id);
           for (const segredo of [ci, ei, eitem, f, doc, anexo, pendAc ?? '', '9876.5432', '12345.6789', '45678.9123']) expect(JSON.stringify(r.body)).not.toContain(segredo);
         } else {
-          // Q-31b: pagamento/encerramento ainda usam 400 para ausência; compara com UUID inexistente.
+          // Mesma resposta que um UUID inexistente: o id de outra empresa não vira oráculo.
           const rotaVazia = c.rota.replaceAll(id, ausente).replaceAll(anexo, ausente).replaceAll(ei, ausente).replaceAll(eitem, ausente).replaceAll(f, ausente);
           const corpoVazio = JSON.parse(JSON.stringify(c.corpo ?? {}).replaceAll(ac ?? '', ausente)) as object;
           const vazio = await http()[c.metodo](`/empresas/${outra}${rotaVazia}`).set(bearer(invasor)).send(corpoVazio);
-          const esperado = c.metodo === 'get' && /\/(anexos|pedidos)$/.test(c.rota) ? 200
-            : /\/(pagamento|encerrar)$/.test(c.rota) ? 400 : 404;
+          const esperado = c.metodo === 'get' && /\/(anexos|pedidos)$/.test(c.rota) ? 200 : 404;
           expect(r.status, `${c.metodo} ${c.rota}: ${JSON.stringify(r.body)}`).toBe(esperado);
           expect(r.status).toBe(vazio.status);
           expect(r.body).toEqual(vazio.body);

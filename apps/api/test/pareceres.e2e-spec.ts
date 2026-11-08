@@ -85,6 +85,24 @@ describe('parecer recursal: fluxo e A x B', () => {
     await http().delete(`${b0}/achados/${ach}`).set(bearer(leitor)).expect(404);
     await http().delete(`${b0}/achados/${ach}`).set(bearer(redator)).expect(204);
   });
+  it('abrir parecer: participação inexistente ou alheia é 404; sem gatilho é 400; abre sem agenda/visualizar', async () => {
+    // A rota pede juridico/elaborar_peca; a leitura de participações pede agenda/visualizar. Por isso a ausência vem
+    // do banco (P0002), sem consulta prévia sob RLS que esconderia a participação deste redator.
+    const email = await criarUsuario('pa-sem-agenda');
+    await vincular(email, empA, 'JURIDICO', ['juridico:visualizar', 'juridico:elaborar_peca']);
+    const sem = await entrar(email);
+    const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, objeto, hash_conteudo) select e.fonte_id, $2, e.orgao_id, $2, e.hash_conteudo from pub.editais e join priv.acompanhamentos a on a.edital_id = e.id where a.id = $1 returning id`, [acomp, crypto.randomUUID()])).rows[0]?.id ?? '';
+    const ac = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1, $2) returning id`, [empA, edital])).rows[0]?.id ?? '';
+    const item = (await admin.query<{ id: string }>(`insert into pub.edital_itens (edital_id, numero_item, descricao) values ($1, 1, 'Item sem agenda') returning id`, [edital])).rows[0]?.id;
+    const p = (await admin.query<{ id: string }>(`insert into priv.participacoes (empresa_id, acompanhamento_id, item_id) values ($1, $2, $3) returning id`, [empA, ac, item])).rows[0]?.id ?? '';
+    const b0 = `/empresas/${empA}/juridico/pareceres`;
+    await http().post(`${b0}/participacao/${crypto.randomUUID()}`).set(bearer(sem)).send({ concorrente: 'Concorrente S/A' }).expect(404);
+    await http().post(`${b0}/participacao/${p}`).set(bearer(sem)).send({ concorrente: 'Concorrente S/A' }).expect(400); // ainda sem gatilho recursal
+    await http().post(`/empresas/${empB}/juridico/pareceres/participacao/${p}`).set(bearer(b)).send({ concorrente: 'Invasor' }).expect(404);
+    await admin.query(`insert into priv.resultados_item (empresa_id, participacao_id, resultado_final, motivo_perda, gatilho_recursal) values ($1, $2, 'perdida', 'Perdeu no lance', true)`, [empA, p]);
+    await http().post(`${b0}/participacao/${p}`).set(bearer(sem)).send({ concorrente: 'Concorrente S/A' }).expect(201);
+    expect((await admin.query<{ n: string }>(`select count(*) n from priv.pareceres_recursais where empresa_id = $1`, [empB])).rows[0]?.n).toBe('0');
+  });
   for (const sentido of ['A → B', 'B → A']) {
     it(`isolamento por endpoint: pareceres ${sentido}, nove rotas sem efeitos`, async () => {
       // Empresas, usuários e edital exclusivos deste caso: nenhuma dependência da ordem das suítes.
@@ -130,13 +148,10 @@ describe('parecer recursal: fluxo e A x B', () => {
         ] as const;
         for (const caso of casos) {
           const resposta = await http()[caso.metodo](`${base}${caso.path}`).set(bearer(invasor)).send(caso.corpo);
-          // abrir_parecer usa 22023 para participação ausente: mesma resposta para UUID inexistente.
-          const esperado = e === outra && caso.metodo === 'post' && caso.path.startsWith('/participacao/') ? 400 : 404;
-          expect(resposta.status, caso.path).toBe(esperado);
-          if (resposta.status === 400) {
-            const inexistente = await http()[caso.metodo](`${base}${caso.vazio}`).set(bearer(invasor)).send(caso.corpo).expect(400);
-            expect(resposta.body, caso.path).toEqual(inexistente.body);
-          }
+          expect(resposta.status, caso.path).toBe(404);
+          // Mesma resposta que um UUID inexistente: o id de outra empresa não vira oráculo.
+          const inexistente = await http()[caso.metodo](`${base}${caso.vazio}`).set(bearer(invasor)).send(caso.corpo).expect(404);
+          expect(resposta.body, caso.path).toEqual(inexistente.body);
           expect(await snapshot(), caso.path).toEqual(antes);
         }
       }
