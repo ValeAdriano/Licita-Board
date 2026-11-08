@@ -114,9 +114,9 @@ describe('acesso', () => {
     expect(op?.permissoes).toEqual(['empresas:editar', 'empresas:visualizar']);
   });
 
-  // Q-36: na mesma empresa, quem não tem administrar_permissoes recebe o mesmo 404 de id inexistente;
-  // convite já revogado também (a função não separa os casos); step-up errado continua 403.
-  it('vínculo e convite: sem permissão ou já decidido = 404 igual ao inexistente; step-up errado = 403', async () => {
+  // Q-36/Q-36b: na mesma empresa, quem não tem administrar_permissoes recebe o mesmo 404 de id inexistente
+  // (P0002 do banco); convite já revogado é 400 (22023) para quem administra; step-up errado continua 403.
+  it('vínculo e convite: sem permissão = 404 igual ao inexistente; já decidido = 400; step-up errado = 403', async () => {
     const op = await entrar(await criarUsuario('acesso-q36-op'));
     await vincular(op.email, empA, 'OPERADOR', ['usuarios:visualizar', 'permissoes:visualizar']);
     const alvo = await vincular(await criarUsuario('acesso-q36-alvo'), empA, 'OPERADOR', ['empresas:visualizar']);
@@ -133,7 +133,9 @@ describe('acesso', () => {
     // Admin com step-up inválido: 403 (o app abre a reautenticação), não 404.
     await http().put(`/vinculos/${alvo}`).set(bearer(a.token)).send({ ...corpo, stepUp: crypto.randomUUID() }).expect(403);
     await http().delete(`/convites/${convite}`).set(bearer(a.token)).expect(204);
-    await http().delete(`/convites/${convite}`).set(bearer(a.token)).expect(404);
+    await http().delete(`/convites/${convite}`).set(bearer(a.token)).expect(400);
+    // Para quem não administra, o convite já revogado segue 404 (não revela o estado).
+    await http().delete(`/convites/${convite}`).set(bearer(op.token)).expect(404);
     const estado = await admin.query<{ papel: string; ativo: boolean }>('select papel, ativo from core.vinculos where id = $1', [alvo]);
     expect(estado.rows[0]).toEqual({ papel: 'OPERADOR', ativo: true });
   });

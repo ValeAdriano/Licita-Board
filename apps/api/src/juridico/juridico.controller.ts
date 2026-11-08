@@ -33,16 +33,6 @@ export class JuridicoController {
     return this.contexto.comContexto(dadosDe(req, sessaoDe(req).token), fn);
   }
 
-  // Distingue ausência sob RLS de validação de fluxo (22023), na mesma transação.
-  private qPeca<T>(req: RequisicaoVV, empresa: string, id: string, fn: (tx: Transaction<Database>) => Promise<T>): Promise<T> {
-    return this.q(req, async (tx) => {
-      const r = await sql`select id from priv.pecas
-        where id = ${id}::uuid and empresa_id = ${empresa}::uuid`.execute(tx);
-      if (!r.rows.length) throw new NotFoundException();
-      return fn(tx);
-    });
-  }
-
   // ---------------------------------------------------------------- base jurídica
   @Permissao('juridico', 'visualizar')
   @Get('empresas/:empresa/juridico/base')
@@ -117,7 +107,7 @@ export class JuridicoController {
   @HttpCode(204)
   async descartar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
     const d = validar(descartarSchema, corpo);
-    await this.qPeca(req, empresa, id, (tx) => sql`select priv.descartar_peca(${empresa}::uuid, ${id}::uuid, ${d.justificativa})`.execute(tx));
+    await this.q(req, (tx) => sql`select priv.descartar_peca(${empresa}::uuid, ${id}::uuid, ${d.justificativa})`.execute(tx));
   }
 
   @Permissao('juridico', 'elaborar_peca')
@@ -125,7 +115,7 @@ export class JuridicoController {
   @HttpCode(202)
   async minuta(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
     const d = validar(minutaSchema, corpo);
-    await this.qPeca(req, empresa, id, (tx) => sql`select priv.salvar_minuta(${empresa}::uuid, ${id}::uuid, ${d.minuta}, ${d.clausulas ?? null})`.execute(tx));
+    await this.q(req, (tx) => sql`select priv.salvar_minuta(${empresa}::uuid, ${id}::uuid, ${d.minuta}, ${d.clausulas ?? null})`.execute(tx));
     return { status: 'conferindo_citacoes' };
   }
 
@@ -135,7 +125,7 @@ export class JuridicoController {
   @HttpCode(202)
   async pedirMinutaIa(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
     const d = validar(minutaIaSchema, corpo ?? {});
-    const r = await this.qPeca(req, empresa, id, (tx) => sql<{ id: string }>`select priv.pedir_minuta_peca(${empresa}::uuid, ${id}::uuid, ${d.instrucao ?? null}) as id`.execute(tx));
+    const r = await this.q(req, (tx) => sql<{ id: string }>`select priv.pedir_minuta_peca(${empresa}::uuid, ${id}::uuid, ${d.instrucao ?? null}) as id`.execute(tx));
     return { id: r.rows[0]?.id, status: 'pendente' };
   }
 
@@ -152,7 +142,7 @@ export class JuridicoController {
   @Post('empresas/:empresa/juridico/pecas/:id/validar')
   @HttpCode(202)
   async revalidar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
-    await this.qPeca(req, empresa, id, (tx) => sql`select priv.revalidar_peca(${empresa}::uuid, ${id}::uuid)`.execute(tx));
+    await this.q(req, (tx) => sql`select priv.revalidar_peca(${empresa}::uuid, ${id}::uuid)`.execute(tx));
     return { status: 'conferindo_citacoes' };
   }
 
@@ -160,14 +150,14 @@ export class JuridicoController {
   @Post('empresas/:empresa/juridico/pecas/:id/revisao')
   @HttpCode(204)
   async revisao(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
-    await this.qPeca(req, empresa, id, (tx) => sql`select priv.enviar_revisao_peca(${empresa}::uuid, ${id}::uuid)`.execute(tx));
+    await this.q(req, (tx) => sql`select priv.enviar_revisao_peca(${empresa}::uuid, ${id}::uuid)`.execute(tx));
   }
 
   @Permissao('juridico', 'aprovar_peca')
   @Post('empresas/:empresa/juridico/pecas/:id/devolver')
   @HttpCode(204)
   async devolver(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
-    await this.qPeca(req, empresa, id, (tx) => sql`select priv.devolver_peca(${empresa}::uuid, ${id}::uuid)`.execute(tx));
+    await this.q(req, (tx) => sql`select priv.devolver_peca(${empresa}::uuid, ${id}::uuid)`.execute(tx));
   }
 
   @Permissao('juridico', 'aprovar_peca')
@@ -176,7 +166,7 @@ export class JuridicoController {
   async aprovar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
     const d = validar(aprovarStepUp, corpo ?? {});
     // Aprovar exige reautenticação (step-up 'aprovar_peca'); o banco confere o token (ou dispensa só na chave de desenvolvimento, ADR-021).
-    await this.qPeca(req, empresa, id, (tx) => sql`select priv.aprovar_peca(${empresa}::uuid, ${id}::uuid, ${d.stepUp ?? null}::uuid)`.execute(tx));
+    await this.q(req, (tx) => sql`select priv.aprovar_peca(${empresa}::uuid, ${id}::uuid, ${d.stepUp ?? null}::uuid)`.execute(tx));
     return { status: 'gerando_documento' };
   }
 
@@ -185,7 +175,7 @@ export class JuridicoController {
   @HttpCode(204)
   async protocolar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
     const d = validar(protocoloSchema, corpo);
-    await this.qPeca(req, empresa, id, (tx) => sql`select priv.protocolar_peca(${empresa}::uuid, ${id}::uuid, ${d.numero}, ${d.quando}::timestamptz, ${d.comprovante ?? null})`.execute(tx));
+    await this.q(req, (tx) => sql`select priv.protocolar_peca(${empresa}::uuid, ${id}::uuid, ${d.numero}, ${d.quando}::timestamptz, ${d.comprovante ?? null})`.execute(tx));
   }
 
   @Permissao('juridico', 'elaborar_peca')
@@ -193,14 +183,14 @@ export class JuridicoController {
   @HttpCode(204)
   async resultado(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
     const d = validar(resultadoSchema, corpo);
-    await this.qPeca(req, empresa, id, (tx) => sql`select priv.registrar_resultado_peca(${empresa}::uuid, ${id}::uuid, ${d.resultado}, ${d.observacao ?? null}, ${d.quando ?? null}::timestamptz)`.execute(tx));
+    await this.q(req, (tx) => sql`select priv.registrar_resultado_peca(${empresa}::uuid, ${id}::uuid, ${d.resultado}, ${d.observacao ?? null}, ${d.quando ?? null}::timestamptz)`.execute(tx));
   }
 
   @Permissao('juridico', 'visualizar')
   @Post('empresas/:empresa/juridico/pecas/:id/pdf')
   @HttpCode(202)
   async pedirPdf(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
-    await this.qPeca(req, empresa, id, (tx) => sql`select priv.pedir_pdf_peca(${empresa}::uuid, ${id}::uuid)`.execute(tx));
+    await this.q(req, (tx) => sql`select priv.pedir_pdf_peca(${empresa}::uuid, ${id}::uuid)`.execute(tx));
     return { status: 'gerando_pdf' };
   }
 

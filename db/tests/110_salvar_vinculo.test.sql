@@ -43,7 +43,7 @@ select throws_ok(
   '23514', 'a empresa ficaria sem nenhum administrador de permissões', 'único admin não se rebaixa');
 select throws_ok(
   $$ select core.salvar_vinculo(tests.vinculo_id('usuario_b', 'B'), 'OPERADOR', true, array['empresas:visualizar'], (select id from tk where nome = 't3')) $$,
-  '42501', null, 'ADMIN de A não altera vínculo de B');
+  'P0002', null, 'ADMIN de A não altera vínculo de B (P0002, não revela existência)');
 select throws_ok(
   $$ select core.salvar_vinculo(tests.vinculo_id('operador_a', 'A'), 'OPERADOR', true, null, (select id from tk where nome = 't3')) $$,
   '22023', null, 'lista nula é recusada');

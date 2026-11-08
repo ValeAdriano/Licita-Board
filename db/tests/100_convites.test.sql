@@ -185,8 +185,8 @@ select tests.sair();
 select is((select usuario_id from core.convites where id = (select id from tk where nome = 'convite_nv')), null,
   'convite para conta de e-mail não verificado não se prende a ela');
 select tests.autenticar_como('usuario_b');
-select throws_ok($$ select core.revogar_convite((select id from tk where nome = 'convite_sem_conta')) $$, '42501', null,
-  'ADMIN de B não revoga convite de A');
+select throws_ok($$ select core.revogar_convite((select id from tk where nome = 'convite_sem_conta')) $$, 'P0002', null,
+  'ADMIN de B não revoga convite de A (P0002, não revela existência)');
 select tests.sair();
 select tests.garantir_sessao('conta.criada.depois', 'aal1');
 update core.usuarios set ativo = false where email = 'conta.criada.depois@teste.local';

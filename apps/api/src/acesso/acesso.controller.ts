@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   HttpCode,
-  NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -16,7 +15,7 @@ import { type Transaction, sql } from 'kysely';
 import { z } from 'zod';
 import { type RequisicaoVV, dadosDe, sessaoDe, validar } from '../auth/requisicao.js';
 import { Permissao } from '../auth/sessao.guard.js';
-import { ContextoService, codigoPg, deRaise, mensagemPg } from '../db/contexto.service.js';
+import { ContextoService } from '../db/contexto.service.js';
 import type { Database } from '../db/db.module.js';
 
 const permissoesSchema = z.array(z.string().regex(/^[a-z_]+:[a-z_]+$/)).max(250);
@@ -38,27 +37,6 @@ const conviteSchema = z.object({
   permissoes: permissoesSchema,
   stepUp: z.uuid(),
 }).strict();
-
-// core.salvar_vinculo e core.revogar_convite recusam com o mesmo 42501 e a mesma mensagem quando o
-// registro não existe, é de outra empresa ou falta administrar_permissoes (e, no convite, quando já foi
-// decidido). Para a API isso é "não encontrado" (permissão ausente = 404, sem revelar se existe). Só esse
-// raise vira 404: os outros 42501 da função (step-up ausente ou errado, teto de concessão) seguem 403,
-// que é o que abre o modal de reautenticação no app. Consulta prévia sob RLS não serve aqui: as policies
-// pedem usuarios:visualizar (vínculos) e permissoes:visualizar (convites), a função pede
-// permissoes:administrar_permissoes, e esconderia registro legítimo (Q-36).
-const RECUSA_COMO_AUSENTE = new Set([
-  'sem permissão para alterar este vínculo',
-  'convite inexistente, já decidido ou sem permissão',
-]);
-
-async function ausenteSeRecusado<T>(p: Promise<T>): Promise<T> {
-  try {
-    return await p;
-  } catch (e) {
-    if (codigoPg(e) === '42501' && deRaise(e) && RECUSA_COMO_AUSENTE.has(mensagemPg(e))) throw new NotFoundException();
-    throw e;
-  }
-}
 
 // Acesso (spec fase-01 §5): toda rota com :empresa passa por @Permissao no guard (1ª camada) e cada
 // consulta roda com o contexto da sessão, filtrada pela RLS (2ª camada). Escritas sensíveis vão pelas
@@ -134,8 +112,10 @@ export class AcessoController {
   @Put('vinculos/:id')
   async salvarVinculo(@Req() req: RequisicaoVV, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
     const d = validar(vinculoSchema, corpo);
-    await this.q(req, (tx) => ausenteSeRecusado(sql`
-      select core.salvar_vinculo(${id}::uuid, ${d.papel}, ${d.ativo}, ${d.permissoes}::text[], ${d.stepUp}::uuid)`.execute(tx)));
+    // Vínculo ausente, de outra empresa ou sem administrar_permissoes: o banco dá P0002 (404, sem revelar se existe);
+    // step-up ausente ou errado e teto de concessão seguem 42501 (403, que abre o modal de reautenticação no app).
+    await this.q(req, (tx) => sql`
+      select core.salvar_vinculo(${id}::uuid, ${d.papel}, ${d.ativo}, ${d.permissoes}::text[], ${d.stepUp}::uuid)`.execute(tx));
     return {};
   }
 
@@ -160,7 +140,8 @@ export class AcessoController {
   @Delete('convites/:id')
   @HttpCode(204)
   async revogarConvite(@Req() req: RequisicaoVV, @Param('id', new ParseUUIDPipe()) id: string) {
-    await this.q(req, (tx) => ausenteSeRecusado(sql`select core.revogar_convite(${id}::uuid)`.execute(tx)));
+    // Ausente, de outra empresa ou sem administrar_permissoes: P0002 (404); já aceito ou revogado: 22023 (400).
+    await this.q(req, (tx) => sql`select core.revogar_convite(${id}::uuid)`.execute(tx));
   }
 
   @Get('me/convites')
