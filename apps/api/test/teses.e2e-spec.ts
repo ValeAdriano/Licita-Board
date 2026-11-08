@@ -1,3 +1,4 @@
+import { inflateRawSync } from 'node:zlib';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -17,7 +18,7 @@ describe('teses e indicadores: fluxo e A x B', () => {
     return (conf.body as { token: string }).token;
   }
 
-  let empA: string; let empB: string; let a: string; let b: string; let redator: string; let leitor: string;
+  let empA: string; let empB: string; let a: string; let redator: string; let leitor: string;
   let acomp: string; let peca: string;
 
   beforeAll(async () => {
@@ -27,10 +28,10 @@ describe('teses e indicadores: fluxo e A x B', () => {
     await vincular(eA, empA); await vincular(eB, empB);
     await vincular(eR, empA, 'JURIDICO', ['juridico:visualizar', 'juridico:elaborar_peca', 'agenda:visualizar']);
     await vincular(eL, empA, 'OPERADOR', ['juridico:visualizar', 'agenda:visualizar']);
-    [a, b, redator, leitor] = await Promise.all([entrar(eA), entrar(eB), entrar(eR), entrar(eL)]);
-    const fonte = (await admin.query<{ id: string }>(`select id from ops.fontes where slug = 'pncp'`)).rows[0]?.id;
-    const orgao = (await admin.query<{ id: string }>(`insert into pub.orgaos (cnpj, razao_social, uf, codigo_ibge) values ($1, 'Órgão Tese', 'PR', '4106902') returning id`, [cnpjFicticio()])).rows[0]?.id;
-    const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, numero_edital, objeto, hash_conteudo) values ($1, $2, $3, '3/2026', 'Objeto', repeat('1', 64)) returning id`, [fonte, `TE-${crypto.randomUUID()}`, orgao])).rows[0]?.id;
+    [a, , redator, leitor] = await Promise.all([entrar(eA), entrar(eB), entrar(eR), entrar(eL)]);
+    const fonte = (await admin.query<{ id: string }>(`select id from ops.fontes where slug = 'pncp'` )).rows[0]?.id ?? '';
+    const orgao = (await admin.query<{ id: string }>(`insert into pub.orgaos (cnpj, razao_social, uf, codigo_ibge) values ($1, 'Órgão Tese', 'PR', '4106902') returning id`, [cnpjFicticio()] )).rows[0]?.id ?? '';
+    const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, numero_edital, objeto, hash_conteudo) values ($1, $2, $3, '3/2026', 'Objeto', repeat('1', 64)) returning id`, [fonte, `TE-${crypto.randomUUID()}`, orgao] )).rows[0]?.id ?? '';
     acomp = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1, $2) returning id`, [empA, edital])).rows[0]?.id ?? '';
     peca = (await admin.query<{ id: string }>(`insert into priv.pecas (empresa_id, acompanhamento_id, tipo, titulo) values ($1, $2, 'impugnacao', 'Impugnação ao item 3') returning id`, [empA, acomp])).rows[0]?.id ?? '';
   });
@@ -75,19 +76,84 @@ describe('teses e indicadores: fluxo e A x B', () => {
     await http().post(`${base}/teses/${tese}/arquivar`).set(bearer(a)).expect(204);
   });
 
-  it('A x B: B não vê nem altera teses e indicadores de A', async () => {
-    const base = `/empresas/${empA}/juridico`;
-    const tese = (await admin.query<{ id: string }>(`select id from priv.teses where empresa_id = $1`, [empA])).rows[0]?.id ?? '';
-    await http().get(`${base}/teses`).set(bearer(b)).expect(404);
-    await http().get(`${base}/indicadores`).set(bearer(b)).expect(404);
-    await http().get(`${base}/pecas/${peca}/teses`).set(bearer(b)).expect(404);
-    expect(((await http().get(`/empresas/${empB}/juridico/teses`).set(bearer(b)).expect(200)).body as unknown[])).toHaveLength(0);
-    expect((await http().get(`/empresas/${empB}/juridico/indicadores`).set(bearer(b)).expect(200)).body).toMatchObject({ elaboradas: 0, porTese: [] });
-    await http().post(`${base}/teses`).set(bearer(b)).send({ tipo: 'recurso', titulo: 'Invasor', texto: 'Texto de invasão com mais de vinte caracteres.' }).expect(404);
-    await http().put(`${base}/teses/${tese}`).set(bearer(b)).send({ titulo: 'Invasor', texto: 'Texto de invasão com mais de vinte caracteres.' }).expect(404);
-    await http().post(`${base}/teses/${tese}/aprovar`).set(bearer(b)).expect(404);
-    await http().post(`${base}/pecas/${peca}/teses/${tese}`).set(bearer(b)).expect(404);
-    await http().put(`/empresas/${empB}/juridico/teses/${tese}`).set(bearer(b)).send({ titulo: 'Invasor', texto: 'Texto de invasão com mais de vinte caracteres.' }).expect(404);
-    await http().post(`/empresas/${empB}/juridico/pecas/${peca}/teses/${tese}`).set(bearer(b)).expect(400);
-  });
+
+  for (const sentido of ['B → A', 'A → B']) {
+    it(`matriz A x B por endpoint: ${sentido}`, async () => {
+      const empresa = await criarEmpresa('Dona ' + sentido);
+      const outra = await criarEmpresa('Invasora ' + sentido);
+      const donoEmail = await criarUsuario('mat-dono');
+      const email = await criarUsuario('mat-invasor');
+      await vincular(donoEmail, empresa); await vincular(email, outra);
+      const dono = await entrar(donoEmail); const invasor = await entrar(email);
+      const fonte = (await admin.query<{ id: string }>(`select id from ops.fontes where slug = 'pncp'` )).rows[0]?.id ?? '';
+      const orgao = (await admin.query<{ id: string }>(`insert into pub.orgaos (cnpj, razao_social, uf, codigo_ibge) values ($1, 'Órgão Matriz', 'PR', '4106902') returning id`, [cnpjFicticio()] )).rows[0]?.id ?? '';
+      const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, numero_edital, objeto, hash_conteudo) values ($1, $2, $3, '8/2026', 'Objeto fictício', repeat('1', 64)) returning id`, [fonte, crypto.randomUUID(), orgao] )).rows[0]?.id ?? '';
+      const acompanhamento = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1, $2) returning id`, [empresa, edital] )).rows[0]?.id ?? '';
+      const raiz = `/empresas/${empresa}/juridico`;
+
+      const dados = { tipo: 'impugnacao', titulo: 'Tese privada ' + sentido, texto: 'Argumento fictício com mais de vinte caracteres.' };
+      const id = ((await http().post(`${raiz}/teses`).set(bearer(dono)).send(dados).expect(201)).body as { id: string }).id;
+      await admin.query(`update priv.teses set validada_em = now(), bloqueada = false where id = $1`, [id]);
+      await http().post(`${raiz}/teses/${id}/aprovar`).set(bearer(dono)).expect(204);
+      const pecaId = (await admin.query<{ id: string }>(`insert into priv.pecas (empresa_id, acompanhamento_id, tipo, titulo) values ($1, $2, 'impugnacao', 'Peça privada') returning id`, [empresa, acompanhamento] )).rows[0]?.id ?? '';
+      await http().post(`${raiz}/pecas/${pecaId}/teses/${id}`).set(bearer(dono)).expect(204);
+      const snapshot = async () => (await admin.query<Record<string, unknown>>(`select
+        (select jsonb_agg(t order by id) from priv.teses t where empresa_id in ($1,$2)) teses,
+        (select jsonb_agg(t order by id) from priv.peca_teses t where empresa_id in ($1,$2)) usos,
+        (select jsonb_agg(p order by id) from priv.pecas p where empresa_id in ($1,$2)) pecas,
+        (select jsonb_agg(j order by id) from ops.jobs j where empresa_id in ($1,$2) and tipo = 'validar_tese') jobs`, [empresa, outra])).rows;
+      const antes = await snapshot();
+      for (const e of [empresa, outra]) {
+        const base = `/empresas/${e}/juridico`;
+        for (const path of ['/teses', `/pecas/${pecaId}/teses`, '/indicadores']) {
+          const r = await http().get(base + path).set(bearer(invasor)).expect(e === empresa ? 404 : 200);
+          if (e === outra) {
+            if (path === '/indicadores') {
+              expect(r.body).toEqual({ ano: null, sugeridas: 0, elaboradas: 0, protocoladas: 0, respondidas: 0, deferidas: 0, indeferidas: 0, revertidasPorRecurso: 0, prazosCumpridos: 0, prazosPerdidos: 0, porTipo: [], porTese: [] });
+            } else expect(r.body).toEqual([]);
+          }
+          expect(await snapshot()).toEqual(antes);
+        }
+        const xl = await http().get(`${base}/indicadores.xlsx`).set(bearer(invasor)).buffer(true).parse((r, cb) => { const c: Buffer[] = []; r.on('data', (d: Buffer) => c.push(d)); r.on('end', () => { cb(null, Buffer.concat(c)); }); }).expect(e === empresa ? 404 : 200);
+        if (e === outra) {
+          // Abre as planilhas do ZIP e confere as células, não apenas a assinatura.
+          const buf = xl.body as Buffer;
+          let pos = 0; let xml = '';
+          while (buf.readUInt32LE(pos) === 0x04034b50) {
+            const tamanho = buf.readUInt32LE(pos + 18);
+            const nomeFim = pos + 30 + buf.readUInt16LE(pos + 26);
+            const nome = buf.subarray(pos + 30, nomeFim).toString();
+            const inicio = nomeFim + buf.readUInt16LE(pos + 28);
+            if (nome.startsWith('xl/worksheets/')) xml += inflateRawSync(buf.subarray(inicio, inicio + tamanho)).toString();
+            pos = inicio + tamanho;
+          }
+          expect(xml).not.toContain(dados.titulo);
+          expect(xml).not.toContain('<v>1</v>');
+          expect(xml).toContain('<v>0</v>');
+        }
+        expect(await snapshot()).toEqual(antes);
+        if (e === empresa) {
+          await http().post(`${base}/teses`).set(bearer(invasor)).send(dados).expect(404);
+          expect(await snapshot()).toEqual(antes);
+        }
+        const ausente = crypto.randomUUID();
+        const casos = [
+          { metodo: 'put', path: `/teses/${id}`, vazio: `/teses/${ausente}`, corpo: { titulo: dados.titulo, texto: dados.texto } },
+          { metodo: 'post', path: `/teses/${id}/aprovar`, vazio: `/teses/${ausente}/aprovar`, corpo: {} },
+          { metodo: 'post', path: `/teses/${id}/arquivar`, vazio: `/teses/${ausente}/arquivar`, corpo: {} },
+          { metodo: 'post', path: `/pecas/${pecaId}/teses/${id}`, vazio: `/pecas/${ausente}/teses/${ausente}`, corpo: {} },
+        ] as const;
+        for (const caso of casos) {
+          const esperado = e === outra && (caso.path.startsWith('/pecas/') || caso.path.endsWith('/aprovar')) ? 400 : 404;
+          const r = await http()[caso.metodo](base + caso.path).set(bearer(invasor)).send(caso.corpo).expect(esperado);
+          if (esperado === 400) {
+            // usar_tese e aprovar_tese usam 22023 para ausência e estado inválido.
+            const vazio = await http()[caso.metodo](base + caso.vazio).set(bearer(invasor)).send(caso.corpo).expect(400);
+            expect(r.body).toEqual(vazio.body);
+          }
+          expect(await snapshot(), caso.path).toEqual(antes);
+        }
+      }
+    });
+  }
 });

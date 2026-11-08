@@ -17,7 +17,7 @@ describe('sugestões de peças: fluxo e A x B', () => {
     return (conf.body as { token: string }).token;
   }
 
-  let empA: string; let empB: string; let b: string; let redator: string; let leitor: string;
+  let empA: string; let empB: string; let redator: string; let leitor: string;
   let acomp: string; let sug: string; let sugImp: string;
 
   beforeAll(async () => {
@@ -27,10 +27,10 @@ describe('sugestões de peças: fluxo e A x B', () => {
     await vincular(eA, empA); await vincular(eB, empB);
     await vincular(eR, empA, 'JURIDICO', ['juridico:visualizar', 'juridico:elaborar_peca', 'agenda:visualizar']);
     await vincular(eL, empA, 'OPERADOR', ['juridico:visualizar', 'agenda:visualizar']);
-    [, b, redator, leitor] = await Promise.all([entrar(eA), entrar(eB), entrar(eR), entrar(eL)]);
-    const fonte = (await admin.query<{ id: string }>(`select id from ops.fontes where slug = 'pncp'`)).rows[0]?.id;
-    const orgao = (await admin.query<{ id: string }>(`insert into pub.orgaos (cnpj, razao_social, uf, codigo_ibge) values ($1, 'Órgão Sugestão', 'PR', '4106902') returning id`, [cnpjFicticio()])).rows[0]?.id;
-    const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, numero_edital, objeto, hash_conteudo) values ($1, $2, $3, '3/2026', 'Objeto', repeat('1', 64)) returning id`, [fonte, `SU-${crypto.randomUUID()}`, orgao])).rows[0]?.id;
+    [, , redator, leitor] = await Promise.all([entrar(eA), entrar(eB), entrar(eR), entrar(eL)]);
+    const fonte = (await admin.query<{ id: string }>(`select id from ops.fontes where slug = 'pncp'` )).rows[0]?.id ?? '';
+    const orgao = (await admin.query<{ id: string }>(`insert into pub.orgaos (cnpj, razao_social, uf, codigo_ibge) values ($1, 'Órgão Sugestão', 'PR', '4106902') returning id`, [cnpjFicticio()] )).rows[0]?.id ?? '';
+    const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, numero_edital, objeto, hash_conteudo) values ($1, $2, $3, '3/2026', 'Objeto', repeat('1', 64)) returning id`, [fonte, `SU-${crypto.randomUUID()}`, orgao] )).rows[0]?.id ?? '';
     acomp = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1, $2) returning id`, [empA, edital])).rows[0]?.id ?? '';
     await admin.query(`insert into priv.agenda_eventos (empresa_id, acompanhamento_id, tipo, data_limite_legal) values ($1, $2, 'esclarecimento', now() + interval '5 days'), ($1, $2, 'impugnacao', now() - interval '1 day')`, [empA, acomp]);
     sug = (await admin.query<{ id: string }>(`insert into priv.sugestoes_pecas (empresa_id, acompanhamento_id, tipo, titulo, duvida, trecho_edital, trecho_confere, pagina) values ($1, $2, 'esclarecimento', 'Dúvida sobre a marca', 'O edital exige marca específica?', 'marca XPTO modelo 9', true, 3) returning id`, [empA, acomp])).rows[0]?.id ?? '';
@@ -64,14 +64,47 @@ describe('sugestões de peças: fluxo e A x B', () => {
     expect(depois.sugestoes.find((s) => s.id === sugImp)?.status).toBe('descartada');
   });
 
-  it('A x B: B não vê nem decide sugestões de A', async () => {
-    const base = `/empresas/${empA}/juridico`;
-    await http().get(`${base}/sugestoes`).set(bearer(b)).expect(404);
-    expect(((await http().get(`/empresas/${empB}/juridico/sugestoes`).set(bearer(b)).expect(200)).body as { sugestoes: unknown[] }).sugestoes).toHaveLength(0);
-    await http().post(`${base}/acompanhamentos/${acomp}/sugestoes`).set(bearer(b)).expect(404);
-    await http().post(`${base}/sugestoes/${sug}/aceitar`).set(bearer(b)).expect(404);
-    await http().post(`${base}/sugestoes/${sug}/descartar`).set(bearer(b)).send({ justificativa: 'Tentativa de invasão aqui' }).expect(404);
-    await http().post(`/empresas/${empB}/juridico/sugestoes/${sug}/aceitar`).set(bearer(b)).expect(404);
-    await http().post(`/empresas/${empB}/juridico/acompanhamentos/${acomp}/sugestoes`).set(bearer(b)).expect(404);
-  });
+
+  for (const sentido of ['B → A', 'A → B']) {
+    it(`matriz A x B por endpoint: ${sentido}`, async () => {
+      const empresa = await criarEmpresa('Dona ' + sentido);
+      const outra = await criarEmpresa('Invasora ' + sentido);
+      const donoEmail = await criarUsuario('mat-dono');
+      const email = await criarUsuario('mat-invasor');
+      await vincular(donoEmail, empresa); await vincular(email, outra);
+      const dono = await entrar(donoEmail); const invasor = await entrar(email);
+      const fonte = (await admin.query<{ id: string }>(`select id from ops.fontes where slug = 'pncp'` )).rows[0]?.id ?? '';
+      const orgao = (await admin.query<{ id: string }>(`insert into pub.orgaos (cnpj, razao_social, uf, codigo_ibge) values ($1, 'Órgão Matriz', 'PR', '4106902') returning id`, [cnpjFicticio()] )).rows[0]?.id ?? '';
+      const edital = (await admin.query<{ id: string }>(`insert into pub.editais (fonte_id, id_externo, orgao_id, numero_edital, objeto, hash_conteudo) values ($1, $2, $3, '8/2026', 'Objeto fictício', repeat('1', 64)) returning id`, [fonte, crypto.randomUUID(), orgao] )).rows[0]?.id ?? '';
+      const acompanhamento = (await admin.query<{ id: string }>(`insert into priv.acompanhamentos (empresa_id, edital_id) values ($1, $2) returning id`, [empresa, edital] )).rows[0]?.id ?? '';
+      const raiz = `/empresas/${empresa}/juridico`;
+
+      await admin.query(`insert into priv.agenda_eventos (empresa_id, acompanhamento_id, tipo, data_limite_legal) values ($1, $2, 'esclarecimento', now() + interval '5 days')`, [empresa, acompanhamento]);
+      const id = (await admin.query<{ id: string }>(`insert into priv.sugestoes_pecas (empresa_id, acompanhamento_id, tipo, titulo, duvida, trecho_edital, trecho_confere) values ($1, $2, 'esclarecimento', 'Sugestão privada', 'Dúvida fictícia', 'Trecho fictício', true) returning id`, [empresa, acompanhamento] )).rows[0]?.id ?? '';
+      await http().post(`${raiz}/acompanhamentos/${acompanhamento}/sugestoes`).set(bearer(dono)).expect(202);
+      const snapshot = async () => (await admin.query<Record<string, unknown>>(`select
+        (select jsonb_agg(s order by id) from priv.sugestoes_pecas s where empresa_id in ($1,$2)) sugestoes,
+        (select jsonb_agg(s order by id) from priv.sugestoes_execucoes s where empresa_id in ($1,$2)) execucoes,
+        (select jsonb_agg(p order by id) from priv.pecas p where empresa_id in ($1,$2)) pecas,
+        (select jsonb_agg(j order by id) from ops.jobs j where empresa_id in ($1,$2) and tipo = 'sugerir_pecas') jobs`, [empresa, outra])).rows;
+      const antes = await snapshot();
+      for (const e of [empresa, outra]) {
+        const base = `/empresas/${e}/juridico`;
+        const lista = await http().get(`${base}/sugestoes`).set(bearer(invasor)).expect(e === empresa ? 404 : 200);
+        if (e === outra) expect(lista.body).toEqual({ sugestoes: [], execucoes: [] });
+        expect(await snapshot()).toEqual(antes);
+        for (const path of [`/acompanhamentos/${acompanhamento}/sugestoes`, `/sugestoes/${id}/aceitar`, `/sugestoes/${id}/descartar`]) {
+          const corpo = { justificativa: 'Tentativa fictícia de descarte' };
+          const esperado = e === outra && path.endsWith('/descartar') ? 400 : 404;
+          const r = await http().post(base + path).set(bearer(invasor)).send(corpo).expect(esperado);
+          if (esperado === 400) {
+            // Ausência e estado inválido compartilham 22023; não distingue ID alheio.
+            const vazio = await http().post(`${base}/sugestoes/${crypto.randomUUID()}/descartar`).set(bearer(invasor)).send(corpo).expect(400);
+            expect(r.body).toEqual(vazio.body);
+          }
+          expect(await snapshot(), path).toEqual(antes);
+        }
+      }
+    });
+  }
 });
