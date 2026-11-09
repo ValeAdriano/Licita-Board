@@ -5,7 +5,7 @@
 - **Autor:** Claude Code (2026-11-05) · **Aprovação:** Adriano Vale, 2026-11-05
 - **Validação:** modelos oficiais dos editais e papel timbrado da empresa (Operação VV) **pendentes**; texto padrão da proposta e das declarações ⚖️ **pendente do jurídico**.
 - **Fontes:** Prompt Mestre Fase 08 (8.1 a 8.7); Fase 02 (representantes e poderes, `core.signatario_valido`); Fase 03 (validade de documentos); Fase 05 (acompanhamento, abertura); Fase 06 (análise técnica aprovada); Fase 07 (preço aprovado e `rules/extenso.py`).
-- **Bloco em rascunho:** 8.7, registro do comprovante de envio (§7), status `Rascunho` (Q-29, 2026-11-07), aguarda aprovação do Adriano; não altera o status `Aprovada` do restante.
+- **Bloco 8.7 (§7):** `Aprovada` em 2026-11-08 (Adriano Vale; recomendações de §7.10 adotadas).
 
 > **Princípios:** a proposta só nasce de **preço aprovado** (Fase 07); validações são código puro e **qualquer divergência bloqueia**; o documento final recebe **hash e fica bloqueado** (nova alteração = nova versão); o sistema **nunca envia ao portal** (regra 17): a pessoa autorizada baixa o arquivo e registra o comprovante.
 
@@ -77,9 +77,9 @@
 - **PDF pronto (2026-11-05, decisão do Adriano):** LibreOffice (`libreoffice-writer`) na imagem do worker; `worker/pdf.py` converte o .docx final em PDF (processo filho sem shell, perfil temporário, limite de 120 s); o PDF tem SHA-256 próprio (`arquivo_pdf_*`, migration `20261114100000`). A final continua imutável: o único UPDATE permitido depois dela é gravar o PDF uma vez. Se a conversão falhar a final vale sem PDF e dá para pedir depois (`POST …/propostas/:id/pdf`). Download `{formato: 'docx'|'pdf'}`. Conferido na stack real: PDF de 1 página gerado, hash do arquivo baixado igual ao gravado. **Custo:** a imagem do worker cresceu (~500 MB).
 - **Falta na Fase 08:** modelo oficial do edital e papel timbrado (precisam dos modelos reais), declarações (8.4) e checklist (8.5) na proposta, registro do comprovante de envio ao portal (com a Fase 09). ⚖️ texto-padrão da proposta pendente do jurídico.
 
-## 7. Bloco 8.7 · Registro do comprovante de envio da proposta ao portal · **Rascunho**
+## 7. Bloco 8.7 · Registro do comprovante de envio da proposta ao portal · **Aprovada**
 
-- **Status deste bloco:** `Rascunho` (Q-29, 2026-11-07, Claude). O resto da spec continua `Aprovada`. Nada deste bloco é implementado antes da aprovação do Adriano.
+- **Status deste bloco:** `Aprovada` em 2026-11-08 (Adriano Vale; recomendações de §7.10 adotadas).
 - **Fontes:** Prompt Mestre 8.7 ("O envio ao portal é sempre feito por pessoa autorizada, que registra o comprovante"), 9.1 (status "Proposta cadastrada"), 10.1 e 10.7 (mesmo padrão do protocolo humano das peças); plano, Fase 08 ("Registro manual de envio ao portal com upload do comprovante"); Fase 03 (repositório documental, quarentena e antivírus, ADR-017); regra 17.
 
 > **Princípio (regra 17):** o sistema **nunca** envia proposta, protocola nem dá lance; não guarda credencial de portal e não abre o portal por automação. A pessoa autorizada envia no portal **fora do sistema** e depois **registra** aqui o fato e o comprovante. O registro é uma declaração humana, auditada e imutável; correção = anular com motivo e registrar de novo.
@@ -211,13 +211,13 @@ O upload do comprovante usa as rotas existentes da Fase 03 (criar documento em q
 2. API (3 rotas + `ultimoEnvio`) + e2e A x B.
 3. Tela (seção "Envio ao portal" com upload reaproveitado de `EnviarAnexo`) e selo.
 
-### 7.10 Perguntas abertas
+### 7.10 Decisões adotadas (2026-11-08)
 
-1. ⚖️ **O que vale como comprovante?** (recibo do portal, captura de tela, e-mail de confirmação, PDF assinado). Opções: (a) qualquer arquivo, identificador opcional; (b) arquivo + identificador do portal obrigatório; (c) regra por portal. **Recomendação: (a)** até o jurídico definir, com um campo livre "tipo de comprovante" para não perder a informação.
-2. **Quem é "pessoa autorizada" para registrar?** Opções: (a) `propostas/aprovar` (mesmo nível de quem aprova); (b) ação nova `propostas/registrar_envio` (exige ampliar o check de `core.permissoes.acao`, perto de `has_permission`: AGENTS.md §9); (c) `propostas/editar`. **Recomendação: (a)**, sem mexer na matriz de ações.
-3. **Representante** — registrar também qual representante legal enviou (credencial do portal é da empresa/representante) e conferir com `core.signatario_valido` na data? **Recomendação:** campo opcional `representante_id`, só informativo neste bloco, sem bloqueio (⚖️ quem pode operar o portal é regra do portal/edital).
-4. **Status** — usar `proposta_cadastrada` (texto do Prompt 9.1) ou `proposta_enviada` (status legado da Fase 05)? **Recomendação:** `proposta_cadastrada`; `proposta_enviada` fica como legado e não é mais gravado.
-5. **Envio depois do encerramento** — aviso ou bloqueio? **Recomendação: aviso** (o registro é um fato; o prazo é do portal e não calculamos regra jurídica aqui).
-6. **Step-up** ao registrar/anular? **Recomendação: não** (não é decisão irreversível nem de valor); aprovar a proposta já exige step-up.
-7. **Comprovante de protocolo das peças** (Fase 10) é hoje texto livre (`priv.pecas.comprovante`). Unificar com este fluxo de arquivo (tipo `peca_juridica`)? **Recomendação:** sim, como item separado depois deste, sem mudar a Fase 10 agora.
-8. **Comparar o arquivo enviado com o nosso hash?** Assinatura digital no portal muda o hash. **Recomendação: não**; guardamos só o hash da nossa versão.
+1. ⚖️ **O que vale como comprovante:** **(a) qualquer arquivo liberado + campo livre `tipo_comprovante` e `identificador_portal` opcional** até definição específica do jurídico por portal.
+2. **Quem é "pessoa autorizada" para registrar/anular:** **(a) `propostas/aprovar`** (mesmo nível de quem aprova a proposta, sem alterar o check de `core.permissoes.acao`).
+3. **Representante:** **campo opcional `representante_id` informativo** neste bloco, sem bloqueio.
+4. **Status:** **`proposta_cadastrada`** (`proposta_enviada` permanece como legado e não é mais gravado).
+5. **Envio depois do encerramento:** **aviso não bloqueante** (o registro documenta o fato ocorrido).
+6. **Step-up ao registrar/anular:** **não** (aprovar a proposta final já exige step-up).
+7. **Comprovante de protocolo das peças (Fase 10):** **item separado futuro** depois deste bloco, sem alterar a Fase 10 agora.
+8. **Comparar o arquivo enviado com o nosso hash:** **não** (assinatura digital no portal muda o hash; guardam-se o hash da nossa versão final e o hash do comprovante).

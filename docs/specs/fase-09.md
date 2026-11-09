@@ -5,7 +5,7 @@
 - **Autor:** Claude Code (2026-11-05) · **Aprovação:** Adriano Vale, 2026-11-05
 - **Validação:** ⚖️ o prazo da intenção de recurso vem da regra da agenda (Lei 14.133, art. 165, §1º, "imediato"), **ainda não validada pelo jurídico**.
 - **Fontes:** Prompt Mestre Fase 09 (9.1 a 9.5); Fase 05 (participações, eventos, `priv.registrar_fato`); regra 17 do AGENTS.md.
-- **Bloco em rascunho:** 9.5, documentos posteriores (§5), status `Rascunho` (Q-29, 2026-11-07), aguarda aprovação do Adriano; não altera o status `Aprovada` do restante.
+- **Bloco 9.5 (§5):** `Aprovada` em 2026-11-08 (Adriano Vale; recomendações de §5.10 adotadas).
 
 > O sistema **só registra**: nunca dá lance nem protocola nada em portal (regra 17). **Arrematação não é homologação**: são resultados diferentes.
 
@@ -47,9 +47,9 @@
 
 - 2026-11-05 · núcleo pronto: migration `20261113100000` (status ampliados, `priv.resultados_item`, `priv.registrar_resultado`), API `apps/api/src/resultados`, tela (botão "Resultado" em cada item e aba "Resultados" na Agenda). Testes: pgTAP 290 e isolamento A x B, e2e (fluxo, gatilho, histórico, A x B). Conferido na stack real: registrar "perdida" criou o evento "Intenção de recurso" na agenda (selo ⚖️ regra não validada) e o histórico mostrou o resultado.
 
-## 5. Bloco 9.5 · Documentos posteriores · **Rascunho**
+## 5. Bloco 9.5 · Documentos posteriores · **Aprovada**
 
-- **Status deste bloco:** `Rascunho` (Q-29, 2026-11-07, Claude). O resto da spec continua `Aprovada`. Nada deste bloco é implementado antes da aprovação do Adriano.
+- **Status deste bloco:** `Aprovada` em 2026-11-08 (Adriano Vale; recomendações de §5.10 adotadas).
 - **Fontes:** Prompt Mestre 9.5 (ata de sessão; proposta final; documentos de habilitação próprios e da vencedora, quando públicos; recursos e contrarrazões; decisões; adjudicação; homologação; contrato; ata de registro de preços; empenhos), 9.4 (arrematação ≠ homologação), 10.4 a 10.7 (peças, recurso de terceiro, parecer), 11.1 e 11.2 (contratos, atas e empenhos), 13.5 (monitoramento automático, fora daqui); plano, Fase 09 ("Pasta de documentos posteriores (ata, adjudicação, homologação, empenhos)"); Fase 03 (repositório, ADR-017); Fase 08 §7 (bloco 8.7, comprovante de envio).
 
 > **Princípios:** **uma pasta, nenhuma cópia.** O que já existe em outro módulo aparece por vínculo (proposta final, peças, recurso de terceiro, contrato, empenhos, anexos do contrato, checklist); só o que não tem casa ganha registro novo (`priv.documentos_posteriores`), sempre com o arquivo no repositório da Fase 03 (quarentena, antivírus, versões) ou como link público. **Anexar não muda resultado nem lança prazo sozinho:** arrematação continua diferente de homologação (o resultado é registrado pela pessoa na Fase 09) e nenhum prazo jurídico é suposto a partir de um documento (⚖️ perguntas 1 e 2). Texto de documento é dado (regra 16); nada aqui passa por IA.
@@ -193,12 +193,12 @@ Upload e download pelas rotas existentes da Fase 03. Contrato existente: a tela 
 2. API (linha do tempo unificada + 3 rotas) + e2e A x B.
 3. Tela (aba, folha de anexar, habilitação apresentada) + leitura na aba de anexos do contrato.
 
-### 5.10 Perguntas abertas
+### 5.10 Decisões adotadas (2026-11-08)
 
-1. ⚖️ **Ata/decisão como base de prazo** — a data da ata de sessão ou da intimação de decisão deve virar base do evento `razoes_recurso` (base `intimacao` em `pub.regras_prazo`) ou de `regularizacao_fiscal_me_epp`? Opções: (a) não, o jurídico lança o fato como hoje; (b) a tela **sugere** lançar o fato com a data do documento, a pessoa confirma; (c) automático. **Recomendação: (b)**, e só depois de o jurídico validar quais documentos contam como intimação.
-2. **Homologação anexada atualiza o resultado?** Opções: (a) só sugere ("Atualizar resultado" pré-preenchido); (b) automático. **Recomendação: (a)** (critério da Fase 09: arrematação ≠ homologação; decisão humana).
-3. ⚖️ **Empenho sem contrato** (contratação em que a nota de empenho substitui o instrumento de contrato): cadastrar na Fase 11 como contrato de um tipo novo, ou manter só como documento posterior? Opções: (a) só documento posterior até o jurídico/Adriano decidir; (b) novo `priv.contratos.tipo = 'empenho'` (mexe na Fase 11 aprovada, exige regressão). **Recomendação: (a)**. Não supomos quando a lei permite substituir o contrato.
-4. ⚖️ **Documentos da concorrente (LGPD)** — guardar o arquivo ou só o link público? Por quanto tempo? Opções: (a) arquivo ou link, retenção igual à do acompanhamento; (b) só link; (c) arquivo com retenção limitada `<A DEFINIR>`. **Recomendação: (a)** com aviso "somente documentos públicos", e a retenção entra na política de retenção geral (pendente).
-5. **Baixar o arquivo a partir do link** (PNCP/portal) pelo worker? Opções: (a) não neste bloco (só guarda o link); (b) sim, só para hosts permitidos de `ops.fontes`, com o fluxo de quarentena. **Recomendação: (a)**; (b) entra com a 13.5.
-6. **Um documento para vários itens** — basta "um item ou todos os itens"? Opções: (a) sim; (b) tabela de itens alcançados. **Recomendação: (a)**; (b) só se aparecer caso real de documento que alcança parte dos itens de um lote.
-7. **Foto da habilitação** — registrar manualmente (botão) ou automaticamente ao registrar o envio da proposta (bloco 8.7) ou o resultado? **Recomendação:** botão neste bloco, e oferecer o mesmo botão ao fim do registro de envio (8.7), sem automatismo.
+1. ⚖️ **Ata/decisão como base de prazo:** **(a) não lança prazo sozinho neste bloco** (o jurídico lança o fato como hoje; a sugestão pré-preenchida (b) entra quando o jurídico validar quais documentos contam como intimação).
+2. **Homologação anexada atualiza o resultado:** **(a) só sugere** (botão "Atualizar resultado" pré-preenchido; decisão humana, preservando que arrematação ≠ homologação).
+3. ⚖️ **Empenho sem contrato:** **(a) manter como documento posterior** até definição do jurídico/Adriano sobre quando a nota de empenho substitui o instrumento contratual.
+4. ⚖️ **Documentos da concorrente (LGPD):** **(a) arquivo ou link com aviso "somente documentos públicos"**, seguindo a política geral de retenção do acompanhamento.
+5. **Baixar o arquivo a partir do link pelo worker:** **(a) não neste bloco** (só guarda o link `https`; captura automática fica para a Fase 13.5).
+6. **Um documento para vários itens:** **(a) um item (`participacao_id`) ou todos os itens (`null`)**.
+7. **Foto da habilitação:** **botão manual (`Registrar habilitação apresentada`)** neste bloco e atalho opcional ao fim do registro de envio (8.7), sem automatismo.

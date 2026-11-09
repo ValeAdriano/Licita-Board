@@ -5,7 +5,7 @@
 - **Autor:** Claude Code (2026-11-05) · **Aprovação:** Adriano Vale, 2026-11-05
 - **Validação:** **🧾 parâmetros tributários pendentes e bloqueantes para o uso real** (precisam do responsável contábil); **⚖️ regras de ME/EPP e de inexequibilidade pendentes do jurídico** (nada é suposto: tudo é parâmetro).
 - **Fontes:** Prompt Mestre Fase 07 (7.1 a 7.6) e regras 14 e 15 do AGENTS.md; Fase 02 (`priv.produtos`); Fase 05 (`priv.participacoes`).
-- **Bloco em rascunho:** 7.5 (§8), status `Rascunho` (Q-29, 2026-11-07), aguarda aprovação do Adriano; não altera o status `Aprovada` do restante.
+- **Bloco 7.5 (§8):** `Aprovada` em 2026-11-08 (Adriano Vale; recomendações de §8.11 adotadas).
 
 > **Princípios:** dinheiro em `numeric(18,4)` no banco, `decimal.Decimal` no Python e `string` na API e no front, **nunca `float`** (regra 14); todo cálculo em código puro (`apps/worker/src/worker/rules/precos.py`, 100% de cobertura), reproduzível e auditável; a API só grava os insumos e enfileira o worker (como em prazos e análise técnica).
 
@@ -89,9 +89,9 @@
 - **Núcleo pronto (2026-11-05):** `rules/precos.py` (Decimal, 100% de cobertura, casos de borda de arredondamento), migration `20261111100000` (`priv.precificacoes`, `priv.preco_linhas`; leitura só com `precos/ver_custos_margens`; escrita só por função; alçada: abaixo do mínimo exige justificativa e `precos/aprovar`; mudar insumo derruba a aprovação), job `calcular_preco` (`worker/preco.py`), API `apps/api/src/precos`, tela `/agenda/participacoes/:id/preco` (link "Preço" nos itens). Testes: pytest (15 das regras, 5 do job com banco), pgTAP 270 e 2 de isolamento A x B, e2e (sigilo de custos e A x B), formatação do front. Conferido no navegador com o worker real (conta fictícia): preço = custo ÷ (1 − percentuais − margem), arredondado e total conferidos à mão.
 - **Falta na Fase 07:** histórico comercial de preços vencedores (7.5), reautenticação ao aprovar abaixo do mínimo (7.6), cenários salvos (entram com a Fase 09), valor por extenso (Fase 08), **simulação do empate ficto na tela** (a função pura `empate_ficto` existe e é testada, mas não há endpoint nem campo para a melhor oferta), parâmetros tributários validados (🧾 contador) e percentuais do empate ficto/inexequibilidade (⚖️ jurídico).
 
-## 8. Bloco 7.5 · Histórico comercial de preços vencedores · **Rascunho**
+## 8. Bloco 7.5 · Histórico comercial de preços vencedores · **Aprovada**
 
-- **Status deste bloco:** `Rascunho` (Q-29, 2026-11-07, Claude). O resto da spec continua `Aprovada`. Nada deste bloco é implementado antes da aprovação do Adriano.
+- **Status deste bloco:** `Aprovada` em 2026-11-08 (Adriano Vale; recomendações de §8.11 adotadas).
 - **Fontes:** Prompt Mestre 7.5 (histórico comercial), 9.2 e 9.4 (resultado e licitações ganhas), 12.3 ("preços vencedores anteriores", "margens"), tabela "Separação de dados" do Prompt ("Resultados públicos e preços homologados" = dado público); plano, Fase 07 ("Histórico de preços vencedores importado do PNCP") e Onda 5 (`pub.precos_historicos`); ADR-019 (pesquisa de editais) e o conector `apps/worker/src/worker/connectors/pncp.py`; regras 14, 15 e 16.
 
 > **Princípios:** preço vencedor histórico é **dado de referência**, nunca decisão: não define preço, não aprova nada e não entra na IA. Estatística e comparação são código determinístico em `numeric`/`Decimal` (regra 15), nunca `float` (atenção: `percentile_cont` do Postgres converte para `double precision`; usar `percentile_disc`). Texto vindo do PNCP é dado (regra 16). O dado público fica em `pub` (sem `empresa_id`, só o worker escreve); o que é da empresa (nossa oferta, custo, margem) fica em `priv` e só aparece com `precos/ver_custos_margens` daquela empresa.
@@ -176,7 +176,7 @@
 #### Mudanças em tabelas existentes (migration nova, nada aplicado é editado)
 
 - `ops.execucoes.tipo`: incluir `resultados`.
-- `ops.fontes.parametros` do `pncp`: chave `resultados` com `janela_dias`, `revisita_dias`, `max_editais_por_execucao`, `horarios` (valores `<A DEFINIR>`; sugestão 365, 7, 200, `{03:00}`).
+- `ops.fontes.parametros` do `pncp`: chave `resultados` com `janela_dias` (365), `revisita_dias` (7), `max_editais_por_execucao` (200), `horarios` (`{03:00}`).
 
 **RLS:**
 
@@ -216,7 +216,7 @@ Teste de isolamento A x B: as tabelas novas são `pub`/`ops` (sem `empresa_id`);
 
 **Seleção dos editais:** `data_encerramento_propostas` (ou publicação, se nula) dentro de `janela_dias`, `ops.resultado_coletas.proxima_verificacao_em <= now()`, status diferente de `completo`/`fora_da_janela`, até `max_editais_por_execucao`, mais antigos primeiro. Editais acompanhados por alguma empresa (`priv.acompanhamentos`) têm prioridade.
 
-**Limites:** cliente HTTP existente (`pesquisa/http.py`): só https, só hosts permitidos, sem redirecionamento, `User-Agent` do robô, taxa por host compartilhada (2 req/s hoje), retry com espera progressiva, JSON lido com `Decimal`. Orçamento de pedidos por execução = `max_editais_por_execucao` × (1 + itens com resultado), com teto `<A DEFINIR>`.
+**Limites:** cliente HTTP existente (`pesquisa/http.py`): só https, só hosts permitidos, sem redirecionamento, `User-Agent` do robô, taxa por host compartilhada (2 req/s hoje), retry com espera progressiva, JSON lido com `Decimal`. Orçamento de pedidos por execução = `max_editais_por_execucao` × (1 + itens com resultado), com teto `2000` requisições por execução.
 
 **Nunca coletar:** CPF ou nome de pessoa física; e-mail, telefone ou endereço de fornecedor; documentos/arquivos do fornecedor; nada que exija login ou credencial; nada fora da API pública (sem raspagem de portal) neste bloco.
 
@@ -269,11 +269,11 @@ Erros: `400` filtro inválido (valor não decimal, `de > ate`, texto curto); `40
 4. API de pesquisa (+ camada privada) e e2e A x B.
 5. Telas (pesquisa, cartão na calculadora, sugestão no resultado).
 
-### 8.11 Perguntas abertas
+### 8.11 Decisões adotadas (2026-11-08)
 
-1. **Janela e revisita** — quanto tempo depois do encerramento continuar procurando resultado e de quanto em quanto tempo? Opções: (a) 365 dias, a cada 7 dias; (b) 180 dias, a cada 3 dias; (c) só editais acompanhados. **Recomendação: (a)**, parametrizado em `ops.fontes.parametros`, com prioridade para editais acompanhados.
-2. **Cobertura** — o histórico cobre só os editais já capturados (PR/SC, desde o início da captura) ou fazemos backfill amplo (outras UFs, anos anteriores), que exige criar `pub.editais`/`pub.edital_itens` em volume? Opções: (a) só os capturados agora; (b) backfill de 12 meses em PR/SC; (c) backfill nacional. **Recomendação: (a) agora e (b) como item seguinte**, medindo volume e taxa antes; (c) vira decisão de custo.
-3. **Permissão da pesquisa pública** — `editais/visualizar` (mesma regra de `pub.editais`) ou `precos/visualizar`? **Recomendação: `editais/visualizar`**, porque o dado é público e a RLS de `pub` já usa `core.pode_ver_editais()`; o que é sigiloso está na camada privada.
-4. **Comparação "nosso preço × histórico"** — mostrar a diferença % entre o preço da calculadora e a mediana? Opções: (a) não neste bloco; (b) em SQL `numeric` na própria pesquisa; (c) no job `calcular_preco`, em `rules/precos.py` (100% de cobertura). **Recomendação: (c)**, para manter toda conta de preço em `rules/` (regra 15); até lá, (a).
-5. **O que é "informação comercial privada"** — a vencedora e a marca/modelo que **nós** digitamos em `priv.resultados_item` (hoje visíveis com `agenda/visualizar`) entram na camada privada com `ver_custos_margens`, ou só nossa oferta, custo e margem? **Recomendação:** só oferta, custo e margem exigem `ver_custos_margens`; vencedora/marca digitadas seguem a permissão atual da agenda (não muda o que já foi aprovado na Fase 09).
-6. **Marca/modelo** — se o PNCP não trouxer marca/modelo estruturado, aceitar que a busca por marca dependa do texto do item e dos nossos registros? Alternativa: extrair marca da ata/contrato com IA (custo, evidência, Fase 13.5). **Recomendação:** aceitar agora; extração fica para 13.5.
+1. **Janela e revisita:** **(a) 365 dias após encerramento, revisita a cada 7 dias**, parametrizado em `ops.fontes.parametros`, com prioridade para editais acompanhados.
+2. **Cobertura:** **(a) editais já capturados em `pub.editais` neste bloco inicial**, com **(b) backfill de 12 meses em PR/SC** como item seguinte após medir volume e taxa.
+3. **Permissão da pesquisa pública:** **`editais/visualizar`** (dado público em `pub` governado por `core.pode_ver_editais()`; camada privada exige `precos/ver_custos_margens`).
+4. **Comparação "nosso preço × histórico":** **(a) não neste bloco inicial**, entrando a seguir em **(c) `rules/precos.py`** (100% de cobertura) para manter toda conta de preço em `rules/` (regra 15).
+5. **Informação comercial privada:** **só nossa oferta, custo e margem exigem `precos/ver_custos_margens`**; vencedora e marca/modelo digitadas em `priv.resultados_item` seguem `agenda/visualizar` (Fase 09).
+6. **Marca/modelo:** **aceitar busca pelo texto do item e pelos nossos registros quando o PNCP não trouxer estruturado** (extração de marca em atas/contratos fica para a Fase 13.5).
