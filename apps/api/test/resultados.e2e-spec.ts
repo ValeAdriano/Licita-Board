@@ -121,4 +121,97 @@ describe('resultados: fluxo e A x B', () => {
     });
   }
 
+  it('9.5 documentos posteriores: linha do tempo unificada, foto da habilitação, pendências, leitura no contrato e A x B', async () => {
+    const hoje = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    // Resultado homologada abre pendência informativa homologada_sem_documento até anexar homologação
+    await http().post(`/empresas/${empA}/participacoes/${part}/resultado`).set(bearer(a)).send({
+      resultado: 'homologada', valorInicial: '100000', valorFinal: '91000', classificacao: 1,
+    }).expect(200);
+
+    const tl0 = (await http().get(`/empresas/${empA}/acompanhamentos/${acomp}/documentos-posteriores`).set(bearer(a)).expect(200)).body as {
+      linhaDoTempo: Array<{ origem: string; tipo: string; id: string; documento: { id: string } | null }>;
+      grupos: { propostas: boolean | null; juridico: boolean | null; contratos: boolean | null };
+      pendencias: Array<{ codigo: string; participacaoId: string }>;
+      contratoId: string | null;
+    };
+    expect(tl0.grupos).toEqual({ propostas: true, juridico: true, contratos: true });
+    expect(tl0.pendencias).toEqual([{ codigo: 'homologada_sem_documento', participacaoId: part }]);
+
+    // Validações: sem arquivo nem link, decisão sem subtipo, link http (T15)
+    await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/documentos-posteriores`).set(bearer(a)).send({
+      tipo: 'ata_sessao', dataAto: hoje,
+    }).expect(400);
+    await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/documentos-posteriores`).set(bearer(a)).send({
+      tipo: 'decisao', dataAto: hoje, link: 'https://pncp.gov.br/decisao/1',
+    }).expect(400);
+    await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/documentos-posteriores`).set(bearer(a)).send({
+      tipo: 'ata_sessao', dataAto: hoje, link: 'http://pncp.gov.br/ata/1',
+    }).expect(400);
+
+    // Registra homologação por link público https -> limpa pendência e não altera resultado (CA-8)
+    const hom = (await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/documentos-posteriores`).set(bearer(a)).send({
+      tipo: 'homologacao', dataAto: hoje, numero: 'HOM-2026', participacaoId: part, link: 'https://pncp.gov.br/homologacao/1', observacao: 'Publicada no DOU',
+    }).expect(201)).body as { id: string };
+    expect(hom.id).toBeTruthy();
+
+    // Registra contrato como documento posterior antes de existir contrato cadastrado (CA-10)
+    const tipoCt = (await admin.query<{ id: string }>(`select id from pub.tipos_documento where slug = 'contrato_assinado'`)).rows[0]?.id;
+    const docCt = (await admin.query<{ id: string }>(`insert into priv.documentos (empresa_id, tipo_id, descricao) values ($1, $2, 'Contrato assinado PDF') returning id`, [empA, tipoCt])).rows[0]?.id ?? '';
+    await admin.query(`insert into priv.documento_versoes (documento_id, empresa_id, versao, arquivo_chave, nome_original, status_arquivo, sha256) values ($1, $2, 1, 'docs/ct.pdf', 'ct.pdf', 'liberado', repeat('a', 64))`, [docCt, empA]);
+
+    const regCt = (await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/documentos-posteriores`).set(bearer(a)).send({
+      tipo: 'contrato', dataAto: hoje, numero: 'CT-99/2026', documentoId: docCt, observacao: 'Anexado antes do cadastro do contrato',
+    }).expect(201)).body as { id: string };
+    expect(regCt.id).toBeTruthy();
+
+    // Cadastra contrato ligado ao acompanhamento -> recusa novo documento posterior de contrato/ata/empenho e exibe na aba de anexos do contrato (CA-10)
+    const ctId = (await admin.query<{ id: string }>(`
+      insert into priv.contratos (empresa_id, acompanhamento_id, tipo, numero, orgao, objeto, vigencia_inicio, vigencia_fim)
+      values ($1, $2, 'contrato', 'CT-99/2026', 'Prefeitura de Resultado', 'Aquisição de veículos', current_date, current_date + 365)
+      returning id`, [empA, acomp])).rows[0]?.id ?? '';
+    await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/documentos-posteriores`).set(bearer(a)).send({
+      tipo: 'empenho', dataAto: hoje, numero: 'EMP-1', link: 'https://pncp.gov.br/empenho/1',
+    }).expect(400);
+
+    const anexosContrato = (await http().get(`/empresas/${empA}/contratos/${ctId}/anexos`).set(bearer(a)).expect(200)).body as Array<{
+      id: string; doAcompanhamento: boolean; tipoPosterior: string | null; documentoId: string | null;
+    }>;
+    expect(anexosContrato.some((x) => x.id === regCt.id && x.doAcompanhamento && x.tipoPosterior === 'contrato' && x.documentoId === docCt)).toBe(true);
+
+    // CA-12: leitor tem só agenda:visualizar e editais:visualizar (sem documentos:visualizar e sem contratos:visualizar)
+    const tlLeitor = (await http().get(`/empresas/${empA}/acompanhamentos/${acomp}/documentos-posteriores`).set(bearer(leitor)).expect(200)).body as {
+      linhaDoTempo: Array<{ id: string; origem: string; documento: unknown }>;
+      grupos: { propostas: boolean | null; juridico: boolean | null; contratos: boolean | null };
+    };
+    expect(tlLeitor.grupos).toEqual({ propostas: null, juridico: null, contratos: null });
+    const itemCtLeitor = tlLeitor.linhaDoTempo.find((x) => x.id === regCt.id);
+    expect(itemCtLeitor?.documento).toBeNull();
+
+    // Foto da habilitação apresentada (CA-11)
+    const tipoCnd = (await admin.query<{ id: string }>(`select id from pub.tipos_documento where slug = 'cnd_federal'`)).rows[0]?.id;
+    const docCnd = (await admin.query<{ id: string }>(`insert into priv.documentos (empresa_id, tipo_id, descricao) values ($1, $2, 'CND Federal') returning id`, [empA, tipoCnd])).rows[0]?.id ?? '';
+    await admin.query(`insert into priv.documento_versoes (documento_id, empresa_id, versao, arquivo_chave, nome_original, status_arquivo, validade, sha256) values ($1, $2, 1, 'docs/cnd.pdf', 'cnd.pdf', 'liberado', current_date + 60, repeat('b', 64))`, [docCnd, empA]);
+    await admin.query(`insert into priv.checklist_exigencias (empresa_id, acompanhamento_id, tipo_id, aplicavel) values ($1, $2, $3, true)`, [empA, acomp, tipoCnd]);
+
+    const hab = (await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/habilitacao-apresentada`).set(bearer(a)).send({ dataAto: hoje }).expect(201)).body as { gravados: number };
+    expect(hab.gravados).toBe(1);
+
+    // Remover documento posterior com motivo (soft delete)
+    await http().post(`/empresas/${empA}/documentos-posteriores/${hom.id}/remover`).set(bearer(leitor)).send({ motivo: 'Sem permissão' }).expect(404);
+    await http().post(`/empresas/${empA}/documentos-posteriores/${hom.id}/remover`).set(bearer(b)).send({ motivo: 'Tentativa cruzada' }).expect(404);
+    await http().post(`/empresas/${empB}/documentos-posteriores/${hom.id}/remover`).set(bearer(b)).send({ motivo: 'Tentativa cruzada' }).expect(404);
+    await http().post(`/empresas/${empA}/documentos-posteriores/${hom.id}/remover`).set(bearer(a)).send({ motivo: 'Anexado em duplicidade' }).expect(204);
+
+    // CA-13: B não lista nem registra em acompanhamento de A
+    await http().get(`/empresas/${empA}/acompanhamentos/${acomp}/documentos-posteriores`).set(bearer(b)).expect(404);
+    await http().get(`/empresas/${empB}/acompanhamentos/${acomp}/documentos-posteriores`).set(bearer(b)).expect(404);
+    await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/documentos-posteriores`).set(bearer(b)).send({
+      tipo: 'ata_sessao', dataAto: hoje, link: 'https://pncp.gov.br/ata/x',
+    }).expect(404);
+    await http().post(`/empresas/${empB}/acompanhamentos/${acomp}/documentos-posteriores`).set(bearer(b)).send({
+      tipo: 'ata_sessao', dataAto: hoje, link: 'https://pncp.gov.br/ata/x',
+    }).expect(404);
+    await http().post(`/empresas/${empB}/acompanhamentos/${acomp}/habilitacao-apresentada`).set(bearer(b)).send({ dataAto: hoje }).expect(404);
+  });
+
 });

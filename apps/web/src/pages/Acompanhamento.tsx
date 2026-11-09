@@ -1,4 +1,5 @@
 import { Checklist } from '../features/documentos/Checklist'
+import { DocumentosPosteriores } from '../features/resultados/DocumentosPosteriores'
 import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { chamar } from '../api/cliente'
@@ -52,8 +53,34 @@ export default function Acompanhamento() {
         }
       />
       <Cartao><p className="text-sm text-secondary [overflow-wrap:anywhere]"><bdi>{d.objeto}</bdi></p></Cartao>
-      <Abas rotulo="Seções do acompanhamento" ativa={busca.get('aba') === 'documentos' && pode('documentos', 'visualizar') ? 'documentos' : 'acompanhamento'} abas={[{ id: 'acompanhamento', rotulo: 'Acompanhamento' }, ...(pode('documentos', 'visualizar') ? [{ id: 'documentos', rotulo: 'Documentos do edital' }] : [])]} aoMudar={aba => setBusca(anterior => { const nova = new URLSearchParams(anterior); nova.set('aba', aba); return nova })} />
-      {busca.get('aba') === 'documentos' && pode('documentos', 'visualizar') ? <Checklist key={`${empresaId}/${id}`} empresaId={empresaId} acompanhamentoId={id} podeEditar={pode('documentos', 'editar')} /> : <>
+      <Abas
+        rotulo="Seções do acompanhamento"
+        ativa={
+          busca.get('aba') === 'documentos' && pode('documentos', 'visualizar')
+            ? 'documentos'
+            : busca.get('aba') === 'pos-disputa'
+              ? 'pos-disputa'
+              : 'acompanhamento'
+        }
+        abas={[
+          { id: 'acompanhamento', rotulo: 'Acompanhamento' },
+          ...(pode('documentos', 'visualizar') ? [{ id: 'documentos', rotulo: 'Documentos do edital' }] : []),
+          { id: 'pos-disputa', rotulo: 'Documentos posteriores' },
+        ]}
+        aoMudar={aba => setBusca(anterior => { const nova = new URLSearchParams(anterior); nova.set('aba', aba); return nova })}
+      />
+      {busca.get('aba') === 'documentos' && pode('documentos', 'visualizar') ? (
+        <Checklist key={`${empresaId}/${id}`} empresaId={empresaId} acompanhamentoId={id} podeEditar={pode('documentos', 'editar')} />
+      ) : busca.get('aba') === 'pos-disputa' ? (
+        <DocumentosPosteriores
+          key={`${empresaId}/${id}/pos`}
+          empresaId={empresaId}
+          acompanhamentoId={id}
+          itens={d.itens}
+          podeEditar={podeEditar}
+          aoIrParaAcompanhamento={() => setBusca(anterior => { const nova = new URLSearchParams(anterior); nova.set('aba', 'acompanhamento'); return nova })}
+        />
+      ) : <>
       {d.aberturaReconfirmar ? <Aviso tipo="atencao" texto="A retificação mudou datas do edital: a abertura confirmada pode não valer mais. Reconfirme a data de abertura abaixo (os prazos calculados dependem dela)." /> : null}
       {d.editalVersaoAtual > d.editalVersaoVista ? <RetificacaoAviso empresaId={empresaId} d={d} podeEditar={podeEditar} aoMudar={mudou} /> : null}
       {recalculando ? <Aviso tipo="info" texto="Recalculando os prazos… eles aparecem em instantes." /> : null}

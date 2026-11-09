@@ -72,15 +72,29 @@ export class ContratosController {
        order by ri.ocorrido_em desc, i.numero_item limit 300`.execute(tx)).rows);
   }
 
-  // Anexos (11.1/11.3): vínculo com documentos do repositório (Fase 03); validade e status vêm de lá. Sem documentos/visualizar o documento não é visto.
+  // Anexos (11.1/11.3 + 9.5): vínculo com documentos do repositório (Fase 03) + documentos posteriores do acompanhamento (contrato, ata, empenho).
   @Permissao('contratos', 'visualizar')
   @Get('empresas/:empresa/contratos/:id/anexos')
   anexos(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.q(req, async (tx) => (await sql`
-      select a.id, a.empenho_id as "empenhoId", e.numero as "empenhoNumero", a.etapa, a.nota, a.documento_id as "documentoId", d.descricao, s.status, s.validade::text as validade, a.created_at as "anexadoEm"
+      select a.id, a.empenho_id as "empenhoId", e.numero as "empenhoNumero", a.etapa, a.nota, a.documento_id as "documentoId",
+             d.descricao, s.status, s.validade::text as validade, a.created_at as "anexadoEm", false as "doAcompanhamento",
+             null::text as "tipoPosterior", null::text as "linkPublico"
         from priv.contrato_anexos a left join priv.empenhos e on e.id = a.empenho_id left join priv.documentos d on d.id = a.documento_id
         left join priv.documentos_status s on s.documento_id = d.id
-       where a.contrato_id = ${id}::uuid and a.empresa_id = ${empresa}::uuid order by a.created_at desc`.execute(tx)).rows);
+       where a.contrato_id = ${id}::uuid and a.empresa_id = ${empresa}::uuid
+      union all
+      select dp.id, null::uuid as "empenhoId", null::text as "empenhoNumero", null::text as etapa,
+             coalesce(dp.observacao, dp.numero) as nota, dp.documento_id as "documentoId",
+             coalesce(d.descricao, dp.observacao, dp.numero, dp.tipo) as descricao, s.status, s.validade::text as validade,
+             dp.created_at as "anexadoEm", true as "doAcompanhamento", dp.tipo as "tipoPosterior", dp.link_publico as "linkPublico"
+        from priv.contratos c
+        join priv.documentos_posteriores dp on dp.acompanhamento_id = c.acompanhamento_id and dp.empresa_id = c.empresa_id
+        left join priv.documentos d on d.id = dp.documento_id
+        left join priv.documentos_status s on s.documento_id = d.id
+       where c.id = ${id}::uuid and c.empresa_id = ${empresa}::uuid and c.deleted_at is null
+         and dp.deleted_at is null and dp.tipo in ('contrato', 'ata_registro_precos', 'empenho')
+       order by "anexadoEm" desc`.execute(tx)).rows);
   }
 
   @Permissao('contratos', 'editar')

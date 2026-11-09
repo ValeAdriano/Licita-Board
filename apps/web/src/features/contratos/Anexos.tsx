@@ -9,7 +9,19 @@ import { STATUS_PECA, TIPO_PECA } from '../juridico/tipos'
 import { EnviarAnexo } from './EnviarAnexo'
 import { dia, ETAPAS, type Detalhe } from './tipos'
 
-interface Anexo { id: string; empenhoNumero: string | null; etapa: string | null; nota: string | null; documentoId: string; descricao: string | null; status: string | null; validade: string | null }
+interface Anexo {
+  id: string;
+  empenhoNumero: string | null;
+  etapa: string | null;
+  nota: string | null;
+  documentoId: string | null;
+  descricao: string | null;
+  status: string | null;
+  validade: string | null;
+  doAcompanhamento?: boolean;
+  tipoPosterior?: string | null;
+  linkPublico?: string | null;
+}
 interface DocumentoLinha { id: string; descricao: string; status: string; validade: string | null }
 interface Pedido { id: string; tipo: string; titulo: string; status: string; resultado: string | null }
 const COR_DOC: Record<string, 'sucesso' | 'aviso' | 'erro' | 'cinza'> = { vigente: 'sucesso', a_vencer: 'aviso', vencido: 'erro', pendente: 'aviso' }
@@ -53,10 +65,12 @@ export function Anexos({ empresaId, id, d, editar }: { empresaId: string; id: st
         {(anexos.dados ?? []).map((a) => (
           <div key={a.id} className="flex flex-wrap items-center gap-2 border-t border-secondary pt-2">
             <strong className="[overflow-wrap:anywhere]"><bdi>{a.descricao ?? 'Documento (sem permissão para ver)'}</bdi></strong>
+            {a.doAcompanhamento ? <Etiqueta cor="cinza">do acompanhamento</Etiqueta> : null}
             {a.status ? <Etiqueta cor={COR_DOC[a.status] ?? 'cinza'}>{a.status.replace('_', ' ')}</Etiqueta> : null}
             {a.validade ? <Legenda>validade {dia(a.validade)}</Legenda> : null}
             <Legenda>{a.empenhoNumero ? `Empenho ${a.empenhoNumero}${a.etapa ? ` · ${ETAPAS[a.etapa] ?? a.etapa}` : ''}` : 'Contrato inteiro'}{a.nota ? ` · ${a.nota}` : ''}</Legenda>
-            {editar ? <Botao variante="texto" carregando={enviando} onClick={() => void enviar(async () => { await chamar('DELETE', `${base}/anexos/${a.id}`); anexos.recarregar() })}>Remover vínculo</Botao> : null}
+            {a.linkPublico ? <a href={a.linkPublico} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-brand-secondary underline">Abrir link</a> : null}
+            {editar && !a.doAcompanhamento ? <Botao variante="texto" carregando={enviando} onClick={() => void enviar(async () => { await chamar('DELETE', `${base}/anexos/${a.id}`); anexos.recarregar() })}>Remover vínculo</Botao> : null}
           </div>
         ))}
       </Cartao>
