@@ -193,7 +193,11 @@ export class AgendaController {
                a.confiabilidade, a.observacoes, a.ultima_conferencia_em as "ultimaConferenciaEm", a.responsavel_id as "responsavelId",
                a.edital_versao_vista as "editalVersaoVista", a.abertura_reconfirmar as "aberturaReconfirmar", e.id as "editalId", e.numero_edital as "numeroEdital", e.processo, e.modalidade, e.objeto,
                e.versao_atual as "editalVersaoAtual", e.link_origem as "linkOrigem", e.data_encerramento_propostas as "encerramentoPropostasPncp", e.situacao as "situacaoEdital",
-               g.razao_social as orgao, g.uf, g.municipio, g.codigo_ibge as "codigoIbge"
+               g.razao_social as orgao, g.uf, g.municipio, g.codigo_ibge as "codigoIbge",
+               (select max(pe.enviado_em)
+                  from priv.proposta_envios pe
+                  join priv.propostas pr on pr.id = pe.proposta_id
+                 where pr.acompanhamento_id = a.id and pe.empresa_id = a.empresa_id and pe.anulado_em is null and pe.deleted_at is null) as "propostaEnviadaEm"
           from priv.acompanhamentos a join pub.editais e on e.id = a.edital_id join pub.orgaos g on g.id = e.orgao_id
          where a.id = ${id}::uuid and a.empresa_id = ${empresa}::uuid and a.deleted_at is null`.execute(tx)).rows[0];
       if (!a) return null;

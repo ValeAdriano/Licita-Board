@@ -14,7 +14,7 @@ interface Versao { id: string; versao: number; nome: string; tipoReal: string | 
 
 const PASTAS: Record<string, string> = {
   habilitacao_juridica: 'Habilitação jurídica', economico_financeira: 'Econômico-financeira', fiscal_trabalhista: 'Fiscal e trabalhista',
-  tecnica: 'Qualificação técnica', timbrado_modelos: 'Timbrado e modelos', juridico: 'Jurídico',
+  tecnica: 'Qualificação técnica', timbrado_modelos: 'Timbrado e modelos', juridico: 'Jurídico', licitacao: 'Documentos da licitação',
 }
 const STATUS: Record<string, string> = { valido: 'Válido', a_vencer: 'A vencer', vencido: 'Vencido', em_atualizacao: 'Em atualização', pendente: 'Pendente' }
 

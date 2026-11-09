@@ -100,14 +100,92 @@ describe('propostas: fluxo e A x B', () => {
     await http().post(`/empresas/${empA}/propostas/${v2}/aprovar`).set(bearer(a)).send({ stepUp: 'inválido' }).expect(400);
   });
 
+  it('8.7 comprovante de envio: exige proposta final e comprovante liberado, move participação, avisa envio tardio, oculta arquivo sem documentos/visualizar e anula com motivo', async () => {
+    const tipoComprovante = (await admin.query<{ id: string }>(`select id from pub.tipos_documento where slug = 'comprovante_envio_proposta'`)).rows[0]?.id ?? '';
+    const tipoErrado = (await admin.query<{ id: string }>(`select id from pub.tipos_documento where slug = 'cnd_federal'`)).rows[0]?.id ?? '';
+
+    const docErrado = (await admin.query<{ id: string }>(`insert into priv.documentos (empresa_id, tipo_id, descricao) values ($1, $2, 'Tipo errado') returning id`, [empA, tipoErrado])).rows[0]?.id ?? '';
+    await admin.query(`insert into priv.documento_versoes (documento_id, empresa_id, versao, arquivo_chave, nome_original, status_arquivo) values ($1, $2, 1, 'docs/err.pdf', 'err.pdf', 'liberado')`, [docErrado, empA]);
+
+    const docQuarentena = (await admin.query<{ id: string }>(`insert into priv.documentos (empresa_id, tipo_id, descricao) values ($1, $2, 'Em quarentena') returning id`, [empA, tipoComprovante])).rows[0]?.id ?? '';
+    await admin.query(`insert into priv.documento_versoes (documento_id, empresa_id, versao, arquivo_chave, nome_original, status_arquivo) values ($1, $2, 1, 'docs/q.pdf', 'q.pdf', 'quarentena')`, [docQuarentena, empA]);
+
+    const docOk = (await admin.query<{ id: string }>(`insert into priv.documentos (empresa_id, tipo_id, descricao) values ($1, $2, 'Comprovante Compras.gov') returning id`, [empA, tipoComprovante])).rows[0]?.id ?? '';
+    const verOk = (await admin.query<{ id: string }>(`insert into priv.documento_versoes (documento_id, empresa_id, versao, arquivo_chave, nome_original, status_arquivo, sha256) values ($1, $2, 1, 'docs/ok.pdf', 'recibo.pdf', 'liberado', repeat('c', 64)) returning id`, [docOk, empA])).rows[0]?.id ?? '';
+
+    const docB = (await admin.query<{ id: string }>(`insert into priv.documentos (empresa_id, tipo_id, descricao) values ($1, $2, 'Comprovante B') returning id`, [empB, tipoComprovante])).rows[0]?.id ?? '';
+    await admin.query(`insert into priv.documento_versoes (documento_id, empresa_id, versao, arquivo_chave, nome_original, status_arquivo) values ($1, $2, 1, 'docs/b.pdf', 'b.pdf', 'liberado')`, [docB, empB]);
+
+    const agora = new Date(Date.now() - 60_000).toISOString();
+    const futuro = new Date(Date.now() + 3600_000).toISOString();
+
+    // CA-6: proposta rascunho (v2) recusada
+    await http().post(`/empresas/${empA}/propostas/${v2}/envios`).set(bearer(a))
+      .send({ enviadoEm: agora, formato: 'docx', documentoId: docOk }).expect(400);
+
+    // CA-7: tipo errado, quarentena, data futura -> 400; documento de outra empresa -> 404
+    await http().post(`/empresas/${empA}/propostas/${prop}/envios`).set(bearer(a))
+      .send({ enviadoEm: agora, formato: 'docx', documentoId: docErrado }).expect(400);
+    await http().post(`/empresas/${empA}/propostas/${prop}/envios`).set(bearer(a))
+      .send({ enviadoEm: agora, formato: 'docx', documentoId: docQuarentena }).expect(400);
+    await http().post(`/empresas/${empA}/propostas/${prop}/envios`).set(bearer(a))
+      .send({ enviadoEm: futuro, formato: 'docx', documentoId: docOk }).expect(400);
+    await http().post(`/empresas/${empA}/propostas/${prop}/envios`).set(bearer(a))
+      .send({ enviadoEm: agora, formato: 'docx', documentoId: docB }).expect(404);
+
+    // Permissão: editor (sem propostas/aprovar) -> 404
+    await http().post(`/empresas/${empA}/propostas/${prop}/envios`).set(bearer(editor))
+      .send({ enviadoEm: agora, formato: 'docx', documentoId: docOk }).expect(404);
+
+    // CA-10: define data_abertura no passado para gerar aviso não bloqueante envio_apos_encerramento
+    await admin.query(`update priv.acompanhamentos set data_abertura = now() - interval '2 hours', portal = 'Compras.gov.br' where id = $1`, [acomp]);
+
+    const reg = await http().post(`/empresas/${empA}/propostas/${prop}/envios`).set(bearer(a))
+      .send({ enviadoEm: agora, formato: 'docx', identificadorPortal: 'REC-99', documentoId: docOk, observacao: 'Protocolado pela equipe' }).expect(201);
+    const envioBody = reg.body as { id: string; avisos: string[] };
+    expect(envioBody.avisos).toContain('envio_apos_encerramento');
+
+    // CA-9: participação movida para proposta_cadastrada
+    expect((await admin.query<{ status: string }>(`select status from priv.participacoes where acompanhamento_id = $1`, [acomp])).rows[0]?.status).toBe('proposta_cadastrada');
+
+    // Lista de envios: 'a' tem documentos/visualizar -> vê comprovante; 'leitor' não tem documentos/visualizar -> comprovante === null
+    const enviosA = (await http().get(`/empresas/${empA}/propostas/${prop}/envios`).set(bearer(a)).expect(200)).body as {
+      envios: { id: string; propostaVersao: number; propostaSha256: string; portal: string; comprovante: { documentoId: string; versaoId: string; nome: string } | null; avisos: string[] }[];
+    };
+    expect(enviosA.envios).toHaveLength(1);
+    expect(enviosA.envios[0]?.propostaVersao).toBe(1);
+    expect(enviosA.envios[0]?.propostaSha256).toBe('b'.repeat(64));
+    expect(enviosA.envios[0]?.portal).toBe('Compras.gov.br');
+    expect(enviosA.envios[0]?.comprovante).toMatchObject({ documentoId: docOk, versaoId: verOk, nome: 'recibo.pdf' });
+
+    const enviosLeitor = (await http().get(`/empresas/${empA}/propostas/${prop}/envios`).set(bearer(leitor)).expect(200)).body as {
+      envios: { id: string; comprovante: unknown }[];
+    };
+    expect(enviosLeitor.envios).toHaveLength(1);
+    expect(enviosLeitor.envios[0]?.comprovante).toBeNull();
+
+    // Lista de propostas traz ultimoEnvio
+    const listaProp = (await http().get(`/empresas/${empA}/acompanhamentos/${acomp}/propostas`).set(bearer(a)).expect(200)).body as {
+      propostas: { id: string; ultimoEnvio: { id: string; identificadorPortal: string } | null }[];
+    };
+    expect(listaProp.propostas.find((p) => p.id === prop)?.ultimoEnvio?.id).toBe(envioBody.id);
+
+    // Anulação exige motivo >= 10 caracteres e só ocorre uma vez
+    await http().post(`/empresas/${empA}/proposta-envios/${envioBody.id}/anular`).set(bearer(a)).send({ motivo: 'curto' }).expect(400);
+    await http().post(`/empresas/${empA}/proposta-envios/${envioBody.id}/anular`).set(bearer(a)).send({ motivo: 'Substituído por nova versão no portal' }).expect(204);
+    await http().post(`/empresas/${empA}/proposta-envios/${envioBody.id}/anular`).set(bearer(a)).send({ motivo: 'Tentando anular novamente' }).expect(400);
+  });
+
   it('A x B: B não lê, não cria nem altera nada de A, nem baixa a final', async () => {
     await http().get(`/empresas/${empA}/acompanhamentos/${acomp}/propostas`).set(bearer(b)).expect(404);
     await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/propostas`).set(bearer(b)).send({}).expect(404);
+    await http().get(`/empresas/${empA}/propostas/${prop}/envios`).set(bearer(b)).expect(404);
     for (const acao of ['conferir', 'aprovar', 'devolver', 'validar', 'nova-versao', 'download', 'pdf']) {
       await http().post(`/empresas/${empA}/propostas/${v2}/${acao}`).set(bearer(b)).send({}).expect(404);
     }
     // empresa de B na rota com ids de A: o banco não encontra
     await http().get(`/empresas/${empB}/acompanhamentos/${acomp}/propostas`).set(bearer(b)).expect(200).then((r) => { expect((r.body as { propostas: unknown[] }).propostas).toHaveLength(0); });
+    await http().get(`/empresas/${empB}/propostas/${prop}/envios`).set(bearer(b)).expect(404);
     await http().post(`/empresas/${empB}/propostas/${prop}/download`).set(bearer(b)).expect(404);
     await http().post(`/empresas/${empB}/propostas/${v2}/aprovar`).set(bearer(b)).expect(404); // proposta de outra empresa não é visível
     await http().post(`/empresas/${empB}/acompanhamentos/${acomp}/propostas`).set(bearer(b)).send({}).expect(404);
@@ -129,6 +207,9 @@ describe('propostas: fluxo e A x B', () => {
       await admin.query(`update priv.propostas set validada_em = now(), bloqueada = false where id = $1`, [id]);
       const final = (await admin.query<{ id: string }>(`insert into priv.propostas (empresa_id, acompanhamento_id, versao, status, conteudo, total, arquivo_chave, arquivo_pdf_chave, arquivo_pdf_sha256, arquivo_sha256) values ($1, $2, 2, 'final', '[]', 1250, 'propostas/matriz.docx', 'propostas/matriz.pdf', repeat('b', 64), repeat('a', 64)) returning id`, [empresa, ac])).rows[0]?.id ?? '';
       const conferencia = (await admin.query<{ id: string }>(`insert into priv.propostas (empresa_id, acompanhamento_id, versao, status, conteudo, total, bloqueada, validada_em) values ($1, $2, 3, 'conferencia', '[]', 1250, false, now()) returning id`, [empresa, ac])).rows[0]?.id ?? '';
+      const docMatriz = (await admin.query<{ id: string }>(`insert into priv.documentos (empresa_id, tipo_id, descricao) values ($1, (select id from pub.tipos_documento where slug = 'comprovante_envio_proposta'), 'Comp matriz') returning id`, [empresa])).rows[0]?.id ?? '';
+      const verMatriz = (await admin.query<{ id: string }>(`insert into priv.documento_versoes (documento_id, empresa_id, versao, arquivo_chave, nome_original, status_arquivo) values ($1, $2, 1, 'docs/m.pdf', 'm.pdf', 'liberado') returning id`, [docMatriz, empresa])).rows[0]?.id ?? '';
+      const envioMatriz = (await admin.query<{ id: string }>(`insert into priv.proposta_envios (empresa_id, proposta_id, proposta_versao, formato, enviado_em, comprovante_documento_id, comprovante_versao_id, registrado_por) values ($1, $2, 2, 'pdf', now() - interval '5 minutes', $3, $4, (select usuario_id from core.vinculos where empresa_id = $1 limit 1)) returning id`, [empresa, final, docMatriz, verMatriz])).rows[0]?.id ?? '';
       const get = async () => (await http().get(`/empresas/${empresa}/acompanhamentos/${ac}/propostas`).set(bearer(token)).expect(200)).body as { propostas: { total: string }[] };
       const antes = await get();
       expect(antes.propostas).toHaveLength(3);
@@ -147,16 +228,23 @@ describe('propostas: fluxo e A x B', () => {
         { path: `propostas/${final}/download`, corpo: { formato: 'docx' } },
         { path: `propostas/${final}/download`, corpo: { formato: 'pdf' } },
         { path: `propostas/${final}/pdf` },
+        { path: `propostas/${final}/envios`, corpo: { enviadoEm: new Date(Date.now() - 60_000).toISOString(), formato: 'pdf', documentoId: docMatriz }, compararInexistente: true },
+        { path: `proposta-envios/${envioMatriz}/anular`, corpo: { motivo: 'Tentativa de anular envio alheio' }, compararInexistente: true },
       ];
       for (const e of [empresa, outra]) {
         const lista = await http().get(`/empresas/${e}/acompanhamentos/${ac}/propostas`).set(bearer(invasor)).expect(e === empresa ? 404 : 200);
         if (e === outra) expect((lista.body as { propostas: unknown[] }).propostas).toEqual([]);
+        await http().get(`/empresas/${e}/propostas/${final}/envios`).set(bearer(invasor)).expect(404);
         for (const rota of rotas) {
           const r = await http().post(`/empresas/${e}/${rota.path}`).set(bearer(invasor)).send(rota.corpo ?? {}).expect(404);
           expect(r.body).not.toHaveProperty('url');
           // Recurso alheio e inexistente têm a mesma resposta 404.
           if (e === outra && rota.compararInexistente) {
-            const inexistente = rota.path.replace(id, crypto.randomUUID()).replace(conferencia, crypto.randomUUID());
+            const inexistente = rota.path
+              .replace(id, crypto.randomUUID())
+              .replace(conferencia, crypto.randomUUID())
+              .replace(final, crypto.randomUUID())
+              .replace(envioMatriz, crypto.randomUUID());
             const controle = await http().post(`/empresas/${e}/${inexistente}`).set(bearer(invasor)).send(rota.corpo ?? {}).expect(404);
             expect(r.body).toEqual(controle.body);
           }

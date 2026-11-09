@@ -5,6 +5,7 @@ import { useEnvio } from '../acesso/conta/useEnvio'
 import { useReautenticacao } from '../acesso/useReautenticacao'
 import { dataHoraSP } from '../agenda/comum'
 import { reais, semZeros } from '../precos/formato'
+import { EnvioPortal, type EnvioResumo } from './EnvioPortal'
 
 interface ItemSnap { numero_item: number; descricao: string; quantidade: string; valor_unitario: string; valor_total: string; marca: string | null; modelo: string | null; casas: number }
 interface Divergencia { codigo: string; mensagem: string; bloqueia: boolean }
@@ -13,8 +14,9 @@ export interface Proposta {
   validadeDias: number | null; prazoEntregaDias: number | null; garantiaMeses: number | null; condicoes: string | null; local: string | null; conteudo: ItemSnap[]
   total: string; totalExtenso: string | null; validacao: Divergencia[] | null; validadaEm: string | null; bloqueada: boolean; arquivoSha256: string | null; geradoEm: string | null
   temArquivo: boolean; temPdf: boolean; conferidoPor: string | null; conferidoEm: string | null; aprovadoPor: string | null; aprovadoEm: string | null
+  ultimoEnvio?: EnvioResumo | null
 }
-export interface DadosPropostas { propostas: Proposta[]; representantes: { id: string; nome: string; tipo: string }[] }
+export interface DadosPropostas { propostas: Proposta[]; representantes: { id: string; nome: string; tipo: string }[]; portal?: string | null }
 
 const STATUS = { rascunho: ['Rascunho', 'cinza'], conferencia: ['Em conferência', 'aviso'], aprovada: ['Aprovada (gerando documento)', 'marca'], final: ['Final (bloqueada)', 'sucesso'] } as const
 
@@ -64,6 +66,7 @@ function Cartao({ empresaId, p, d, podeCadastrar, podeEditar, podeAprovar, aoMud
     <section className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-6" aria-label={`Proposta versão ${p.versao}`}>
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="min-w-0 flex-1">Proposta · versão {p.versao}</h2>
+        {p.ultimoEnvio ? <Etiqueta cor="sucesso">Enviada em {dataHoraSP(p.ultimoEnvio.enviadoEm)}</Etiqueta> : null}
         <Etiqueta cor={cor}>{rotulo}</Etiqueta>
       </div>
       <Aviso texto={erro} />
@@ -110,6 +113,18 @@ function Cartao({ empresaId, p, d, podeCadastrar, podeEditar, podeAprovar, aoMud
         {p.status === 'final' && !p.temPdf ? <Botao variante="secundario" carregando={enviando} onClick={() => void enviar(async () => { await chamar('POST', `/empresas/${empresaId}/propostas/${p.id}/pdf`); aoMudar() })}>Gerar PDF</Botao> : null}
         {p.status === 'final' && podeCadastrar ? acao('nova-versao', 'Criar nova versão (para alterar)') : null}
       </div>
+      {p.status === 'final' ? (
+        <EnvioPortal
+          empresaId={empresaId}
+          propostaId={p.id}
+          versao={p.versao}
+          portalPadrao={d.portal ?? null}
+          representantePadrao={p.representanteId}
+          representantes={d.representantes}
+          podeAprovar={podeAprovar}
+          aoMudar={aoMudar}
+        />
+      ) : null}
     </section>
   )
 }

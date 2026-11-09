@@ -44,6 +44,7 @@ export default function Acompanhamento() {
         subtitulo={`${d.municipio ?? '—'}/${d.uf ?? '—'} · ${d.modalidade ?? '—'}${d.numeroEdital ? ` · nº ${d.numeroEdital}` : ''}${d.processo ? ` · processo ${d.processo}` : ''}`}
         acoes={
           <>
+            {d.propostaEnviadaEm ? <Etiqueta cor="sucesso">Proposta enviada em {dataHoraSP(d.propostaEnviadaEm)}</Etiqueta> : null}
             {pode('propostas', 'visualizar') ? <Link to={`/agenda/acompanhamentos/${d.id}/proposta`}>Propostas</Link> : null}
             <Link to={`/editais/${d.editalId}`}>Edital e arquivos</Link>
             {d.linkOrigem ? <a href={d.linkOrigem} target="_blank" rel="noreferrer noopener">Registro oficial</a> : null}

@@ -15,5 +15,6 @@ export interface Detalhe {
   clausulaPrazos: string | null; confiabilidade: string; observacoes: string | null; ultimaConferenciaEm: string | null; responsavelId: string | null
   editalVersaoVista: number; aberturaReconfirmar: boolean; editalId: string; numeroEdital: string | null; processo: string | null; modalidade: string | null; objeto: string; editalVersaoAtual: number
   linkOrigem: string | null; encerramentoPropostasPncp: string | null; situacaoEdital: string | null; orgao: string; uf: string | null; municipio: string | null; codigoIbge: string | null
+  propostaEnviadaEm?: string | null
   itens: ItemPart[]; eventos: EventoDet[]; historico: Historico[]
 }
