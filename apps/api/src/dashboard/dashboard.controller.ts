@@ -83,7 +83,42 @@ export class DashboardController {
       const produtos = (await sql`select coalesce(nullif(btrim(concat_ws(' ', marca, modelo)), ''), 'Sem marca informada') as produto, count(*)::int as total from priv.participacoes where empresa_id = ${e}::uuid and deleted_at is null and status not in ('avaliando', 'nao_vai', 'cancelada') group by 1 order by 2 desc, 1 limit 10`.execute(tx)).rows;
       const orgaos = (await sql`select g.razao_social as orgao, count(*)::int as total from priv.participacoes pa join priv.acompanhamentos a on a.id = pa.acompanhamento_id join pub.editais ed on ed.id = a.edital_id join pub.orgaos g on g.id = ed.orgao_id
         where pa.empresa_id = ${e}::uuid and pa.deleted_at is null and pa.status in ('arrematada', 'adjudicada', 'homologada', 'contratada') group by 1 order by 2 desc, 1 limit 10`.execute(tx)).rows;
-      return { ...resumo, motivos, produtos, orgaos };
+      const perm = (await sql<{ veCustos: boolean; veEditais: boolean }>`
+        select core.has_permission(${e}::uuid, 'precos', 'ver_custos_margens') as "veCustos",
+               core.has_permission(${e}::uuid, 'editais', 'visualizar') as "veEditais"`.execute(tx)).rows[0];
+      const margens = perm?.veCustos
+        ? ((await sql<{ avaliadas: number; mediaBrutaPct: string | null; mediaLiquidaPct: string | null; minimaLiquidaPct: string | null; maximaLiquidaPct: string | null }>`
+            select count(*)::int as avaliadas,
+                   round(avg(p.margem_bruta_pct), 4)::text as "mediaBrutaPct",
+                   round(avg(p.margem_liquida_pct), 4)::text as "mediaLiquidaPct",
+                   min(p.margem_liquida_pct)::text as "minimaLiquidaPct",
+                   max(p.margem_liquida_pct)::text as "maximaLiquidaPct"
+              from priv.precificacoes p
+             where p.empresa_id = ${e}::uuid and p.deleted_at is null and p.calculado_em is not null and p.erro_calculo is null`.execute(tx)).rows[0] ?? {
+            avaliadas: 0, mediaBrutaPct: null, mediaLiquidaPct: null, minimaLiquidaPct: null, maximaLiquidaPct: null,
+          })
+        : null;
+      const precosVencedoresAnteriores = perm?.veEditais
+        ? (await sql`
+            select ph.id, g.razao_social as orgao, ed.numero_edital as edital, i.numero_item as "numeroItem",
+                   left(i.descricao, 160) as descricao, ph.fornecedor_nome as vencedora,
+                   nullif(btrim(concat_ws(' ', ph.marca, ph.modelo)), '') as "marcaModelo",
+                   ph.valor_unitario::text as "valorUnitario",
+                   coalesce(ph.unidade_medida, i.unidade_medida) as unidade,
+                   ph.data_resultado as "dataResultado"
+              from pub.precos_historicos ph
+              join pub.edital_itens i on i.id = ph.edital_item_id and i.edital_id = ph.edital_id
+              join pub.editais ed on ed.id = ph.edital_id
+              left join pub.orgaos g on g.id = ed.orgao_id
+             where not ph.cancelado and ph.valor_unitario is not null
+               and exists (
+                 select 1 from priv.acompanhamentos a
+                  where a.empresa_id = ${e}::uuid and a.deleted_at is null and a.edital_id = ph.edital_id
+               )
+             order by ph.data_resultado desc nulls last, ph.created_at desc
+             limit 10`.execute(tx)).rows
+        : null;
+      return { ...resumo, motivos, produtos, orgaos, margens, precosVencedoresAnteriores };
     });
   }
 

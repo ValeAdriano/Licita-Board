@@ -28,8 +28,8 @@ describe('preços: fluxo, sigilo e A x B', () => {
     empA = await criarEmpresa('Preço A'); empB = await criarEmpresa('Preço B');
     const [eA, eB, eS, eE] = await Promise.all([criarUsuario('pr-a'), criarUsuario('pr-b'), criarUsuario('pr-s'), criarUsuario('pr-e')]);
     await vincular(eA, empA); await vincular(eB, empB);
-    await vincular(eS, empA, 'OPERADOR', ['precos:visualizar', 'precos:editar', 'agenda:visualizar']);
-    await vincular(eE, empA, 'OPERADOR', ['precos:visualizar', 'precos:editar', 'precos:ver_custos_margens', 'agenda:visualizar']);
+    await vincular(eS, empA, 'OPERADOR', ['precos:visualizar', 'precos:editar', 'editais:visualizar', 'agenda:visualizar']);
+    await vincular(eE, empA, 'OPERADOR', ['precos:visualizar', 'precos:editar', 'precos:ver_custos_margens', 'editais:visualizar', 'agenda:visualizar']);
     [a, b, semCustos, editor] = await Promise.all([entrar(eA), entrar(eB), entrar(eS), entrar(eE)]);
     const fonte = (await admin.query<{ id: string }>(`select id from ops.fontes where slug = 'pncp'`)).rows[0]?.id;
     const orgao = (await admin.query<{ id: string }>(`insert into pub.orgaos (cnpj, razao_social, uf, codigo_ibge) values ($1, 'Órgão Preço', 'PR', '4106902') returning id`, [cnpjFicticio()])).rows[0]?.id;
@@ -104,6 +104,90 @@ describe('preços: fluxo, sigilo e A x B', () => {
     await http().delete(`/empresas/${empB}/preco-linhas/${linha}`).set(bearer(b)).expect(404);
   });
 
+  it('histórico PNCP (7.5): busca, curingas escapados, estatística por unidade, sigilo da camada privada e coleta sob demanda (429 em 1h)', async () => {
+    const origem = (await admin.query<{ edital_id: string; item_id: string; fonte_id: string }>(
+      `select a.edital_id, p.item_id, e.fonte_id from priv.participacoes p join priv.acompanhamentos a on a.id = p.acompanhamento_id join pub.editais e on e.id = a.edital_id where p.id = $1`, [part])).rows[0];
+    if (!origem) throw new Error('Participação de origem ausente');
+    const tag = `NotebookPro${crypto.randomUUID().slice(0, 8)}`;
+    await admin.query(`update pub.edital_itens set descricao = $2, unidade_medida = 'UN' where id = $1`, [origem.item_id, `${tag} 16GB SSD`]);
+    const c1 = cnpjFicticio(); const c2 = cnpjFicticio(); const c3 = cnpjFicticio();
+    await admin.query(
+      `insert into pub.precos_historicos (
+         fonte_id, id_externo, edital_id, edital_item_id, situacao, cancelado,
+         fornecedor_tipo, fornecedor_cnpj, fornecedor_nome, marca, modelo,
+         quantidade, unidade_medida, valor_unitario, valor_total, classificacao, data_resultado, hash_conteudo, link_origem
+       ) values
+       ($1, $4, $2, $3, 'homologado', false, 'pj', $7, 'Fornecedor Um', 'Dell', 'Lat', 10, 'UN', 100.0000, 1000.0000, 1, '2026-10-15T10:00:00Z', repeat('1', 64), 'https://pncp.gov.br/app/editais/1'),
+       ($1, $5, $2, $3, 'homologado', false, 'pj', $8, 'Fornecedor Dois', 'Lenovo', 'Think', 10, 'UN', 200.0000, 2000.0000, 2, '2026-10-16T10:00:00Z', repeat('2', 64), 'https://pncp.gov.br/app/editais/2'),
+       ($1, $6, $2, $3, 'cancelado', true, 'pj', $9, 'Fornecedor Três', 'HP', 'Pro', 10, 'UN', 50.0000, 500.0000, 3, '2026-10-17T10:00:00Z', repeat('3', 64), 'https://pncp.gov.br/app/editais/3')`,
+      [origem.fonte_id, origem.edital_id, origem.item_id, `${tag}:r:1`, `${tag}:r:2`, `${tag}:r:3`, c1, c2, c3],
+    );
+    await admin.query(
+      `update priv.precificacoes set custo_direto_unit = 85.5000, preco_final_unit = 115.0000, margem_liquida_pct = 18.2500 where id = $1`,
+      [prec],
+    );
+
+    // Com ver_custos_margens (editor de A): estatística discreta (mediana inferior de [100, 200] = 100.0000) e camada privada preenchida
+    const rEditor = (await http().get(`/empresas/${empA}/precos/historico`).query({ texto: tag }).set(bearer(editor)).expect(200)).body as {
+      total: number;
+      estatistica: { n: number; minimo: string; mediana: string; maximo: string; unidade: string } | null;
+      itens: { valorUnitario: string; privado: { nossaOferta: string; nossoCustoUnitario: string; nossaMargem: string } | null }[];
+    };
+    expect(rEditor.total).toBe(2);
+    expect(rEditor.estatistica).toEqual({ n: 2, minimo: '100.0000', mediana: '100.0000', maximo: '200.0000', unidade: 'UN' });
+    expect(rEditor.itens[0]?.privado).toEqual({
+      nossaOferta: '115.0000',
+      nossaClassificacao: null,
+      nossoCustoUnitario: '85.5000',
+      nossaMargem: '18.2500',
+    });
+
+    // Sem ver_custos_margens (semCustos de A): vê os dados públicos, mas privado vem null
+    const rSemCustos = (await http().get(`/empresas/${empA}/precos/historico`).query({ texto: tag }).set(bearer(semCustos)).expect(200)).body as {
+      itens: { privado: unknown }[];
+    };
+    expect(rSemCustos.itens).toHaveLength(2);
+    expect(rSemCustos.itens.every((i) => i.privado === null)).toBe(true);
+
+    // Empresa B consultando o mesmo item público: vê o dado público, mas NUNCA vê a camada privada de A
+    const rB = (await http().get(`/empresas/${empB}/precos/historico`).query({ texto: tag }).set(bearer(b)).expect(200)).body as {
+      itens: { privado: unknown }[];
+    };
+    expect(rB.itens).toHaveLength(2);
+    expect(rB.itens.every((i) => i.privado === null)).toBe(true);
+
+    // Curinga % na busca é escapado e não casa tudo
+    const rCuringa = (await http().get(`/empresas/${empA}/precos/historico`).query({ texto: '%%%' }).set(bearer(editor)).expect(200)).body as { total: number };
+    expect(rCuringa.total).toBe(0);
+
+    // Unidades mistas (UN + CX) devolvem estatistica = null
+    await admin.query(
+      `insert into pub.precos_historicos (
+         fonte_id, id_externo, edital_id, edital_item_id, situacao, cancelado,
+         fornecedor_tipo, fornecedor_nome, quantidade, unidade_medida, valor_unitario, hash_conteudo, link_origem
+       ) values ($1, $4, $2, $3, 'homologado', false, 'pj', 'Fornecedor Caixa', 5, 'CX', 900.0000, repeat('4', 64), 'https://pncp.gov.br/app/editais/4')`,
+      [origem.fonte_id, origem.edital_id, origem.item_id, `${tag}:r:4`],
+    );
+    const rMisto = (await http().get(`/empresas/${empA}/precos/historico`).query({ texto: tag }).set(bearer(editor)).expect(200)).body as {
+      estatistica: unknown;
+    };
+    expect(rMisto.estatistica).toBeNull();
+
+    // Sugestão para a participação de A funciona para A e devolve 404 para B
+    const sug = (await http().get(`/empresas/${empA}/participacoes/${part}/historico-sugerido`).set(bearer(editor)).expect(200)).body as {
+      itemId: string;
+      resultadosDoItem: { fornecedorNome: string }[];
+    };
+    expect(sug.itemId).toBe(origem.item_id);
+    expect(sug.resultadosDoItem.length).toBeGreaterThanOrEqual(2);
+    await http().get(`/empresas/${empB}/participacoes/${part}/historico-sugerido`).set(bearer(b)).expect(404);
+
+    // Solicitar coleta sob demanda: 202 na primeira, 429 dentro de 1 hora
+    const col1 = await http().post(`/empresas/${empA}/editais/${origem.edital_id}/buscar-resultados`).set(bearer(editor)).expect(202);
+    expect((col1.body as { jobId: string }).jobId).toMatch(/^[0-9a-f-]{36}$/);
+    await http().post(`/empresas/${empA}/editais/${origem.edital_id}/buscar-resultados`).set(bearer(editor)).expect(429);
+  });
+
   // Matriz completa das rotas :empresa; cada caso usa recursos novos da dona.
   for (const dona of ['A', 'B'] as const) {
     it(`isolamento por endpoint: precos de ${dona} intacta, sem jobs ou dados para invasor`, async () => {
@@ -129,6 +213,7 @@ describe('preços: fluxo, sigilo e A x B', () => {
       const jobs = (await admin.query("select id from ops.jobs where tipo = 'calcular_preco' order by id")).rows;
       const rotas: { metodo: 'get' | 'post' | 'delete'; path: string; corpo?: object }[] = [
         { metodo: 'get', path: `participacoes/${id}/preco` },
+        { metodo: 'get', path: `participacoes/${id}/historico-sugerido` },
         { metodo: 'post', path: `participacoes/${id}/preco`, corpo: {} },
         { metodo: 'post', path: `precificacoes/${preco.id}/parametros`, corpo: { quantidade: '1', margemDesejada: '20', margemMinima: '10', casas: 2, arredondamento: 'half_up' } },
         { metodo: 'post', path: `precificacoes/${preco.id}/linhas`, corpo: custo },

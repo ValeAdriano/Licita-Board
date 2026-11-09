@@ -5,6 +5,7 @@ comissão, despesas). Parâmetros tributários e percentuais do empate ficto/ine
 suposto (🧾 contador, ⚖️ jurídico).
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import ROUND_CEILING, ROUND_DOWN, ROUND_HALF_UP, Decimal
 
@@ -142,3 +143,53 @@ def empate_ficto(
         raise ErroPreco("valores inválidos para o empate ficto")
     limite = (melhor_total * (CEM + percentual) / CEM).quantize(CENTAVOS, rounding=ROUND_DOWN)
     return melhor_total < proposta_me_epp_total <= limite, limite
+
+
+@dataclass(frozen=True)
+class EstatisticaHistorico:
+    """Estatística descritiva sobre preços vencedores históricos da mesma unidade (spec 07 §8.4)."""
+
+    n: int
+    minimo: Decimal
+    mediana: Decimal
+    maximo: Decimal
+    unidade: str
+    diferenca_nosso_pct: Decimal | None = None
+
+
+def estatistica_historico(
+    amostra: Sequence[tuple[Decimal | None, str | None]],
+    nosso_preco_unit: Decimal | None = None,
+) -> EstatisticaHistorico | None:
+    """Calcula n, mínimo, mediana (`percentile_disc(0.5)`) e máximo em Decimal sem interpolação.
+
+    Devolve `None` se não houver valores válidos ou se houver unidades distintas (RF-07.13).
+    """
+    validos: list[tuple[Decimal, str]] = []
+    for valor, unidade in amostra:
+        if valor is None or valor < 0:
+            continue
+        un = (unidade or "").strip().upper() or "UN"
+        validos.append((valor.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP), un))
+    if not validos:
+        return None
+    unidades = {u for _, u in validos}
+    if len(unidades) > 1:
+        return None
+    unidade_unica = next(iter(unidades))
+    valores = sorted(v for v, _ in validos)
+    n = len(valores)
+    mediana = valores[(n - 1) // 2]
+    dif: Decimal | None = None
+    if nosso_preco_unit is not None and mediana > 0:
+        dif = ((nosso_preco_unit - mediana) / mediana * CEM).quantize(
+            Decimal("0.0001"), rounding=ROUND_HALF_UP
+        )
+    return EstatisticaHistorico(
+        n=n,
+        minimo=valores[0],
+        mediana=mediana,
+        maximo=valores[-1],
+        unidade=unidade_unica,
+        diferenca_nosso_pct=dif,
+    )

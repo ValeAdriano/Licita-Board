@@ -34,7 +34,7 @@
 - ✅ Relatório diário por e-mail opt-in e envio após 7h, filtrado por permissões: `apps/worker/src/worker/relatorio_diario.py`, `apps/web/src/features/dashboard/AssinaturaRelatorio.tsx`.
 - ✅ Busca avançada entre módulos: `apps/api/src/busca/busca.controller.ts`, `apps/web/src/pages/Busca.tsx`.
 - ✅ Exportação Excel e impressão em PDF: `apps/api/src/exportacao/xlsx.ts`, `apps/web/src/features/dashboard/Painel.tsx`.
-- 🟡 Margens e preços vencedores anteriores não integram o relatório; o histórico comercial de preços PNCP ainda falta: `apps/api/src/dashboard/dashboard.controller.ts`.
+- ✅ Margens (com sigilo `precos/ver_custos_margens`, `null` sem a permissão) e preços vencedores anteriores do PNCP (com `editais/visualizar`, restritos aos editais acompanhados pela empresa) integrados ao relatório comercial (Q-10, 2026-11-08): `apps/api/src/dashboard/dashboard.controller.ts`, `apps/web/src/features/dashboard/Painel.tsx`.
 - ✅ Excel de resultados/comercial, indicadores jurídicos e agenda; exportação da agenda reutiliza as linhas do CSV e o gerador próprio: `apps/api/src/exportacao/xlsx.ts`, `apps/api/src/agenda/csv.ts`, `apps/api/src/agenda/agenda.controller.ts`.
 - ✅ Q-23 (rodada 5): matriz e2e A x B por endpoint nas 7 rotas de dashboard/relatórios, nos dois sentidos, com empresas próprias por caso; CSV e XML descompactado do Excel sem IDs, marcadores ou valores da outra empresa; assinatura diária e resultados da dona intactos.
 

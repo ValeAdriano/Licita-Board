@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 import { Aviso, Botao, Etiqueta, Legenda } from '../../ui'
 import { useAcesso } from '../acesso/contexto'
 import { useGet } from '../acesso/useGet'
-import { reais } from '../precos/formato'
+import { pct, reais } from '../precos/formato'
 import { BannerFontes } from '../pesquisa/BannerFontes'
 import { AssinaturaRelatorio } from './AssinaturaRelatorio'
 
@@ -11,7 +11,12 @@ interface Indicadores {
   prazosJuridicosAbertos: number | null; prazosJuridicosVencidos: number | null; documentosVencendo: number | null; documentosVencidos: number | null
   licitacoesGanhas: number | null; valorGanho: string | null; contratosAtivos: number | null; entregasPendentes: number | null; valoresAReceber: string | null
 }
-interface Comercial { participacoes: number; vitorias: number; derrotas: number; taxaSucessoPct: string | null; valorDisputado: string; valorGanho: string; motivos: { motivo: string; total: number }[]; produtos: { produto: string; total: number }[]; orgaos: { orgao: string; total: number }[] }
+interface Comercial {
+  participacoes: number; vitorias: number; derrotas: number; taxaSucessoPct: string | null; valorDisputado: string; valorGanho: string
+  motivos: { motivo: string; total: number }[]; produtos: { produto: string; total: number }[]; orgaos: { orgao: string; total: number }[]
+  margens?: { avaliadas: number; mediaBrutaPct: string | null; mediaLiquidaPct: string | null; minimaLiquidaPct: string | null; maximaLiquidaPct: string | null } | null
+  precosVencedoresAnteriores?: { id: string; orgao: string | null; edital: string | null; numeroItem: number; descricao: string; vencedora: string | null; marcaModelo: string | null; valorUnitario: string; unidade: string | null; dataResultado: string | null }[] | null
+}
 
 function Cartao({ titulo, valor, to, alerta }: { titulo: string; valor: string; to: string; alerta?: boolean }) {
   return (
@@ -67,6 +72,24 @@ export function Painel({ empresaId }: { empresaId: string }) {
           {c.motivos.length ? <Legenda>Motivos de perda: {c.motivos.map((m) => `${m.motivo} (${m.total})`).join(' · ')}</Legenda> : null}
           {c.produtos.length ? <Legenda>Mais ofertados: {c.produtos.map((p) => `${p.produto} (${p.total})`).join(' · ')}</Legenda> : null}
           {c.orgaos.length ? <Legenda>Órgãos onde mais ganhamos: {c.orgaos.map((o) => `${o.orgao} (${o.total})`).join(' · ')}</Legenda> : null}
+          {c.margens && c.margens.avaliadas > 0 ? (
+            <Legenda>
+              Margens ({c.margens.avaliadas} precificação(ões)): média bruta {pct(c.margens.mediaBrutaPct)} · média líquida {pct(c.margens.mediaLiquidaPct)} (mín. {pct(c.margens.minimaLiquidaPct)} · máx. {pct(c.margens.maximaLiquidaPct)}).
+            </Legenda>
+          ) : null}
+          {c.precosVencedoresAnteriores && c.precosVencedoresAnteriores.length > 0 ? (
+            <div className="flex flex-col gap-1 border-t border-secondary pt-2">
+              <span className="text-xs font-medium text-secondary">Preços vencedores anteriores em editais acompanhados (PNCP):</span>
+              <ul className="flex flex-col gap-1 text-xs text-tertiary">
+                {c.precosVencedoresAnteriores.slice(0, 5).map((pv) => (
+                  <li key={pv.id}>
+                    <strong className="text-primary">{reais(pv.valorUnitario, 4)}</strong>/{pv.unidade ?? 'UN'} · Item {pv.numeroItem} (<bdi>{pv.descricao.slice(0, 80)}</bdi>)
+                    {pv.vencedora ? ` · ${pv.vencedora}` : ''}{pv.marcaModelo ? ` (${pv.marcaModelo})` : ''}{pv.orgao ? ` — ${pv.orgao}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

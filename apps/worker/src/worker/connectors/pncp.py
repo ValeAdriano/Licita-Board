@@ -6,6 +6,7 @@ Cada compra vira dados normalizados (puro, testável com fixtures gravadas); a r
 
 import hashlib
 import json
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -191,6 +192,112 @@ def normalizar_arquivo(raw: dict[str, Any]) -> Arquivo | None:
     return Arquivo(titulo=_texto(raw.get("titulo"), 300), url=url[:1000], tipo=tipo)
 
 
+@dataclass(frozen=True)
+class ResultadoItem:
+    id_externo: str
+    numero_item: int
+    fornecedor_tipo: str
+    fornecedor_cnpj: str | None
+    fornecedor_nome: str | None
+    fornecedor_porte: str | None
+    beneficio_me_epp: bool | None
+    marca: str | None
+    modelo: str | None
+    quantidade: Decimal | None
+    unidade_medida: str | None
+    valor_unitario: Decimal | None
+    valor_total: Decimal | None
+    percentual_desconto: Decimal | None
+    classificacao: int | None
+    data_resultado: datetime | None
+    situacao: str
+    cancelado: bool
+
+    def conteudo(self) -> dict[str, Any]:
+        return {
+            "id_externo": self.id_externo,
+            "numero_item": self.numero_item,
+            "fornecedor_tipo": self.fornecedor_tipo,
+            "fornecedor_cnpj": self.fornecedor_cnpj,
+            "fornecedor_nome": self.fornecedor_nome,
+            "fornecedor_porte": self.fornecedor_porte,
+            "beneficio_me_epp": self.beneficio_me_epp,
+            "marca": self.marca,
+            "modelo": self.modelo,
+            "quantidade": self.quantidade,
+            "unidade_medida": self.unidade_medida,
+            "valor_unitario": self.valor_unitario,
+            "valor_total": self.valor_total,
+            "percentual_desconto": self.percentual_desconto,
+            "classificacao": self.classificacao,
+            "data_resultado": self.data_resultado.isoformat() if self.data_resultado else None,
+            "situacao": self.situacao,
+            "cancelado": self.cancelado,
+        }
+
+    def hash(self) -> str:
+        return hashlib.sha256(dumps(self.conteudo()).encode()).hexdigest()
+
+
+_TIPO_PESSOA = {"PJ": "pj", "PF": "pessoa_fisica", "PE": "estrangeiro"}
+
+
+def normalizar_resultado(
+    id_externo_compra: str,
+    numero_item: int,
+    unidade_medida: str | None,
+    raw: dict[str, Any],
+) -> ResultadoItem:
+    """Normaliza um resultado de item do PNCP sem guardar dados pessoais de PF (LGPD / RF-07.10)."""
+    seq = int(raw.get("sequencialResultado") or 1)
+    tp_raw = str(raw.get("tipoPessoa") or raw.get("tipoPessoaId") or "").strip().upper()
+    fornecedor_tipo = _TIPO_PESSOA.get(tp_raw, "nao_informado")
+
+    fornecedor_cnpj: str | None = None
+    fornecedor_nome: str | None = None
+    if fornecedor_tipo == "pj":
+        ni = re.sub(r"[^0-9A-Za-z]", "", str(raw.get("niFornecedor") or "")).upper()
+        if len(ni) == 14:
+            fornecedor_cnpj = ni
+        fornecedor_nome = _texto(raw.get("nomeRazaoSocialFornecedor"), 300)
+    elif fornecedor_tipo == "estrangeiro":
+        fornecedor_nome = _texto(raw.get("nomeRazaoSocialFornecedor"), 300)
+    # Se pessoa_fisica ou nao_informado: fornecedor_cnpj e fornecedor_nome permanecem None (CA-8).
+
+    situacao = _texto(raw.get("situacaoCompraItemResultadoNome"), 80) or "Informado"
+    cancelado = bool(raw.get("dataCancelamento")) or "cancelad" in situacao.lower()
+    benef = raw.get("aplicacaoBeneficioMeEpp")
+    beneficio_me_epp = bool(benef) if isinstance(benef, bool) else None
+    ordem = raw.get("ordemClassificacaoSrp")
+    classificacao = int(ordem) if ordem is not None and int(ordem) >= 1 else None
+    data_str = raw.get("dataResultado") or raw.get("dataInclusao")
+    iso_str = (
+        f"{data_str}T00:00:00" if isinstance(data_str, str) and len(data_str) == 10 else data_str
+    )
+    data_res = _data(iso_str)
+
+    return ResultadoItem(
+        id_externo=f"{id_externo_compra}:{numero_item}:{seq}",
+        numero_item=numero_item,
+        fornecedor_tipo=fornecedor_tipo,
+        fornecedor_cnpj=fornecedor_cnpj,
+        fornecedor_nome=fornecedor_nome,
+        fornecedor_porte=_texto(raw.get("porteFornecedorNome"), 60),
+        beneficio_me_epp=beneficio_me_epp,
+        marca=_texto(raw.get("marcaFornecedor") or raw.get("marca"), 120),
+        modelo=_texto(raw.get("modeloFornecedor") or raw.get("modelo"), 120),
+        quantidade=_dec(raw.get("quantidadeHomologada")),
+        unidade_medida=_texto(unidade_medida, 60),
+        valor_unitario=_dec(raw.get("valorUnitarioHomologado")),
+        valor_total=_dec(raw.get("valorTotalHomologado")),
+        percentual_desconto=_dec(raw.get("percentualDesconto")),
+        classificacao=classificacao,
+        data_resultado=data_res,
+        situacao=situacao,
+        cancelado=cancelado,
+    )
+
+
 class ConectorPNCP:
     slug = "pncp"
 
@@ -263,3 +370,25 @@ class ConectorPNCP:
             itens,
             arquivos,
         )
+
+    def listar_resultados_item(
+        self,
+        endereco: tuple[str, int, int],
+        numero_item: int,
+        id_externo_compra: str,
+        unidade_medida: str | None,
+    ) -> list[ResultadoItem]:
+        """Busca resultados homologados de um item da compra no PNCP."""
+        cnpj, ano, sequencial = endereco
+        url = f"{DETALHE}/{cnpj}/compras/{ano}/{sequencial}/itens/{numero_item}/resultados"
+        try:
+            lote = self._http.get_json(url) or []
+        except ErroPermanente:
+            return []
+        if not isinstance(lote, list):
+            return []
+        return [
+            normalizar_resultado(id_externo_compra, numero_item, unidade_medida, r)
+            for r in lote
+            if isinstance(r, dict)
+        ]

@@ -2,7 +2,15 @@ from decimal import Decimal as D
 
 import pytest
 
-from worker.rules.precos import Entrada, ErroPreco, Linha, arredondar, calcular, empate_ficto
+from worker.rules.precos import (
+    Entrada,
+    ErroPreco,
+    Linha,
+    arredondar,
+    calcular,
+    empate_ficto,
+    estatistica_historico,
+)
 
 
 def custo(v: str, forma: str = "por_unidade") -> Linha:
@@ -151,3 +159,38 @@ def test_empate_ficto() -> None:
         empate_ficto(D(0), D(1), D(5))
     with pytest.raises(ErroPreco):
         empate_ficto(D(1), D(1), D(-5))
+
+
+def test_estatistica_historico_mesma_unidade_e_unidades_diferentes() -> None:
+    assert estatistica_historico([]) is None
+    assert estatistica_historico([(None, "UN"), (D("-1"), "UN")]) is None
+    # Unidades diferentes -> None (RF-07.13)
+    assert estatistica_historico([(D("10"), "UN"), (D("20"), "CX")]) is None
+
+    # Mediana discreta (percentile_disc(0.5)) com n par e ímpar e diferença contra nosso preço
+    est_impar = estatistica_historico(
+        [(D("800"), "un"), (D("700"), "UN"), (D("900"), None)],
+        nosso_preco_unit=D("770"),
+    )
+    assert est_impar is not None
+    assert (
+        est_impar.n,
+        est_impar.minimo,
+        est_impar.mediana,
+        est_impar.maximo,
+        est_impar.unidade,
+    ) == (
+        3,
+        D("700.0000"),
+        D("800.0000"),
+        D("900.0000"),
+        "UN",
+    )
+    assert est_impar.diferenca_nosso_pct == D("-3.7500")
+
+    est_par = estatistica_historico(
+        [(D("100"), "KG"), (D("200"), "kg"), (D("300"), "KG"), (D("400"), "KG")]
+    )
+    assert est_par is not None
+    assert est_par.mediana == D("200.0000")  # (4 - 1) // 2 = índice 1, valor real da amostra
+    assert est_par.diferenca_nosso_pct is None

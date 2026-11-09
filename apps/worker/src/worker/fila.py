@@ -42,6 +42,7 @@ from worker.pesquisa.compactados import Limites
 from worker.pesquisa.http import ClienteHttp, ErroPermanente
 from worker.pesquisa.importacao import importar
 from worker.pesquisa.relevancia import avaliar_edital
+from worker.pesquisa.resultados import coletar_edital as coletar_resultados_edital
 from worker.pesquisa.texto import Tesseract
 from worker.preco import calcular_precificacao
 from worker.proposta import Gravador, gerar_proposta, hoje_local
@@ -113,6 +114,7 @@ class Handlers:
             "sugerir_pecas": self.sugerir_pecas,
             "validar_tese": self.validar_tese,
             "relatorio_diario": self.relatorio_diario,
+            "coletar_resultados_edital": self.coletar_resultados_edital,
         }
         # Sem chave VAPID o push fica desligado: o job espera na fila, sem tentativa gasta.
         if self._push is not None:
@@ -402,6 +404,20 @@ class Handlers:
 
     def avaliar_relevancia(self, conn: psycopg.Connection[Any], job: Job) -> None:
         avaliar_edital(conn, str(job["payload"]["edital_id"]))
+
+    def coletar_resultados_edital(self, conn: psycopg.Connection[Any], job: Job) -> None:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute("select hosts_permitidos, parametros from ops.fontes where slug = 'pncp'")
+            f = cur.fetchone()
+        if f is None:
+            raise ErroPermanente("fonte pncp não cadastrada")
+        ua = f"VV-Licitacoes-Robo/1.0 (+{self._s.robo_contato or 'contato-nao-configurado'})"
+        http = ClienteHttp(
+            ua,
+            list(f["hosts_permitidos"]),
+            float(f["parametros"].get("requisicoes_por_segundo", 2)),
+        )
+        coletar_resultados_edital(conn, str(job["payload"]["edital_id"]), http)
 
     def coletar_fonte(self, conn: psycopg.Connection[Any], job: Job) -> None:
         # Só a execução do banco manda: fonte, janela e parâmetros nunca vêm do payload.

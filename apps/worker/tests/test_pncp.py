@@ -13,8 +13,10 @@ from worker.connectors.pncp import (
     normalizar_arquivo,
     normalizar_compra,
     normalizar_item,
+    normalizar_resultado,
 )
 from worker.pesquisa.http import ClienteHttp, ErroPermanente, ErroTransitorio, host_permitido
+from worker.pesquisa.resultados import extrair_endereco_pncp
 
 FIX = Path(__file__).parent / "fixtures" / "pncp"
 
@@ -206,3 +208,63 @@ def test_taxa_vale_entre_clientes_do_mesmo_processo() -> None:
     novo().get_json("https://pncp.gov.br/a")
     novo().get_json("https://pncp.gov.br/b")  # outro cliente, mesmo instante: precisa esperar 0,5 s
     assert dormidas == [0.5]
+
+
+def test_normalizar_resultado_pj_pf_lgpd_e_endereco() -> None:
+    pj = normalizar_resultado(
+        "76105618000188-1-000100/2026",
+        1,
+        "UN",
+        {
+            "sequencialResultado": 1,
+            "tipoPessoa": "PJ",
+            "niFornecedor": "11.222.333/0001-81",
+            "nomeRazaoSocialFornecedor": "Fornecedora Sul Ltda",
+            "porteFornecedorNome": "ME",
+            "aplicacaoBeneficioMeEpp": True,
+            "marcaFornecedor": "Dell",
+            "modeloFornecedor": "P2422H",
+            "quantidadeHomologada": Decimal("10"),
+            "valorUnitarioHomologado": Decimal("750.5"),
+            "valorTotalHomologado": Decimal("7505"),
+            "ordemClassificacaoSrp": 1,
+            "dataResultado": "2026-08-15",
+            "situacaoCompraItemResultadoNome": "Informado",
+        },
+    )
+    assert pj.id_externo == "76105618000188-1-000100/2026:1:1"
+    assert pj.fornecedor_tipo == "pj"
+    assert pj.fornecedor_cnpj == "11222333000181"
+    assert pj.fornecedor_nome == "Fornecedora Sul Ltda"
+    assert pj.valor_unitario == Decimal("750.5000")
+    assert pj.valor_total == Decimal("7505.0000")
+    assert pj.cancelado is False
+    assert len(pj.hash()) == 64
+
+    # CA-8 (LGPD): Pessoa física nunca guarda CPF nem nome
+    pf = normalizar_resultado(
+        "76105618000188-1-000100/2026",
+        1,
+        "UN",
+        {
+            "sequencialResultado": 2,
+            "tipoPessoa": "PF",
+            "niFornecedor": "123.456.789-00",
+            "nomeRazaoSocialFornecedor": "João da Silva",
+            "valorUnitarioHomologado": Decimal("790"),
+            "situacaoCompraItemResultadoNome": "Cancelado",
+        },
+    )
+    assert pf.fornecedor_tipo == "pessoa_fisica"
+    assert pf.fornecedor_cnpj is None
+    assert pf.fornecedor_nome is None
+    assert pf.cancelado is True
+
+    assert extrair_endereco_pncp(
+        "76105618000188-1-000100/2026", "https://pncp.gov.br/app/editais/76105618000188/2026/100"
+    ) == ("76105618000188", 2026, 100)
+    assert extrair_endereco_pncp("76105618000188-1-000100/2026", None) == (
+        "76105618000188",
+        2026,
+        100,
+    )

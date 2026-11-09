@@ -37,6 +37,16 @@ describe('dashboard: indicadores, permissões e A x B', () => {
     for (const [i, it] of itens.entries()) parts.push((await admin.query<{ id: string }>(`insert into priv.participacoes (empresa_id, acompanhamento_id, item_id, status, marca, modelo) values ($1, $2, $3, 'em_disputa', 'Marca ${String(i % 2)}', 'Mod') returning id`, [empA, ac, it])).rows[0]?.id ?? '');
     await admin.query(`insert into priv.resultados_item (empresa_id, participacao_id, resultado_final, valor_final) values ($1, $2, 'homologada', 1000.50), ($1, $3, 'perdida', 2000)`, [empA, parts[0], parts[1]]);
     await admin.query(`insert into priv.resultados_item (empresa_id, participacao_id, resultado_final, valor_final, motivo_perda) values ($1, $2, 'inabilitada', 500, 'Atestado incompatível')`, [empA, parts[2]]);
+    await admin.query(
+      `insert into priv.precificacoes (empresa_id, participacao_id, quantidade, margem_desejada_pct, margem_minima_pct, margem_bruta_pct, margem_liquida_pct, calculado_em)
+       values ($1, $2, 1, 20, 10, 28.5000, 16.2500, now())`,
+      [empA, parts[0]],
+    );
+    await admin.query(
+      `insert into pub.precos_historicos (fonte_id, id_externo, edital_id, edital_item_id, situacao, cancelado, fornecedor_tipo, fornecedor_nome, marca, modelo, quantidade, unidade_medida, valor_unitario, valor_total, data_resultado, hash_conteudo, link_origem)
+       values ($1, $4, $2, $3, 'homologado', false, 'pj', 'Vencedora PNCP', 'MarcaV', 'ModV', 1, 'UN', 950.2500, 950.2500, '2026-10-10T10:00:00Z', repeat('a', 64), 'https://pncp.gov.br/app/editais/dash')`,
+      [fonte, edital, itens[0], `DASH-${crypto.randomUUID()}`],
+    );
     const ct = (await admin.query<{ id: string }>(`insert into priv.contratos (empresa_id, numero, orgao, objeto, vigencia_inicio, vigencia_fim, valor_total) values ($1, 'C1', 'Órgão', 'Obj', '2026-01-01', '2030-12-31', 5000) returning id`, [empA])).rows[0]?.id;
     await admin.query(`insert into priv.empenhos (empresa_id, contrato_id, numero, emitido_em, etapa) values ($1, $2, 'E1', '2026-02-01', 'transporte'), ($1, $2, 'E2', '2026-02-02', 'concluido')`, [empA, ct]);
     await admin.query(`insert into priv.faturas (empresa_id, contrato_id, numero_nf, emitida_em, valor, retencoes, vencimento) values ($1, $2, 'NF1', '2026-03-01', 3000, 500, '2026-04-01')`, [empA, ct]);
@@ -67,13 +77,34 @@ describe('dashboard: indicadores, permissões e A x B', () => {
     expect([dB['licitacoesGanhas'], dB['valorGanho'], dB['contratosAtivos'], dB['valoresAReceber'], dB['documentosVencidos']]).toEqual([0, '0.0000', 0, '0.0000', 0]);
   });
 
-  it('relatório comercial: vitórias, derrotas, taxa de sucesso, valores, motivos e produtos', async () => {
-    const r = (await http().get(`/empresas/${empA}/relatorios/comercial`).set(bearer(limitado)).expect(200)).body as { participacoes: number; vitorias: number; derrotas: number; taxaSucessoPct: string; valorDisputado: string; valorGanho: string; motivos: { motivo: string; total: number }[]; produtos: { produto: string; total: number }[] };
+  it('relatório comercial: vitórias, derrotas, taxa de sucesso, valores, motivos, produtos, margens (sigilo) e preços vencedores anteriores', async () => {
+    const r = (await http().get(`/empresas/${empA}/relatorios/comercial`).set(bearer(limitado)).expect(200)).body as {
+      participacoes: number; vitorias: number; derrotas: number; taxaSucessoPct: string; valorDisputado: string; valorGanho: string;
+      motivos: { motivo: string; total: number }[]; produtos: { produto: string; total: number }[];
+      margens: unknown; precosVencedoresAnteriores: { vencedora: string; valorUnitario: string; marcaModelo: string }[];
+    };
     expect([r.participacoes, r.vitorias, r.derrotas, r.taxaSucessoPct, r.valorDisputado, r.valorGanho]).toEqual([3, 1, 2, '33.33', '3500.5000', '1000.5000']);
     expect(r.motivos.map((m) => m.motivo)).toContain('Atestado incompatível');
     expect(r.produtos.map((p) => [p.produto, p.total])).toEqual([['Marca 0 Mod', 2], ['Marca 1 Mod', 1]]);
+    expect(r.margens).toBeNull(); // sem precos/ver_custos_margens vem null, nunca zero enganoso
+    expect(r.precosVencedoresAnteriores).toBeNull(); // sem editais/visualizar vem null
+
+    const rAdmin = (await http().get(`/empresas/${empA}/relatorios/comercial`).set(bearer(a)).expect(200)).body as {
+      margens: { avaliadas: number; mediaBrutaPct: string; mediaLiquidaPct: string; minimaLiquidaPct: string; maximaLiquidaPct: string } | null;
+      precosVencedoresAnteriores: { vencedora: string; valorUnitario: string; marcaModelo: string }[];
+    };
+    expect(rAdmin.margens).toEqual({
+      avaliadas: 1,
+      mediaBrutaPct: '28.5000',
+      mediaLiquidaPct: '16.2500',
+      minimaLiquidaPct: '16.2500',
+      maximaLiquidaPct: '16.2500',
+    });
+    expect(rAdmin.precosVencedoresAnteriores).toMatchObject([{ vencedora: 'Vencedora PNCP', valorUnitario: '950.2500', marcaModelo: 'MarcaV ModV' }]);
     await http().get(`/empresas/${empA}/relatorios/comercial`).set(bearer(b)).expect(404);
-    expect(((await http().get(`/empresas/${empB}/relatorios/comercial`).set(bearer(b)).expect(200)).body as { taxaSucessoPct: string | null }).taxaSucessoPct).toBeNull();
+    const rB = (await http().get(`/empresas/${empB}/relatorios/comercial`).set(bearer(b)).expect(200)).body as { taxaSucessoPct: string | null; precosVencedoresAnteriores: unknown[] };
+    expect(rB.taxaSucessoPct).toBeNull();
+    expect(rB.precosVencedoresAnteriores).toEqual([]);
   });
 
   it('relatório diário por e-mail: opt-in da própria pessoa; B não liga nem vê a assinatura de A', async () => {

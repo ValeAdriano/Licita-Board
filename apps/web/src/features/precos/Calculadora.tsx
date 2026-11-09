@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { chamar } from '../../api/cliente'
 import { AreaTexto, Aviso, Botao, Campo, Etiqueta, Legenda, Selecao, Vazio } from '../../ui'
+import { useAcesso } from '../acesso/contexto'
 import { useEnvio } from '../acesso/conta/useEnvio'
+import { useGet } from '../acesso/useGet'
 import { useReautenticacao } from '../acesso/useReautenticacao'
 import { dataHoraSP } from '../agenda/comum'
 import { ehDecimal, paraDecimal, pct, reais, semZeros, TIPO_LINHA } from './formato'
@@ -40,10 +42,106 @@ export function Calculadora({ empresaId, participacaoId, d, podeEditar, podeApro
   return (
     <div className="flex flex-col gap-6">
       <Resultado p={p} />
+      <HistoricoPrecosPncp empresaId={empresaId} descricaoInicial={d.item?.descricao ?? ''} />
       <Linhas empresaId={empresaId} p={p} linhas={d.linhas} podeEditar={podeEditar} podeAprovar={podeAprovar} aoMudar={aoMudar} />
       <Parametros empresaId={empresaId} p={p} podeEditar={podeEditar} aoMudar={aoMudar} />
       <Aprovacao empresaId={empresaId} p={p} podeAprovar={podeAprovar} aoMudar={aoMudar} />
     </div>
+  )
+}
+
+interface RespostaHistoricoPncp {
+  total: number
+  estatistica: { n: number; minimo: string; mediana: string; maximo: string; unidade: string } | null
+  itens: {
+    id: string
+    edital: { id: string; numero: string | null; orgao: string | null; uf: string | null; municipio: string | null; linkOrigem: string }
+    item: { id: string; numero: number; descricao: string; unidade: string | null }
+    fornecedor: { tipo: string; cnpj: string | null; nome: string | null; porte: string | null }
+    marca: string | null
+    modelo: string | null
+    quantidade: string | null
+    valorUnitario: string | null
+    situacao: string
+    cancelado: boolean
+    privado: { nossaOferta: string | null; nossaClassificacao: number | null; nossoCustoUnitario: string | null; nossaMargem: string | null } | null
+  }[]
+}
+
+function HistoricoPrecosPncp({ empresaId, descricaoInicial }: { empresaId: string; descricaoInicial: string }) {
+  const { pode } = useAcesso()
+  const inicial = descricaoInicial.trim().split(/\s+/).slice(0, 4).join(' ').slice(0, 80)
+  const [texto, setTexto] = useState(inicial)
+  const [marca, setMarca] = useState('')
+  const [uf, setUf] = useState('')
+  const podeVerEditais = pode('editais', 'visualizar')
+  const params = new URLSearchParams()
+  if (texto.trim().length >= 3) params.set('texto', texto.trim())
+  if (marca.trim()) params.set('marca', marca.trim())
+  if (uf.trim().length === 2) params.set('uf', uf.trim().toUpperCase())
+  const url = podeVerEditais && texto.trim().length >= 3 ? `/empresas/${empresaId}/precos/historico?${params.toString()}` : null
+  const q = useGet<RespostaHistoricoPncp>(url)
+  if (!podeVerEditais) return null
+
+  return (
+    <section className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-6" aria-labelledby="h-hist-pncp">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="h-hist-pncp">Preços vencedores anteriores (PNCP)</h2>
+        <Etiqueta cor="cinza">dado público de referência</Etiqueta>
+      </div>
+      <Legenda>Referência histórica de resultados homologados no PNCP. Não substitui o cálculo de custos nem altera os parâmetros automaticamente.</Legenda>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Campo rotulo="Produto ou descrição (mín. 3 letras)" value={texto} onChange={setTexto} maxLength={120} />
+        <Campo rotulo="Marca (opcional)" value={marca} onChange={setMarca} maxLength={100} />
+        <Campo rotulo="UF (opcional)" value={uf} onChange={(v) => setUf(v.toUpperCase())} maxLength={2} />
+      </div>
+      <Aviso texto={q.erro} />
+      {texto.trim().length < 3 ? (
+        <Legenda>Digite ao menos 3 caracteres para consultar o histórico público do PNCP.</Legenda>
+      ) : !q.dados ? (
+        <Legenda>Consultando histórico…</Legenda>
+      ) : q.dados.itens.length === 0 ? (
+        <Vazio>Nenhum preço homologado encontrado no PNCP para este filtro.</Vazio>
+      ) : (
+        <>
+          {q.dados.estatistica ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg bg-secondary p-3 text-sm">
+              <Etiqueta cor="marca">{q.dados.estatistica.n} homologado(s) ({q.dados.estatistica.unidade})</Etiqueta>
+              <span className="text-secondary">Mínimo: <strong className="text-primary">{reais(q.dados.estatistica.minimo, 4)}</strong></span>
+              <span className="text-secondary">· Mediana: <strong className="text-primary">{reais(q.dados.estatistica.mediana, 4)}</strong></span>
+              <span className="text-secondary">· Máximo: <strong className="text-primary">{reais(q.dados.estatistica.maximo, 4)}</strong></span>
+            </div>
+          ) : (
+            <Legenda>Estatística (mínimo/mediana/máximo) indisponível porque os resultados encontrados têm unidades de medida diferentes.</Legenda>
+          )}
+          <ul className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl ring-1 ring-secondary">
+            {q.dados.itens.slice(0, 10).map((it) => (
+              <li key={it.id} className="flex flex-col gap-1 p-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <strong className="text-primary">{reais(it.valorUnitario, 4)} <span className="font-normal text-tertiary">/ {it.item.unidade ?? 'UN'}</span></strong>
+                  <span className="text-xs text-tertiary">{it.edital.orgao ?? 'Órgão'}{it.edital.uf ? ` (${it.edital.uf})` : ''}</span>
+                </div>
+                <span className="text-secondary">
+                  <bdi>{it.item.descricao}</bdi>
+                  {it.marca || it.modelo ? ` · Marca/modelo: ${[it.marca, it.modelo].filter(Boolean).join(' ')}` : ''}
+                </span>
+                <span className="text-xs text-tertiary">
+                  Vencedora: {it.fornecedor.tipo === 'pessoa_fisica' ? 'Pessoa física (ocultado pela LGPD)' : (it.fornecedor.nome ?? 'Não informado')}
+                  {it.fornecedor.cnpj ? ` (${it.fornecedor.cnpj})` : ''}
+                </span>
+                {it.privado ? (
+                  <span className="text-xs font-medium text-brand-secondary">
+                    Nossa participação neste item: oferta {reais(it.privado.nossaOferta, 4)}
+                    {it.privado.nossoCustoUnitario ? ` · custo ${reais(it.privado.nossoCustoUnitario, 4)}` : ''}
+                    {it.privado.nossaMargem ? ` · margem ${pct(it.privado.nossaMargem)}` : ''}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
   )
 }
 
