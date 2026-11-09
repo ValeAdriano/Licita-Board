@@ -320,6 +320,10 @@
     --color-border-tertiary: var(--color-neutral-100);
     --color-border-error: var(--color-red-500);
     --color-border-error_subtle: var(--color-red-300);
+    --color-border-warning: var(--color-yellow-500);
+    --color-border-warning_subtle: var(--color-yellow-300);
+    --color-border-success: var(--color-green-500);
+    --color-border-success_subtle: var(--color-green-300);
     --color-border-brand: var(--color-brand-500);
     --color-border-brand_alt: var(--color-brand-600);
 
@@ -464,6 +468,10 @@
     --border-color-tertiary: var(--color-border-tertiary);
     --border-color-error: var(--color-border-error);
     --border-color-error_subtle: var(--color-border-error_subtle);
+    --border-color-warning: var(--color-border-warning);
+    --border-color-warning_subtle: var(--color-border-warning_subtle);
+    --border-color-success: var(--color-border-success);
+    --border-color-success_subtle: var(--color-border-success_subtle);
     --border-color-brand: var(--color-border-brand);
     --border-color-brand_alt: var(--color-border-brand_alt);
     --border-color-brand-solid: var(--color-bg-brand-solid);
@@ -476,6 +484,10 @@
     --ring-color-tertiary: var(--color-border-tertiary);
     --ring-color-error: var(--color-border-error);
     --ring-color-error_subtle: var(--color-border-error_subtle);
+    --ring-color-warning: var(--color-border-warning);
+    --ring-color-warning_subtle: var(--color-border-warning_subtle);
+    --ring-color-success: var(--color-border-success);
+    --ring-color-success_subtle: var(--color-border-success_subtle);
     --ring-color-brand: var(--color-border-brand);
     --ring-color-brand_alt: var(--color-border-brand_alt);
     --ring-color-brand-solid: var(--color-bg-brand-solid);
@@ -661,7 +673,7 @@
         --color-text-secondary: var(--color-neutral-300);
         --color-text-secondary_hover: var(--color-neutral-200);
         --color-text-tertiary_hover: var(--color-neutral-300);
-        --color-text-brand-secondary: var(--color-neutral-300);
+        --color-text-brand-secondary: var(--color-brand-300);
         --color-text-placeholder: var(--color-neutral-500);
         --color-text-brand-tertiary: var(--color-neutral-400);
         --color-text-editor-icon-fg: var(--color-neutral-400);
@@ -674,10 +686,14 @@
         --color-text-quaternary_on-brand: var(--color-neutral-400);
         --color-text-brand-tertiary_alt: var(--color-neutral-50);
         --color-text-error-primary_hover: var(--color-red-300);
-        --color-text-brand-secondary_hover: var(--color-neutral-200);
+        --color-text-brand-secondary_hover: var(--color-brand-200);
 
         --color-border-secondary: var(--color-neutral-800);
         --color-border-error_subtle: var(--color-red-500);
+        --color-border-warning: var(--color-yellow-400);
+        --color-border-warning_subtle: var(--color-yellow-500);
+        --color-border-success: var(--color-green-400);
+        --color-border-success_subtle: var(--color-green-500);
         --color-border-primary: var(--color-neutral-700);
         --color-border-brand: var(--color-brand-400);
         --color-border-error: var(--color-red-400);
@@ -701,13 +717,13 @@
         --color-fg-error-secondary: var(--color-red-400);
         --color-fg-tertiary: var(--color-neutral-400);
         --color-fg-tertiary_hover: var(--color-neutral-300);
-        --color-fg-brand-primary_alt: var(--color-neutral-300);
+        --color-fg-brand-primary_alt: var(--color-brand-400);
         --color-fg-brand-secondary_alt: var(--color-neutral-600);
         --color-fg-brand-secondary_hover: var(--color-neutral-500);
 
         --color-bg-primary: var(--color-neutral-950);
         --color-bg-tertiary: var(--color-neutral-800);
-        --color-bg-brand-primary: var(--color-brand-500);
+        --color-bg-brand-primary: var(--color-brand-950);
         --color-bg-error-secondary: var(--color-red-600);
         --color-bg-warning-primary: var(--color-yellow-950);
         --color-bg-warning-secondary: var(--color-yellow-600);
@@ -824,6 +840,10 @@
         --border-color-tertiary: var(--color-border-tertiary);
         --border-color-error: var(--color-border-error);
         --border-color-error_subtle: var(--color-border-error_subtle);
+        --border-color-warning: var(--color-border-warning);
+        --border-color-warning_subtle: var(--color-border-warning_subtle);
+        --border-color-success: var(--color-border-success);
+        --border-color-success_subtle: var(--color-border-success_subtle);
         --border-color-brand: var(--color-border-brand);
         --border-color-brand_alt: var(--color-border-brand_alt);
         --border-color-brand-solid: var(--color-bg-brand-solid);
@@ -836,6 +856,10 @@
         --ring-color-tertiary: var(--color-border-tertiary);
         --ring-color-error: var(--color-border-error);
         --ring-color-error_subtle: var(--color-border-error_subtle);
+        --ring-color-warning: var(--color-border-warning);
+        --ring-color-warning_subtle: var(--color-border-warning_subtle);
+        --ring-color-success: var(--color-border-success);
+        --ring-color-success_subtle: var(--color-border-success_subtle);
         --ring-color-brand: var(--color-border-brand);
         --ring-color-brand-solid: var(--color-bg-brand-solid);
         --ring-color-brand-solid_hover: var(--color-bg-brand-solid_hover);

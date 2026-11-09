@@ -39,7 +39,7 @@ export default function Analise() {
           <Aviso texto={pedir.erro} />
           {d.produtos.length === 0 ? <p className="text-sm text-tertiary">Nenhum produto ativo no catálogo da empresa (Cadastros → Produtos).</p> : (
             <div className="flex flex-wrap items-end gap-3">
-              <div className="min-w-64 flex-1"><Selecao rotulo="Produto do catálogo" value={produto} onChange={setProduto} vazio="Escolha" opcoes={d.produtos.map((p) => ({ valor: p.id, rotulo: `${p.codigoInterno} · ${[p.marca, p.modelo].filter(Boolean).join(' ')} · ${p.descricao}`.slice(0, 90) }))} /></div>
+              <div className="w-full min-w-0 sm:min-w-64 sm:flex-1"><Selecao rotulo="Produto do catálogo" value={produto} onChange={setProduto} vazio="Escolha" opcoes={d.produtos.map((p) => ({ valor: p.id, rotulo: `${p.codigoInterno} · ${[p.marca, p.modelo].filter(Boolean).join(' ')} · ${p.descricao}`.slice(0, 90) }))} /></div>
               <Botao carregando={pedir.enviando} disabled={!produto} onClick={() => void pedir.enviar(async () => { await chamar('POST', `/empresas/${empresaId}/participacoes/${id}/analises`, { produtoId: produto }); setProduto(''); det.recarregar() })}>{analisados.has(produto) ? 'Recalcular análise' : 'Analisar este produto'}</Botao>
             </div>
           )}

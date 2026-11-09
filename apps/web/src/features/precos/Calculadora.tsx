@@ -30,7 +30,7 @@ export function Calculadora({ empresaId, participacaoId, d, podeEditar, podeApro
         <Aviso texto={criar.erro} />
         {podeEditar ? (
           <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-64 flex-1"><Selecao rotulo="Produto (opcional)" value={produto} onChange={setProduto} vazio="Sem produto" opcoes={d.produtos.map((x) => ({ valor: x.id, rotulo: `${x.codigoInterno} · ${x.descricao}`.slice(0, 80) }))} /></div>
+            <div className="w-full min-w-0 sm:min-w-64 sm:flex-1"><Selecao rotulo="Produto (opcional)" value={produto} onChange={setProduto} vazio="Sem produto" opcoes={d.produtos.map((x) => ({ valor: x.id, rotulo: `${x.codigoInterno} · ${x.descricao}`.slice(0, 80) }))} /></div>
             <Botao carregando={criar.enviando} onClick={() => void criar.enviar(async () => { await chamar('POST', `/empresas/${empresaId}/participacoes/${participacaoId}/preco`, { produtoId: produto || null }); aoMudar() })}>Iniciar precificação</Botao>
           </div>
         ) : <Vazio>Ainda não há precificação para este item.</Vazio>}

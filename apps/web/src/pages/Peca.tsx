@@ -63,7 +63,7 @@ function Conteudo({ empresaId, p, pode, recarregar }: { empresaId: string; p: Pe
           {p.status === 'minuta' ? acao('revisao', 'Enviar para revisão jurídica', 'primario', p.bloqueada || p.validadaEm === null) : null}
         </div> : null}
         {p.status === 'minuta' && pode('juridico', 'elaborar_peca') ? (
-          <div className="flex flex-wrap items-end gap-3"><div className="min-w-64 flex-1"><Campo rotulo="Descartar a peça (justificativa obrigatória)" value={just} onChange={setJust} maxLength={1000} /></div>
+          <div className="flex flex-wrap items-end gap-3"><div className="w-full min-w-0 sm:min-w-64 sm:flex-1"><Campo rotulo="Descartar a peça (justificativa obrigatória)" value={just} onChange={setJust} maxLength={1000} /></div>
             <Botao variante="texto" carregando={enviando} disabled={just.trim().length < 10} onClick={() => void enviar(async () => { await chamar('POST', `${base}/descartar`, { justificativa: just.trim() }); recarregar() })}>Descartar</Botao></div>
         ) : null}
         {p.justificativaDescarte ? <Legenda>Descartada: <bdi>{p.justificativaDescarte}</bdi></Legenda> : null}
@@ -89,7 +89,7 @@ function Conteudo({ empresaId, p, pode, recarregar }: { empresaId: string; p: Pe
       ) : null}
       {['protocolada', 'respondida'].includes(p.status) ? <Cartao><h2>Protocolo e resultado</h2><Legenda>Protocolo {p.protocoloNumero} em {dataHoraSP(p.protocoladoEm)}{p.comprovante ? ` · ${p.comprovante}` : ''}</Legenda>
         {p.resultado ? <Etiqueta cor={p.resultado === 'indeferido' ? 'erro' : 'sucesso'}>{RESULTADO_PECA[p.resultado] ?? p.resultado}</Etiqueta> : null}{p.resultadoObs ? <Legenda><bdi>{p.resultadoObs}</bdi></Legenda> : null}
-        {p.status === 'protocolada' && pode('juridico', 'elaborar_peca') ? <div className="flex flex-wrap items-end gap-3"><Selecao rotulo="Resultado" value={res.resultado} onChange={(v) => setRes({ ...res, resultado: v })} opcoes={Object.entries(RESULTADO_PECA).map(([valor, rotulo]) => ({ valor, rotulo }))} /><div className="min-w-64 flex-1"><Campo rotulo="Observação" value={res.obs} onChange={(v) => setRes({ ...res, obs: v })} maxLength={2000} /></div><Botao carregando={enviando} onClick={() => void enviar(async () => { await chamar('POST', `${base}/resultado`, { resultado: res.resultado, observacao: res.obs.trim() || null }); recarregar() })}>Registrar resultado</Botao></div> : null}</Cartao> : null}
+        {p.status === 'protocolada' && pode('juridico', 'elaborar_peca') ? <div className="flex flex-wrap items-end gap-3"><Selecao rotulo="Resultado" value={res.resultado} onChange={(v) => setRes({ ...res, resultado: v })} opcoes={Object.entries(RESULTADO_PECA).map(([valor, rotulo]) => ({ valor, rotulo }))} /><div className="w-full min-w-0 sm:min-w-64 sm:flex-1"><Campo rotulo="Observação" value={res.obs} onChange={(v) => setRes({ ...res, obs: v })} maxLength={2000} /></div><Botao carregando={enviando} onClick={() => void enviar(async () => { await chamar('POST', `${base}/resultado`, { resultado: res.resultado, observacao: res.obs.trim() || null }); recarregar() })}>Registrar resultado</Botao></div> : null}</Cartao> : null}
     </Pagina>
   )
 }

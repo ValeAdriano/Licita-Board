@@ -50,3 +50,17 @@ it('valor inválido usa Sistema; armazenamento bloqueado não impede a troca', a
   expect(() => tema.definirTema('escuro')).not.toThrow()
   expect(document.documentElement).toHaveClass('dark-mode')
 })
+it('fecha a gaveta móvel (360 px) ao clicar em um link de navegação', async () => {
+  const { MobileNavigationHeader } = await import('@/components/application/app-navigation/base-components/mobile-header')
+  const u = userEvent.setup()
+  render(
+    <MobileNavigationHeader>
+      <nav aria-label="Principal"><a href="#agenda">Agenda</a></nav>
+    </MobileNavigationHeader>,
+  )
+  await u.click(screen.getByRole('button', { name: 'Abrir menu de navegação' }))
+  const link = screen.getByRole('link', { name: 'Agenda' })
+  expect(link).toBeInTheDocument()
+  await u.click(link)
+  expect(screen.queryByRole('link', { name: 'Agenda' })).not.toBeInTheDocument()
+})

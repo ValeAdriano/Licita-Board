@@ -43,7 +43,7 @@ export function ChaveIa({ empresaId }: { empresaId: string }) {
           </div>
           {editar ? (
             <div className="flex flex-wrap items-end gap-3">
-              <div className="min-w-64"><Selecao rotulo="Modelo" value={escolhido} onChange={setModelo} opcoes={opcoes} /></div>
+              <div className="w-full min-w-0 sm:min-w-64"><Selecao rotulo="Modelo" value={escolhido} onChange={setModelo} opcoes={opcoes} /></div>
               {acao('Salvar modelo', () => chamar('POST', `/empresas/${empresaId}/ia/modelo`, { modelo: escolhido }))}
               {acao('Testar a chave', async () => { await chamar('POST', `/empresas/${empresaId}/ia/testar`); return 'Teste pedido. Atualize em instantes para ver o resultado.' })}
               {acao('Remover a chave', () => chamar('DELETE', `/empresas/${empresaId}/ia/chave`), 'texto')}
@@ -56,7 +56,7 @@ export function ChaveIa({ empresaId }: { empresaId: string }) {
           <h3 className="text-sm font-semibold text-secondary">{e.configurada ? 'Trocar a chave' : 'Cadastrar a chave'}</h3>
           <Campo rotulo="Chave da API (começa com sk-ant-)" type="password" autoComplete="off" spellCheck={false} value={chave} onChange={setChave} maxLength={320} erro={chave !== '' && !formatoOk} dica="Gere em console.anthropic.com. Ela é cifrada ao salvar e não aparece de novo." />
           <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-64"><Selecao rotulo="Modelo" value={escolhido} onChange={setModelo} opcoes={opcoes} /></div>
+            <div className="w-full min-w-0 sm:min-w-64"><Selecao rotulo="Modelo" value={escolhido} onChange={setModelo} opcoes={opcoes} /></div>
             <Botao carregando={enviando} disabled={!formatoOk} onClick={() => void enviar(async () => { await chamar('PUT', `/empresas/${empresaId}/ia/chave`, { chave: chave.trim(), modelo: escolhido }); setChave(''); estado.recarregar(); return 'Chave salva (cifrada). Use “Testar a chave” para conferir.' })}>Salvar chave</Botao>
           </div>
         </div>

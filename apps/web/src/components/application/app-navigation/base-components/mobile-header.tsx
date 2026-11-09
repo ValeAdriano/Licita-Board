@@ -40,13 +40,20 @@ export const MobileNavigationHeader = ({ children }: PropsWithChildren) => {
                         <AriaButton
                             aria-label="Fechar menu de navegação"
                             onPress={() => state.close()}
-                            className="fixed top-2.5 right-3 flex cursor-pointer items-center justify-center rounded-lg p-2 text-fg-white/70 outline-focus-ring hover:bg-white/10 hover:text-fg-white focus-visible:outline-2 focus-visible:outline-offset-2"
+                            className="fixed top-[calc(var(--faixa,0px)+0.625rem)] right-3 flex cursor-pointer items-center justify-center rounded-lg p-2 text-fg-white/70 outline-focus-ring hover:bg-white/10 hover:text-fg-white focus-visible:outline-2 focus-visible:outline-offset-2"
                         >
                             <CloseIcon className="size-6" />
                         </AriaButton>
 
                         <AriaModal className="w-full max-w-74 cursor-auto will-change-transform">
-                            <AriaDialog className="h-dvh outline-hidden focus:outline-hidden">{children}</AriaDialog>
+                            <AriaDialog
+                                className="h-dvh outline-hidden focus:outline-hidden"
+                                onClick={(e) => {
+                                    if ((e.target as HTMLElement | null)?.closest("a")) state.close();
+                                }}
+                            >
+                                {children}
+                            </AriaDialog>
                         </AriaModal>
                     </>
                 )}

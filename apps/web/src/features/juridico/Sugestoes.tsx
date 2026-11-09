@@ -59,7 +59,7 @@ function Item({ s, empresaId, pode, enviando, enviar, recarregar }: { s: Sugesta
       {pode && ['nova', 'intempestiva'].includes(s.status) ? (
         <div className="flex flex-wrap items-end gap-3">
           {s.status === 'nova' ? <Botao carregando={enviando} onClick={() => void enviar(async () => { const r = await chamar<{ pecaId: string }>('POST', `${base}/aceitar`); navegar(`/juridico/pecas/${r.pecaId}`) })}>Aceitar e abrir a peça</Botao> : null}
-          <div className="min-w-64 flex-1"><Campo rotulo="Descartar (justificativa obrigatória)" value={just} onChange={setJust} maxLength={1000} /></div>
+          <div className="w-full min-w-0 sm:min-w-64 sm:flex-1"><Campo rotulo="Descartar (justificativa obrigatória)" value={just} onChange={setJust} maxLength={1000} /></div>
           <Botao variante="texto" carregando={enviando} disabled={just.trim().length < 10} onClick={() => void enviar(async () => { await chamar('POST', `${base}/descartar`, { justificativa: just.trim() }); recarregar() })}>Descartar</Botao>
         </div>
       ) : null}
