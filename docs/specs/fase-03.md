@@ -103,7 +103,9 @@ Plano de blocos (modo rápido): (1) S3 de desenvolvimento (SeaweedFS) no compose
 
 - Tela Q-04b: aba `?aba=documentos` em `Acompanhamento.tsx`, com `features/documentos/Checklist.tsx`; seis situações calculadas, validade/dias, abertura de versão liberada por download auditado, aviso ME/EPP da API recolhido, edição de exigências por permissão e releitura a cada 2,5 s limitada a cinco tentativas. Table no desktop e cartões no celular; formulário recolhido. Vitest cobre situações, ausência de edição, POST e parada das releituras. Validação visual em navegador (360 px/desktop, claro/escuro) e integração com API real ainda pendentes.
 
-**Pendente:** "recalculando" só reflete exigência editada depois do cálculo (versão liberada agora fica com o resultado anterior até o job rodar, segundos); quantidade de balanços exigíveis segue como "conferência manual" (§4.6).
+- Sinal "recalculando" com job na fila (Q-26, 2026-11-08): migration `20261203100000_checklist_pendente.sql` cria `priv.checklist_pendente(empresa, acompanhamento)` (security definer, execute só para `vv_api`, só devolve booleano; `documentos/visualizar` primeiro, sem ela P0002 → 404; job filtrado por `empresa_id`, então id de outra empresa dá `false`) e um índice parcial em `ops.jobs`. Pendente = job `checklist_documental` `pendente` ou `executando` que ainda vai rodar (trava vencida sem tentativa sobrando não conta; `concluido`/`falhou` não contam). O GET do checklist devolve `recalculando` no topo e em cada item = sem cálculo **ou** exigência editada depois do cálculo **ou** recálculo na fila (versão liberada, documento alterado, abertura mudada, rodada diária, pedido da pessoa). Testes: pgTAP `431_checklist_pendente` e e2e `checklist.e2e-spec.ts` (acende ao recalcular, segue em execução, apaga ao concluir, A x B).
+
+**Pendente:** quantidade de balanços exigíveis segue como "conferência manual" (§4.6).
 
 **⚖️ A validar com o jurídico:** texto do aviso ME/EPP (LC 123, art. 43, §1º) e se o MEI entra (hoje entra: ME, EPP ou MEI no enquadramento vigente na data do cálculo; o aviso só sinaliza, nunca dispensa).
 

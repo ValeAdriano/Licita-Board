@@ -64,13 +64,40 @@ describe('checklist documental: fluxo e A x B', () => {
     expect(vazio.calculadoEm).toBeNull();
     const item = vazio.itens.find((i) => i.id === exigencia);
     expect(item).toMatchObject({ regularidadeFiscal: true, conferenciaManual: true, situacao: null, recalculando: true });
-    // simula o worker (a API não calcula)
+    // simula o worker (a API não calcula): grava o resultado e conclui os jobs do acompanhamento
+    await admin.query(
+      `update ops.jobs set status = 'concluido', concluido_em = now() where tipo = 'checklist_documental' and payload ->> 'acompanhamento_id' = $1`, [acA]);
     await admin.query(
       `insert into priv.checklist_resultados (empresa_id, exigencia_id, situacao, aviso, data_referencia, data_sessao, sessao_confirmada, me_epp, calculado_em)
        values ($1, $2, 'depende_conferencia', null, '2026-11-07', '2026-12-10', true, false, now() + interval '1 second')`, [empA, exigencia]);
     const d = (await http().get(`/empresas/${empA}/acompanhamentos/${acA}/checklist`).set(bearer(leitor)).expect(200)).body as { dataSessao: string; sessaoConfirmada: boolean; meEpp: boolean; itens: { id: string; tipoSlug: string; situacao: string | null; recalculando: boolean; aplicavel: boolean }[] };
     expect([d.dataSessao, d.sessaoConfirmada, d.meEpp]).toEqual(['2026-12-10', true, false]);
     expect(d.itens.map((i) => [i.tipoSlug, i.situacao, i.recalculando])).toEqual([['balanco', null, true], ['cnd_federal', 'depende_conferencia', false]]);
+  });
+
+  it('recálculo na fila acende "recalculando" mesmo sem edição; apaga quando o worker conclui', async () => {
+    type Ck = { recalculando: boolean; itens: { tipoSlug: string; recalculando: boolean }[] };
+    const ler = async () => (await http().get(`/empresas/${empA}/acompanhamentos/${acA}/checklist`).set(bearer(leitor)).expect(200)).body as Ck;
+    const antes = await ler();
+    expect(antes.recalculando).toBe(false);
+    expect(antes.itens.find((i) => i.tipoSlug === 'cnd_federal')?.recalculando).toBe(false);
+    await http().post(`/empresas/${empA}/acompanhamentos/${acA}/checklist/recalcular`).set(bearer(a)).expect(202);
+    const durante = await ler();
+    expect(durante.recalculando).toBe(true);
+    expect(durante.itens.map((i) => i.recalculando)).toEqual([true, true]);
+    // simula o worker: pega o job (executando) e depois conclui
+    await admin.query(`update ops.jobs set status = 'executando', tentativas = 1, travado_ate = now() + interval '5 minutes'
+                        where tipo = 'checklist_documental' and status = 'pendente' and payload ->> 'acompanhamento_id' = $1`, [acA]);
+    expect((await ler()).recalculando).toBe(true);
+    await admin.query(`update ops.jobs set status = 'concluido', concluido_em = now(), travado_ate = null
+                        where tipo = 'checklist_documental' and payload ->> 'acompanhamento_id' = $1`, [acA]);
+    const depois = await ler();
+    expect(depois.recalculando).toBe(false);
+    expect(depois.itens.map((i) => [i.tipoSlug, i.recalculando])).toEqual([['balanco', true], ['cnd_federal', false]]);
+    // o job de A não acende o sinal para B, nem pela própria empresa com o id de A
+    await http().post(`/empresas/${empA}/acompanhamentos/${acA}/checklist/recalcular`).set(bearer(a)).expect(202);
+    expect(((await http().get(`/empresas/${empB}/acompanhamentos/${acA}/checklist`).set(bearer(b)).expect(200)).body as Ck).recalculando).toBe(false);
+    await admin.query(`update ops.jobs set status = 'concluido', concluido_em = now() where tipo = 'checklist_documental' and payload ->> 'acompanhamento_id' = $1`, [acA]);
   });
 
   it('sem permissão: leitor não edita nem recalcula; quem não tem documentos não lê', async () => {

@@ -33,7 +33,7 @@ export class ChecklistController {
   @Permissao('documentos', 'visualizar')
   @Get('empresas/:empresa/acompanhamentos/:id/checklist')
   async checklist(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string) {
-    const linhas = await this.q(req, async (tx) => (await sql<LinhaChecklist>`
+    const { linhas, pendente } = await this.q(req, async (tx) => ({ linhas: (await sql<LinhaChecklist>`
       select e.id, e.tipo_id as "tipoId", t.slug as "tipoSlug", t.nome as "tipoNome", t.pasta, e.aplicavel,
              e.conferencia_manual as "conferenciaManual", e.regularidade_fiscal as "regularidadeFiscal", e.observacao,
              e.updated_at as "atualizadaEm", r.situacao, r.documento_id as "documentoId", r.validade::text as validade,
@@ -43,8 +43,11 @@ export class ChecklistController {
         join pub.tipos_documento t on t.id = e.tipo_id
         left join priv.checklist_resultados r on r.exigencia_id = e.id
        where e.empresa_id = ${empresa}::uuid and e.acompanhamento_id = ${id}::uuid and e.deleted_at is null
-       order by t.ordem, t.nome`.execute(tx)).rows);
-    // Cabeçalho = o cálculo mais recente; item sem resultado ou editado depois do cálculo está "recalculando".
+       order by t.ordem, t.nome`.execute(tx)).rows,
+      // Recálculo na fila (versão liberada, abertura mudada, pedido da pessoa...): só o booleano, filtrado pela empresa.
+      pendente: (await sql<{ p: boolean }>`select priv.checklist_pendente(${empresa}::uuid, ${id}::uuid) as p`.execute(tx)).rows[0]?.p === true,
+    }));
+    // Cabeçalho = o cálculo mais recente; item sem resultado, editado depois do cálculo ou com recálculo na fila está "recalculando".
     const ms = (v: Date | string | null) => (v ? new Date(v).getTime() : 0);
     const recente = linhas.filter((l) => l.calculadoEm).sort((a, b) => ms(b.calculadoEm) - ms(a.calculadoEm))[0];
     return {
@@ -54,9 +57,10 @@ export class ChecklistController {
       meEpp: recente?.meEpp ?? null,
       dataReferencia: recente?.dataReferencia ?? null,
       calculadoEm: recente?.calculadoEm ?? null,
+      recalculando: pendente,
       itens: linhas.map(({ atualizadaEm, ...l }) => ({
         ...l,
-        recalculando: !l.calculadoEm || ms(atualizadaEm) > ms(l.calculadoEm),
+        recalculando: pendente || !l.calculadoEm || ms(atualizadaEm) > ms(l.calculadoEm),
       })),
     };
   }
