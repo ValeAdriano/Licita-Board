@@ -14,7 +14,16 @@ from typing import Any
 import psycopg
 from psycopg.rows import dict_row
 
-from worker.rules.comparacao import Requisito, Resultado, Unidade, Valor, classificar, resumo
+from worker.rules.comparacao import (
+    CandidatoAlternativa,
+    Requisito,
+    Resultado,
+    Unidade,
+    Valor,
+    classificar,
+    ranquear_alternativas,
+    resumo,
+)
 from worker.rules.evidencia import contem, pagina_da_citacao
 
 log = logging.getLogger("worker.analise")
@@ -76,6 +85,58 @@ def _requisito(req: dict[str, Any], unidades: dict[Any, Unidade]) -> Requisito:
     return Requisito(req["operador"], valor, val(req["valor_max"]), req["obrigatorio"])
 
 
+def _atualizar_alternativas(
+    conn: psycopg.Connection[Any], empresa_id: Any, participacao_id: Any
+) -> None:
+    """Ranqueia todos os produtos analisados para a participação (6.4) por código puro."""
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            "select a.id, a.resumo, pr.disponibilidade, pr.prazo_entrega_dias, pp.preco_custo, pp.preco_referencia, "
+            "count(l.id) filter (where l.resultado = 'ATENDE') as atende_count, "
+            "count(l.id) filter (where l.resultado = 'ATENDE COM RESSALVAS') as riscos_count, "
+            "count(l.id) filter (where l.resultado = 'A CONFIRMAR') as pendencias_count "
+            "from priv.analises_item a "
+            "left join priv.produtos pr on pr.id = a.produto_id and pr.empresa_id = a.empresa_id "
+            "left join priv.produto_precos pp on pp.produto_id = a.produto_id and pp.empresa_id = a.empresa_id "
+            "left join priv.analise_linhas l on l.analise_id = a.id and l.empresa_id = a.empresa_id "
+            "where a.empresa_id = %s and a.participacao_id = %s "
+            "group by a.id, a.resumo, pr.disponibilidade, pr.prazo_entrega_dias, pp.preco_custo, pp.preco_referencia",
+            (empresa_id, participacao_id),
+        )
+        linhas = cur.fetchall()
+    candidatos = [
+        CandidatoAlternativa(
+            analise_id=str(r["id"]),
+            resumo=r["resumo"],
+            riscos_count=int(r["riscos_count"] or 0),
+            pendencias_count=int(r["pendencias_count"] or 0),
+            atende_count=int(r["atende_count"] or 0),
+            disponibilidade=r["disponibilidade"],
+            prazo_entrega_dias=int(r["prazo_entrega_dias"])
+            if r["prazo_entrega_dias"] is not None
+            else None,
+            preco_custo=Decimal(r["preco_custo"]) if r["preco_custo"] is not None else None,
+            preco_referencia=Decimal(r["preco_referencia"])
+            if r["preco_referencia"] is not None
+            else None,
+        )
+        for r in linhas
+    ]
+    for item in ranquear_alternativas(candidatos):
+        conn.execute(
+            "update priv.analises_item set posicao_alternativa = %s, rotulo_alternativa = %s, "
+            "riscos_count = %s, pendencias_count = %s where id = %s and empresa_id = %s",
+            (
+                item.posicao,
+                item.rotulo,
+                item.riscos_count,
+                item.pendencias_count,
+                item.analise_id,
+                empresa_id,
+            ),
+        )
+
+
 def analisar(conn: psycopg.Connection[Any], analise_id: str, empresa_job: Any = None) -> str | None:
     """Devolve o resumo do item, ou None se a análise não existe (ou não é da empresa do job)."""
     with conn.cursor(row_factory=dict_row) as cur:
@@ -105,7 +166,8 @@ def analisar(conn: psycopg.Connection[Any], analise_id: str, empresa_job: Any = 
         )
         attrs = {r["atributo_id"]: r for r in cur.fetchall()}
         cur.execute(
-            "select requisito_id, ficha_conferida_por, ressalva from priv.analise_linhas where analise_id = %s and empresa_id = %s",
+            "select requisito_id, ficha_documento_id, ficha_pagina, ficha_trecho, ficha_conferida_por, ressalva "
+            "from priv.analise_linhas where analise_id = %s and empresa_id = %s",
             (a["id"], a["empresa_id"]),
         )
         antes = {r["requisito_id"]: r for r in cur.fetchall()}
@@ -117,6 +179,26 @@ def analisar(conn: psycopg.Connection[Any], analise_id: str, empresa_job: Any = 
             )
             for r in cur.fetchall():
                 paginas[r["pagina"]] = f"{paginas.get(r['pagina'], '')}\n{r['texto']}"
+        paginas_fichas: dict[Any, dict[int, str]] = {}
+        doc_ids = list(
+            {
+                r["ficha_documento_id"]
+                for r in antes.values()
+                if r["ficha_documento_id"] and r["ficha_trecho"]
+            }
+        )
+        if doc_ids:
+            cur.execute(
+                "select t.documento_id, t.pagina, t.texto from priv.documento_trechos t "
+                "join lateral (select v.id from priv.documento_versoes v "
+                "where v.documento_id = t.documento_id and v.empresa_id = %s and v.status_arquivo = 'liberado' "
+                "order by v.versao desc limit 1) ult on ult.id = t.versao_id "
+                "where t.empresa_id = %s and t.documento_id = any(%s) order by t.pagina, t.ordem",
+                (a["empresa_id"], a["empresa_id"], doc_ids),
+            )
+            for r in cur.fetchall():
+                pf = paginas_fichas.setdefault(r["documento_id"], {})
+                pf[r["pagina"]] = f"{pf.get(r['pagina'], '')}\n{r['texto']}"
     unidades = _unidades(conn)
     resultados: list[tuple[bool, Resultado]] = []
     assinatura: list[str] = []
@@ -131,6 +213,16 @@ def analisar(conn: psycopg.Connection[Any], analise_id: str, empresa_job: Any = 
             else:
                 pagina_ok = pagina_da_citacao(citacao, paginas)
         ant = antes.get(r["id"])
+        ficha_citacao_ok: bool | None = None
+        if ant and ant["ficha_documento_id"] and ant["ficha_trecho"]:
+            pf_doc = paginas_fichas.get(ant["ficha_documento_id"])
+            if pf_doc:
+                if ant["ficha_pagina"] is not None:
+                    ficha_citacao_ok = contem(
+                        ant["ficha_trecho"], pf_doc.get(ant["ficha_pagina"], "")
+                    )
+                else:
+                    ficha_citacao_ok = pagina_da_citacao(ant["ficha_trecho"], pf_doc) is not None
         sem_vinculo = r["atributo_id"] is None and r["tipo_exigencia"] not in (
             "garantia",
             "prazo_entrega",
@@ -154,14 +246,17 @@ def analisar(conn: psycopg.Connection[Any], analise_id: str, empresa_job: Any = 
         else:
             c = classificar(
                 requisito, oferta, citacao_edital_ok=pagina_ok is not None,
-                ficha_conferida=bool(ant and ant["ficha_conferida_por"]), ressalva=(ant or {}).get("ressalva"),
+                ficha_conferida=bool(ant and ant["ficha_conferida_por"]),
+                ficha_citacao_ok=ficha_citacao_ok,
+                ressalva=(ant or {}).get("ressalva"),
             )  # fmt: skip
         oferecido = _texto(oferta, oferta.unidade) if oferta else None
         conn.execute(
             "insert into priv.analise_linhas (empresa_id, analise_id, requisito_id, resultado, valor_oferecido, citacao_verificada, pagina_edital, "
-            "justificativa, pendencia, calculado_em) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, now()) "
+            "ficha_citacao_verificada, justificativa, pendencia, calculado_em) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now()) "
             "on conflict (analise_id, requisito_id) do update set resultado = excluded.resultado, valor_oferecido = excluded.valor_oferecido, "
-            "citacao_verificada = excluded.citacao_verificada, pagina_edital = excluded.pagina_edital, justificativa = excluded.justificativa, "
+            "citacao_verificada = excluded.citacao_verificada, pagina_edital = excluded.pagina_edital, "
+            "ficha_citacao_verificada = excluded.ficha_citacao_verificada, justificativa = excluded.justificativa, "
             "pendencia = excluded.pendencia, calculado_em = now()",
             (
                 a["empresa_id"],
@@ -171,6 +266,7 @@ def analisar(conn: psycopg.Connection[Any], analise_id: str, empresa_job: Any = 
                 oferecido,
                 pagina_ok is not None,
                 pagina_ok,
+                bool(ficha_citacao_ok),
                 c.justificativa,
                 c.pendencia,
             ),
@@ -186,6 +282,7 @@ def analisar(conn: psycopg.Connection[Any], analise_id: str, empresa_job: Any = 
         "aprovado_resumo = case when %s then null else aprovado_resumo end where id = %s",
         (s, h, mudou, mudou, mudou, a["id"]),
     )
+    _atualizar_alternativas(conn, a["empresa_id"], a["participacao_id"])
     conn.commit()
     log.info(
         "análise calculada",

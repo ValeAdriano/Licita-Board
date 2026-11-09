@@ -1,10 +1,13 @@
 import hashlib
+import json
 import logging
 import socket
 import struct
 from typing import Any, Protocol
 
 import magic
+
+from worker.pesquisa.texto import Ocr, dividir, extrair
 
 log = logging.getLogger("worker.documentos")
 
@@ -93,8 +96,33 @@ def verificar(
     return Veredito("liberado", tipo, tamanho, sha, None)
 
 
-def processar_versao(conn: Any, versao_id: str, s3: Armazenamento, antivirus: Antivirus) -> str:
-    """Lê a quarentena, dá o veredito, registra no banco (função só do worker) e move o liberado."""
+def extrair_trechos_versao(
+    dados: bytes, tipo_real: str, ocr: Ocr | None = None
+) -> list[dict[str, Any]]:
+    """Extrai trechos por página de documento privado (ficha técnica, atestado, etc.)."""
+    ex = extrair(dados, tipo_real, ocr)
+    trechos: list[dict[str, Any]] = []
+    for p in ex.paginas:
+        for ordem, bloco in enumerate(dividir(p.texto), start=1):
+            trechos.append(
+                {
+                    "pagina": p.numero,
+                    "ordem": ordem,
+                    "texto": bloco,
+                    "origem": p.origem,
+                }
+            )
+    return trechos
+
+
+def processar_versao(
+    conn: Any,
+    versao_id: str,
+    s3: Armazenamento,
+    antivirus: Antivirus,
+    ocr: Ocr | None = None,
+) -> str:
+    """Lê a quarentena, dá o veredito, registra no banco e extrai o texto do liberado."""
     with conn.cursor() as cur:
         cur.execute(
             "select arquivo_chave from priv.documento_versoes "
@@ -105,7 +133,8 @@ def processar_versao(conn: Any, versao_id: str, s3: Armazenamento, antivirus: An
     if linha is None:
         return "ja_processada"
     quarentena = linha[0]
-    v = verificar(s3.ler(quarentena), antivirus)
+    dados = s3.ler(quarentena)
+    v = verificar(dados, antivirus)
     with conn.cursor() as cur:
         cur.execute(
             "select priv.registrar_verificacao(%s, %s, %s, %s, %s, %s)",
@@ -114,6 +143,14 @@ def processar_versao(conn: Any, versao_id: str, s3: Armazenamento, antivirus: An
         chave_final = cur.fetchone()[0]
     if v.status == "liberado":
         s3.copiar(quarentena, chave_final)
+        if v.tipo_real is not None:
+            trechos = extrair_trechos_versao(dados, v.tipo_real, ocr)
+            if trechos:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "select priv.registrar_trechos_documento(%s, %s::jsonb)",
+                        (versao_id, json.dumps(trechos)),
+                    )
     s3.apagar(quarentena)
     log.info("versão verificada", extra={"ctx": {"versao_id": versao_id, "status": v.status}})
     return v.status

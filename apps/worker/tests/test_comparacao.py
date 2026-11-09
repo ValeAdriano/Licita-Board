@@ -3,6 +3,7 @@ from decimal import Decimal as D
 import pytest
 
 from worker.rules.comparacao import (
+    CandidatoAlternativa,
     Requisito,
     Resultado,
     Unidade,
@@ -10,6 +11,7 @@ from worker.rules.comparacao import (
     classificar,
     comparar,
     para_base,
+    ranquear_alternativas,
     resumo,
 )
 
@@ -170,3 +172,69 @@ def test_resumo_do_item() -> None:
     assert resumo([(True, a), (False, na)]) == "COMPATÍVEL"  # opcional não reprova
     assert resumo([]) == "PENDENTE"
     assert resumo([(False, a)]) == "PENDENTE"  # só opcionais: sem requisito obrigatório cadastrado
+
+
+def test_ficha_citacao_automatica_rebaixa_se_nao_constar_no_arquivo() -> None:
+    ok = classificar(R, BOM, citacao_edital_ok=True, ficha_conferida=True, ficha_citacao_ok=True)
+    assert ok.resultado is Resultado.ATENDE and "verificadas automaticamente" in ok.justificativa
+    falha = classificar(
+        R, BOM, citacao_edital_ok=True, ficha_conferida=True, ficha_citacao_ok=False
+    )
+    assert falha.resultado is Resultado.A_CONFIRMAR
+    assert "não foi encontrada no texto extraído da ficha" in (falha.pendencia or "")
+
+
+def test_ranquear_alternativas_por_compatibilidade_disponibilidade_e_custo_decimal() -> None:
+    candidatos = [
+        CandidatoAlternativa(
+            analise_id="reprovado-barato",
+            resumo="REPROVADO",
+            riscos_count=0,
+            pendencias_count=0,
+            atende_count=5,
+            disponibilidade="imediata",
+            preco_custo=D("50000.00"),
+        ),
+        CandidatoAlternativa(
+            analise_id="compativel-caro",
+            resumo="COMPATÍVEL",
+            riscos_count=0,
+            pendencias_count=0,
+            atende_count=5,
+            disponibilidade="imediata",
+            preco_custo=D("120000.50"),
+        ),
+        CandidatoAlternativa(
+            analise_id="compativel-barato",
+            resumo="COMPATÍVEL",
+            riscos_count=0,
+            pendencias_count=0,
+            atende_count=5,
+            disponibilidade="imediata",
+            preco_custo=D("95000.25"),
+        ),
+        CandidatoAlternativa(
+            analise_id="ressalvas",
+            resumo="COMPATÍVEL COM RESSALVAS",
+            riscos_count=1,
+            pendencias_count=0,
+            atende_count=4,
+            disponibilidade="sob_encomenda",
+            preco_referencia=D("90000.00"),
+        ),
+        CandidatoAlternativa(
+            analise_id="pendente",
+            resumo="PENDENTE",
+            riscos_count=0,
+            pendencias_count=2,
+            atende_count=3,
+        ),
+    ]
+    ranking = ranquear_alternativas(candidatos)
+    assert [(r.analise_id, r.posicao, r.rotulo) for r in ranking] == [
+        ("compativel-barato", 1, "melhor_compativel"),
+        ("compativel-caro", 2, "segunda_alternativa"),
+        ("ressalvas", 3, "terceira_alternativa"),
+        ("pendente", 4, "outra"),
+        ("reprovado-barato", 5, "reprovado"),
+    ]

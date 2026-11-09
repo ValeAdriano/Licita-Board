@@ -16,6 +16,7 @@ const requisitoSchema = z.object({
   citacaoEdital: z.string().trim().max(2000).nullable().optional(), pagina: z.number().int().min(1).max(100000).nullable().optional(),
 }).strict();
 const analiseSchema = z.object({ produtoId: z.uuid() }).strict();
+const alternativasSchema = z.object({ categoriaId: z.uuid().nullable().optional() }).strict();
 const fichaSchema = z.object({
   documentoId: z.uuid(), pagina: z.number().int().min(1).max(100000), trecho: z.string().trim().min(5).max(2000), ressalva: z.string().trim().max(500).nullable().optional(),
 }).strict();
@@ -45,15 +46,28 @@ export class AnalisesController {
         select id, nome, tipo_exigencia as tipo, atributo_id as "atributoId", operador, valor_numero::text as "valorNumero", valor_max::text as "valorMax",
                valor_texto as "valorTexto", unidade_id as "unidadeId", obrigatorio, citacao_edital as "citacaoEdital", pagina, origem, modelo_ia as "modeloIa", confirmado_em is not null as confirmado
           from priv.requisitos_item where participacao_id = ${id}::uuid and empresa_id = ${empresa}::uuid and deleted_at is null order by created_at, id`.execute(tx)).rows;
+      const verCustos = Boolean((await sql<{ ok: boolean }>`
+        select core.has_permission(${empresa}::uuid, 'produtos', 'ver_custos_margens')
+            or core.has_permission(${empresa}::uuid, 'precos', 'ver_custos_margens') as ok`.execute(tx)).rows[0]?.ok);
       const analises = (await sql`
-        select a.id, a.produto_id as "produtoId", pr.codigo_interno as "codigoInterno", pr.marca, pr.modelo, pr.descricao, a.resumo, a.calculado_em as "calculadoEm",
-               a.aprovado_em as "aprovadoEm", a.aprovado_resumo as "aprovadoResumo", u.nome as "aprovadoPor"
-          from priv.analises_item a left join priv.produtos pr on pr.id = a.produto_id left join core.usuarios u on u.id = a.aprovado_por
-         where a.participacao_id = ${id}::uuid and a.empresa_id = ${empresa}::uuid order by a.created_at`.execute(tx)).rows as { id: string }[];
+        select a.id, a.produto_id as "produtoId", pr.codigo_interno as "codigoInterno", pr.marca, pr.modelo, pr.descricao,
+               pr.disponibilidade, pr.prazo_entrega_dias as "prazoEntregaDias", pr.garantia_meses as "garantiaMeses", pr.ficha_documento_id as "fichaDocumentoId",
+               case when ${verCustos} then pp.preco_custo::text else null end as "precoCusto",
+               case when ${verCustos} then pp.preco_referencia::text else null end as "precoReferencia",
+               a.resumo, a.posicao_alternativa as "posicaoAlternativa", a.rotulo_alternativa as "rotuloAlternativa",
+               a.riscos_count as "riscosCount", a.pendencias_count as "pendenciasCount",
+               a.calculado_em as "calculadoEm", a.aprovado_em as "aprovadoEm", a.aprovado_resumo as "aprovadoResumo", u.nome as "aprovadoPor"
+          from priv.analises_item a
+          left join priv.produtos pr on pr.id = a.produto_id and pr.empresa_id = a.empresa_id
+          left join priv.produto_precos pp on pp.produto_id = a.produto_id and pp.empresa_id = a.empresa_id
+          left join core.usuarios u on u.id = a.aprovado_por
+         where a.participacao_id = ${id}::uuid and a.empresa_id = ${empresa}::uuid
+         order by coalesce(a.posicao_alternativa, 999999), a.created_at`.execute(tx)).rows as { id: string }[];
       const linhas = (await sql`
         select l.id, l.analise_id as "analiseId", l.requisito_id as "requisitoId", l.resultado, l.valor_oferecido as "valorOferecido",
                l.citacao_verificada as "citacaoVerificada", l.pagina_edital as "paginaEdital", l.ficha_trecho as "fichaTrecho", l.ficha_pagina as "fichaPagina",
-               l.ficha_documento_id as "fichaDocumentoId", l.ficha_conferida_em as "fichaConferidaEm", c.nome as "fichaConferidaPor", l.ressalva, l.justificativa, l.pendencia
+               l.ficha_documento_id as "fichaDocumentoId", l.ficha_citacao_verificada as "fichaCitacaoVerificada",
+               l.ficha_conferida_em as "fichaConferidaEm", c.nome as "fichaConferidaPor", l.ressalva, l.justificativa, l.pendencia
           from priv.analise_linhas l join priv.requisitos_item r on r.id = l.requisito_id and r.deleted_at is null
           left join core.usuarios c on c.id = l.ficha_conferida_por
          where l.empresa_id = ${empresa}::uuid and l.analise_id in (select id from priv.analises_item where participacao_id = ${id}::uuid)`.execute(tx)).rows;
@@ -114,6 +128,16 @@ export class AnalisesController {
     const d = validar(analiseSchema, corpo);
     const r = await this.q(req, (tx) => sql<{ id: string }>`select priv.analisar_item(${empresa}::uuid, ${id}::uuid, ${d.produtoId}::uuid) as id`.execute(tx));
     return { id: r.rows[0]?.id, status: 'analisando' };
+  }
+
+  @Permissao('analises', 'editar')
+  @Post('empresas/:empresa/participacoes/:id/analises/alternativas')
+  @HttpCode(202)
+  async pedirAlternativas(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
+    const d = validar(alternativasSchema, corpo ?? {});
+    const r = await this.q(req, (tx) => sql<{ enfileiradas: number }>`
+      select priv.analisar_alternativas_item(${empresa}::uuid, ${id}::uuid, ${d.categoriaId ?? null}::uuid) as enfileiradas`.execute(tx));
+    return { enfileiradas: r.rows[0]?.enfileiradas ?? 0, status: 'analisando' };
   }
 
   @Permissao('analises', 'editar')

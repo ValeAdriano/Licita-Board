@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { Matriz } from './Matriz'
+import { ComparativoAlternativas, Matriz } from './Matriz'
 import { exigido, type Analise, type Dados } from './tipos'
 
 const dados: Dados = {
@@ -33,5 +33,44 @@ describe('Matriz da análise técnica', () => {
     expect(exigido(dados.requisitos[0]!, dados.unidades)).toBe('no mínimo 100.5 kW')
     expect(exigido({ ...dados.requisitos[0]!, operador: 'entre', valorMax: '120.000000000000' }, dados.unidades)).toBe('entre 100.5 kW e 120 kW')
     expect(exigido({ ...dados.requisitos[0]!, operador: 'sim' }, dados.unidades)).toBe('tem (sim)')
+  })
+  it('exibe verificação automática do texto da ficha privada e comparativo de alternativas (6.4)', () => {
+    const a1: Analise = {
+      ...analise,
+      id: 'an-ok',
+      resumo: 'COMPATÍVEL',
+      posicaoAlternativa: 1,
+      rotuloAlternativa: 'melhor_compativel',
+      disponibilidade: 'imediata',
+      prazoEntregaDias: 15,
+      precoCusto: '85000.0000',
+      riscosCount: 0,
+      pendenciasCount: 0,
+      linhas: [{ ...analise.linhas[0]!, resultado: 'ATENDE', fichaConferidaPor: 'Ana', fichaCitacaoVerificada: true, pendencia: null }],
+    }
+    const a2: Analise = {
+      ...analise,
+      id: 'an-2',
+      codigoInterno: 'P-2',
+      marca: 'VW',
+      modelo: 'Saveiro',
+      resumo: 'COMPATÍVEL COM RESSALVAS',
+      posicaoAlternativa: 2,
+      rotuloAlternativa: 'segunda_alternativa',
+      disponibilidade: 'sob_encomenda',
+      riscosCount: 1,
+      pendenciasCount: 0,
+    }
+    render(
+      <>
+        <ComparativoAlternativas analises={[a1, a2]} />
+        <Matriz empresaId="e1" d={dados} a={a1} podeEditar podeAprovar aoMudar={() => {}} />
+      </>,
+    )
+    expect(screen.getAllByText('1ª opção · Melhor compatível').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('2ª alternativa')).toBeInTheDocument()
+    expect(screen.getByText('texto da ficha verificado')).toBeInTheDocument()
+    expect(screen.getByText(/Disponibilidade imediata/)).toBeInTheDocument()
+    expect(screen.getByText(/Custo: R\$ 85\.000,00/)).toBeInTheDocument()
   })
 })

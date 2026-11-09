@@ -4,7 +4,7 @@ import { chamar } from '../api/cliente'
 import { useEnvio } from '../features/acesso/conta/useEnvio'
 import { useAcesso } from '../features/acesso/contexto'
 import { useGet } from '../features/acesso/useGet'
-import { Matriz } from '../features/analise/Matriz'
+import { ComparativoAlternativas, Matriz } from '../features/analise/Matriz'
 import { Requisitos } from '../features/analise/Requisitos'
 import type { Dados } from '../features/analise/tipos'
 import { Aviso, Botao, CabecalhoPagina, Etiqueta, Pagina, Selecao } from '../ui'
@@ -41,10 +41,12 @@ export default function Analise() {
             <div className="flex flex-wrap items-end gap-3">
               <div className="w-full min-w-0 sm:min-w-64 sm:flex-1"><Selecao rotulo="Produto do catálogo" value={produto} onChange={setProduto} vazio="Escolha" opcoes={d.produtos.map((p) => ({ valor: p.id, rotulo: `${p.codigoInterno} · ${[p.marca, p.modelo].filter(Boolean).join(' ')} · ${p.descricao}`.slice(0, 90) }))} /></div>
               <Botao carregando={pedir.enviando} disabled={!produto} onClick={() => void pedir.enviar(async () => { await chamar('POST', `/empresas/${empresaId}/participacoes/${id}/analises`, { produtoId: produto }); setProduto(''); det.recarregar() })}>{analisados.has(produto) ? 'Recalcular análise' : 'Analisar este produto'}</Botao>
+              <Botao variante="secundario" carregando={pedir.enviando} onClick={() => void pedir.enviar(async () => { await chamar('POST', `/empresas/${empresaId}/participacoes/${id}/analises/alternativas`, {}); det.recarregar() })}>Pesquisar alternativas do catálogo</Botao>
             </div>
           )}
         </section>
       ) : null}
+      <ComparativoAlternativas analises={d.analises} />
       {d.analises.map((a) => <Matriz key={a.id} empresaId={empresaId} d={d} a={a} podeEditar={podeEditar} podeAprovar={pode('analises', 'aprovar')} aoMudar={det.recarregar} />)}
       <div><Botao variante="texto" onClick={det.recarregar}>Atualizar</Botao></div>
     </Pagina>

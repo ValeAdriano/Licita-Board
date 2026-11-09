@@ -109,6 +109,9 @@ def cena() -> Any:
     _admin("delete from priv.acompanhamentos")
     _admin("delete from priv.produto_atributos")
     _admin("delete from priv.produtos")
+    _admin("delete from priv.documento_trechos")
+    _admin("delete from priv.documento_versoes")
+    _admin("delete from priv.documentos")
     _admin("alter table core.empresas disable trigger user")
     _admin("delete from core.empresas where id = %s", emp)
     _admin("alter table core.empresas enable trigger user")
@@ -281,3 +284,65 @@ def test_mudar_o_resultado_derruba_a_aprovacao_e_job_de_outra_empresa_e_ignorado
     assert (
         analisar(cena["conn"], cena["analise"], str(uuid.uuid4())) is None
     )  # empresa do job diferente: nada é feito
+
+
+def test_citacao_da_ficha_privada_conferida_automaticamente_no_texto_extraido(cena: Any) -> None:
+    if cena["attr"] is None:
+        pytest.skip("catálogo sem atributo de potência")
+    r = _req(
+        cena,
+        "Potência",
+        atributo=cena["attr"],
+        numero=100,
+        unidade=cena["cv"],
+        citacao="potência mínima de 100 cv",
+        pagina=7,
+    )
+    doc = _admin(
+        "insert into priv.documentos (empresa_id, tipo_id, descricao) values (%s, (select id from pub.tipos_documento limit 1), 'Ficha Oficial') returning id",
+        cena["emp"],
+    )[0][0]
+    ver = _admin(
+        "insert into priv.documento_versoes (empresa_id, documento_id, versao, arquivo_chave, nome_original, status_arquivo) "
+        "values (%s, %s, 1, 'documentos/ficha.pdf', 'ficha.pdf', 'liberado') returning id",
+        cena["emp"],
+        doc,
+    )[0][0]
+    _admin(
+        "insert into priv.documento_trechos (empresa_id, documento_id, versao_id, pagina, ordem, texto) values (%s, %s, %s, 2, 1, 'Potência máx.: 85 kW a 3.500 rpm')",
+        cena["emp"],
+        doc,
+        ver,
+    )
+    assert analisar(cena["conn"], cena["analise"], cena["emp"]) == "PENDENTE"
+    # Trecho que NÃO existe na ficha extraída: rebaixa para A CONFIRMAR mesmo com ficha_conferida_por preenchido
+    _admin(
+        "update priv.analise_linhas set ficha_documento_id = %s, ficha_pagina = 2, ficha_trecho = 'Potência máx.: 999 kW', "
+        "ficha_conferida_por = %s, ficha_conferida_em = now() where requisito_id = %s",
+        doc,
+        cena["usuario"],
+        r,
+    )
+    assert analisar(cena["conn"], cena["analise"], cena["emp"]) == "PENDENTE"
+    res, f_verificada = _admin(
+        "select resultado, ficha_citacao_verificada from priv.analise_linhas where requisito_id = %s",
+        r,
+    )[0]
+    assert (res, f_verificada) == ("A CONFIRMAR", False)
+
+    # Trecho que existe na página 2 da ficha extraída: ATENDE e ficha_citacao_verificada = True
+    _admin(
+        "update priv.analise_linhas set ficha_trecho = 'Potência máx.: 85 kW' where requisito_id = %s",
+        r,
+    )
+    assert analisar(cena["conn"], cena["analise"], cena["emp"]) == "COMPATÍVEL"
+    res, f_verificada = _admin(
+        "select resultado, ficha_citacao_verificada from priv.analise_linhas where requisito_id = %s",
+        r,
+    )[0]
+    assert (res, f_verificada) == ("ATENDE", True)
+    pos, rotulo = _admin(
+        "select posicao_alternativa, rotulo_alternativa from priv.analises_item where id = %s",
+        cena["analise"],
+    )[0]
+    assert (pos, rotulo) == (1, "melhor_compativel")

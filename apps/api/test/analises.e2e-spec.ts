@@ -83,6 +83,39 @@ describe('análise técnica: fluxo e A x B', () => {
     expect((await admin.query<{ aprovado_resumo: string; ok: boolean }>(`select aprovado_resumo, aprovado_por is not null as ok from priv.analises_item where id = $1`, [analise])).rows[0]).toEqual({ aprovado_resumo: 'COMPATÍVEL', ok: true });
   });
 
+  it('alternativas (6.4) e sigilo de custos: enfileira produtos ativos e oculta precoCusto sem ver_custos_margens', async () => {
+    await admin.query(
+      `insert into priv.produto_precos (produto_id, empresa_id, preco_custo, preco_referencia) values ($1, $2, 85000.5000, 99000.0000)
+       on conflict (produto_id) do update set preco_custo = excluded.preco_custo, preco_referencia = excluded.preco_referencia`,
+      [produto, empA],
+    );
+    await admin.query(
+      `update priv.analises_item set posicao_alternativa = 1, rotulo_alternativa = 'melhor_compativel', riscos_count = 0, pendencias_count = 0 where id = $1`,
+      [analise],
+    );
+    await admin.query(`update priv.analise_linhas set ficha_citacao_verificada = true where id = $1`, [linha]);
+    await http().post(`/empresas/${empA}/participacoes/${part}/analises/alternativas`).set(bearer(leitor)).send({}).expect(404);
+    const alt = await http().post(`/empresas/${empA}/participacoes/${part}/analises/alternativas`).set(bearer(editor)).send({}).expect(202);
+    expect((alt.body as { enfileiradas: number }).enfileiradas).toBeGreaterThanOrEqual(1);
+
+    const comoAdmin = (await http().get(`/empresas/${empA}/participacoes/${part}/analise`).set(bearer(a)).expect(200)).body as {
+      analises: { id: string; posicaoAlternativa: number; rotuloAlternativa: string; precoCusto: string | null; precoReferencia: string | null; linhas: { fichaCitacaoVerificada: boolean }[] }[];
+    };
+    expect(comoAdmin.analises[0]).toMatchObject({
+      id: analise,
+      posicaoAlternativa: 1,
+      rotuloAlternativa: 'melhor_compativel',
+      precoCusto: '85000.5000',
+      precoReferencia: '99000.0000',
+    });
+    expect(comoAdmin.analises[0]?.linhas[0]?.fichaCitacaoVerificada).toBe(true);
+
+    const comoLeitor = (await http().get(`/empresas/${empA}/participacoes/${part}/analise`).set(bearer(leitor)).expect(200)).body as {
+      analises: { id: string; precoCusto: string | null; precoReferencia: string | null }[];
+    };
+    expect(comoLeitor.analises[0]).toMatchObject({ id: analise, precoCusto: null, precoReferencia: null });
+  });
+
   it('A x B: B não lê nem altera a análise de A, nem descobre ids', async () => {
     await http().get(`/empresas/${empA}/participacoes/${part}/analise`).set(bearer(b)).expect(404);
     await http().post(`/empresas/${empA}/participacoes/${part}/requisitos`).set(bearer(b)).send({ nome: 'Invasor', operador: 'sim' }).expect(404);
@@ -155,6 +188,7 @@ describe('análise técnica: fluxo e A x B', () => {
         { metodo: 'delete', path: `requisitos/${req.id}` },
         { metodo: 'post', path: `requisitos/${req.id}/confirmar` },
         { metodo: 'post', path: `participacoes/${id}/analises`, corpo: { produtoId: pr } },
+        { metodo: 'post', path: `participacoes/${id}/analises/alternativas`, corpo: {} },
         { metodo: 'post', path: `participacoes/${id}/extrair-requisitos` },
         { metodo: 'post', path: `analise-linhas/${li}/ficha`, corpo: { documentoId: doc, pagina: 1, trecho: 'Ficha técnica fictícia' } },
         { metodo: 'post', path: `analises/${an.id}/aprovar` },

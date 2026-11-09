@@ -126,7 +126,8 @@ class Handlers:
 
     def verificar_arquivo(self, conn: psycopg.Connection[Any], job: Job) -> None:
         assert self._s3 is not None and self._antivirus is not None  # noqa: S101 - só registrado ligado
-        processar_versao(conn, str(job["payload"]["versao_id"]), self._s3, self._antivirus)
+        ocr = Tesseract() if shutil.which("tesseract") else None
+        processar_versao(conn, str(job["payload"]["versao_id"]), self._s3, self._antivirus, ocr)
 
     def push_notificacao(self, conn: psycopg.Connection[Any], job: Job) -> None:
         assert self._push is not None  # noqa: S101 - só registrado com push ligado

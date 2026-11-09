@@ -107,12 +107,13 @@ def comparar(req: Requisito, oferta: Valor | None) -> tuple[bool | None, str | N
     return _sem_acento(req.valor.texto) in _sem_acento(oferta.texto), None
 
 
-def classificar(
+def classificar(  # noqa: PLR0913
     req: Requisito,
     oferta: Valor | None,
     *,
     citacao_edital_ok: bool,
     ficha_conferida: bool,
+    ficha_citacao_ok: bool | None = None,
     ressalva: str | None = None,
 ) -> Classificacao:
     cumpre, motivo = comparar(req, oferta)
@@ -138,6 +139,12 @@ def classificar(
             "Falta conferir a evidência na ficha técnica oficial (documento, página e trecho).",
             "A comparação é satisfeita, mas a evidência da ficha técnica não foi conferida por uma pessoa.",
         )
+    if ficha_citacao_ok is False:
+        return Classificacao(
+            Resultado.A_CONFIRMAR,
+            "A citação da ficha técnica não foi encontrada no texto extraído da ficha oficial: confira o trecho e a página.",
+            "A comparação é satisfeita, mas o trecho citado não consta no arquivo da ficha técnica.",
+        )
     if ressalva:
         return Classificacao(
             Resultado.RESSALVAS, f"Ressalva: {ressalva}", "Atende com a ressalva registrada."
@@ -145,7 +152,9 @@ def classificar(
     return Classificacao(
         Resultado.ATENDE,
         None,
-        "Atende, com evidência do edital verificada e ficha técnica conferida.",
+        "Atende, com evidência do edital e da ficha técnica verificadas automaticamente e conferidas."
+        if ficha_citacao_ok
+        else "Atende, com evidência do edital verificada e ficha técnica conferida.",
     )
 
 
@@ -159,3 +168,88 @@ def resumo(linhas: list[tuple[bool, Resultado]]) -> str:
     if Resultado.A_CONFIRMAR in obrigatorios:
         return "PENDENTE"
     return "COMPATÍVEL COM RESSALVAS" if Resultado.RESSALVAS in obrigatorios else "COMPATÍVEL"
+
+
+_PRIORIDADE_RESUMO: dict[str | None, int] = {
+    "COMPATÍVEL": 0,
+    "COMPATÍVEL COM RESSALVAS": 1,
+    "PENDENTE": 2,
+    None: 3,
+    "REPROVADO": 4,
+}
+_PRIORIDADE_DISPONIBILIDADE: dict[str | None, int] = {
+    "imediata": 0,
+    "sob_encomenda": 1,
+    None: 2,
+    "indisponivel": 3,
+}
+_ROTULOS_VIABILIDADE = ("melhor_compativel", "segunda_alternativa", "terceira_alternativa")
+
+
+@dataclass(frozen=True)
+class CandidatoAlternativa:
+    analise_id: str
+    resumo: str | None
+    riscos_count: int = 0
+    pendencias_count: int = 0
+    atende_count: int = 0
+    disponibilidade: str | None = None
+    prazo_entrega_dias: int | None = None
+    preco_custo: Decimal | None = None
+    preco_referencia: Decimal | None = None
+
+
+@dataclass(frozen=True)
+class AlternativaRanqueada:
+    analise_id: str
+    posicao: int
+    rotulo: str
+    riscos_count: int
+    pendencias_count: int
+
+
+def ranquear_alternativas(
+    candidatos: list[CandidatoAlternativa],
+) -> list[AlternativaRanqueada]:
+    """Ordena produtos analisados para o mesmo item (6.4): melhor compatível, 2ª e 3ª alternativas."""
+
+    def chave(
+        c: CandidatoAlternativa,
+    ) -> tuple[int, int, int, int, int, int, Decimal, int, int, str]:
+        preco = c.preco_custo if c.preco_custo is not None else c.preco_referencia
+        return (
+            _PRIORIDADE_RESUMO.get(c.resumo, 3),
+            c.pendencias_count,
+            c.riscos_count,
+            -c.atende_count,
+            _PRIORIDADE_DISPONIBILIDADE.get(c.disponibilidade, 2),
+            0 if preco is not None else 1,
+            preco if preco is not None else Decimal(0),
+            0 if c.prazo_entrega_dias is not None else 1,
+            c.prazo_entrega_dias if c.prazo_entrega_dias is not None else 0,
+            c.analise_id,
+        )
+
+    ordenados = sorted(candidatos, key=chave)
+    saida: list[AlternativaRanqueada] = []
+    idx_viavel = 0
+    for pos, c in enumerate(ordenados, start=1):
+        if c.resumo == "REPROVADO":
+            rotulo = "reprovado"
+        else:
+            rotulo = (
+                _ROTULOS_VIABILIDADE[idx_viavel]
+                if idx_viavel < len(_ROTULOS_VIABILIDADE)
+                else "outra"
+            )
+            idx_viavel += 1
+        saida.append(
+            AlternativaRanqueada(
+                analise_id=c.analise_id,
+                posicao=pos,
+                rotulo=rotulo,
+                riscos_count=c.riscos_count,
+                pendencias_count=c.pendencias_count,
+            )
+        )
+    return saida

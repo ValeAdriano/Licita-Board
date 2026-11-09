@@ -4,21 +4,58 @@ import { Aviso, Botao, Campo, Etiqueta, Legenda, Modal, Selecao } from '../../ui
 import { useEnvio } from '../acesso/conta/useEnvio'
 import { useGet } from '../acesso/useGet'
 import { dataHoraSP } from '../agenda/comum'
-import { COR_RESULTADO, COR_RESUMO, exigido, type Analise, type Dados, type Linha } from './tipos'
+import { reais } from '../precos/formato'
+import { COR_RESULTADO, COR_RESUMO, DISPONIBILIDADE_ROTULO, ROTULO_ALTERNATIVA, exigido, type Analise, type Dados, type Linha } from './tipos'
 
 const nomeProduto = (a: Analise) => [a.codigoInterno, a.marca, a.modelo].filter(Boolean).join(' · ') || 'Produto'
 
+// Comparativo de produtos alternativos (6.4): melhor compatível, 2ª e 3ª alternativas, custo comparativo (quando autorizado), disponibilidade, riscos e pendências.
+export function ComparativoAlternativas({ analises }: { analises: Analise[] }) {
+  if (analises.length === 0) return null
+  return (
+    <section className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-6" aria-label="Comparativo de produtos alternativos">
+      <h2>Comparativo de alternativas ({analises.length})</h2>
+      <Legenda>Ordenação calculada por código: compatibilidade técnica, menor número de pendências e ressalvas, disponibilidade, custo comparativo e prazo de entrega.</Legenda>
+      <ul className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl ring-1 ring-secondary">
+        {analises.map((a) => {
+          const alt = a.rotuloAlternativa ? ROTULO_ALTERNATIVA[a.rotuloAlternativa] : null
+          return (
+            <li key={a.id} className="flex flex-col gap-1.5 p-3 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                {alt ? <Etiqueta cor={alt.cor}>{alt.texto}</Etiqueta> : null}
+                <strong className="min-w-0 flex-1 text-primary [overflow-wrap:anywhere]"><bdi>{nomeProduto(a)}</bdi></strong>
+                {a.resumo ? <Etiqueta cor={COR_RESUMO[a.resumo]}>{a.resumo}</Etiqueta> : <Etiqueta cor="cinza">Analisando…</Etiqueta>}
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-secondary">
+                {a.disponibilidade ? <span>{DISPONIBILIDADE_ROTULO[a.disponibilidade] ?? a.disponibilidade}</span> : null}
+                {a.prazoEntregaDias != null ? <span>Entrega: {a.prazoEntregaDias} dia(s)</span> : null}
+                {a.garantiaMeses != null ? <span>Garantia: {a.garantiaMeses} mês(es)</span> : null}
+                {a.precoCusto ? <span>Custo: {reais(a.precoCusto, 2)}</span> : null}
+                {a.precoReferencia ? <span>Referência: {reais(a.precoReferencia, 2)}</span> : null}
+                <span>Riscos/ressalvas: {a.riscosCount ?? 0}</span>
+                <span>Pendências: {a.pendenciasCount ?? 0}</span>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
 // Matriz de um produto: uma linha por requisito, com o resultado calculado POR CÓDIGO (nunca pela IA), a evidência do edital
-// (conferida automaticamente) e a da ficha técnica (conferida por uma pessoa). ATENDE só existe com as duas evidências.
+// (conferida automaticamente) e a da ficha técnica (conferida por uma pessoa e verificada no arquivo quando extraído).
 export function Matriz({ empresaId, d, a, podeEditar, podeAprovar, aoMudar }: { empresaId: string; d: Dados; a: Analise; podeEditar: boolean; podeAprovar: boolean; aoMudar: () => void }) {
   const { enviando, erro, enviar } = useEnvio()
   const [conferindo, setConferindo] = useState<Linha | null>(null)
   const porRequisito = new Map(a.linhas.map((l) => [l.requisitoId, l]))
   const aprovada = a.aprovadoEm !== null
+  const alt = a.rotuloAlternativa ? ROTULO_ALTERNATIVA[a.rotuloAlternativa] : null
   return (
     <section className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-6" aria-label={`Análise de ${nomeProduto(a)}`}>
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="min-w-0 flex-1 [overflow-wrap:anywhere]"><bdi>{nomeProduto(a)}</bdi></h2>
+        {alt ? <Etiqueta cor={alt.cor}>{alt.texto}</Etiqueta> : null}
         {a.resumo ? <Etiqueta cor={COR_RESUMO[a.resumo]}>{a.resumo}</Etiqueta> : <Etiqueta cor="cinza">Analisando…</Etiqueta>}
         {aprovada ? <Etiqueta cor="sucesso">Aprovada por {a.aprovadoPor ?? '—'} em {dataHoraSP(a.aprovadoEm)}</Etiqueta> : null}
       </div>
@@ -44,6 +81,7 @@ export function Matriz({ empresaId, d, a, podeEditar, podeAprovar, aoMudar }: { 
                     <span className="flex flex-wrap items-center gap-2 text-tertiary">
                       Edital: {l.citacaoVerificada ? <Etiqueta cor="sucesso">citação conferida{l.paginaEdital ? `, página ${l.paginaEdital}` : ''}</Etiqueta> : <Etiqueta cor="aviso">citação não conferida</Etiqueta>}
                       Ficha técnica: {l.fichaConferidaPor ? <Etiqueta cor="sucesso">conferida por {l.fichaConferidaPor}</Etiqueta> : <Etiqueta cor="aviso">falta conferir</Etiqueta>}
+                      {l.fichaCitacaoVerificada ? <Etiqueta cor="sucesso">texto da ficha verificado</Etiqueta> : null}
                     </span>
                     {l.fichaTrecho ? <Legenda>Ficha, página {l.fichaPagina}: “<bdi>{l.fichaTrecho}</bdi>”</Legenda> : null}
                     {l.pendencia ? <span className="text-warning-primary [overflow-wrap:anywhere]">Pendência: {l.pendencia}</span> : null}
@@ -62,14 +100,14 @@ export function Matriz({ empresaId, d, a, podeEditar, podeAprovar, aoMudar }: { 
           {a.resumo === 'PENDENTE' ? <Legenda>Resolva os “A CONFIRMAR” antes de aprovar.</Legenda> : null}
         </div>
       ) : null}
-      {conferindo ? <ConferirFicha empresaId={empresaId} l={conferindo} aoFechar={() => setConferindo(null)} aoSalvar={() => { setConferindo(null); aoMudar() }} /> : null}
+      {conferindo ? <ConferirFicha empresaId={empresaId} l={conferindo} docPadrao={a.fichaDocumentoId ?? null} aoFechar={() => setConferindo(null)} aoSalvar={() => { setConferindo(null); aoMudar() }} /> : null}
     </section>
   )
 }
 
-function ConferirFicha({ empresaId, l, aoFechar, aoSalvar }: { empresaId: string; l: Linha; aoFechar: () => void; aoSalvar: () => void }) {
+function ConferirFicha({ empresaId, l, docPadrao, aoFechar, aoSalvar }: { empresaId: string; l: Linha; docPadrao: string | null; aoFechar: () => void; aoSalvar: () => void }) {
   const docs = useGet<{ id: string; descricao: string }[]>(`/empresas/${empresaId}/documentos`)
-  const [f, setF] = useState({ doc: l.fichaDocumentoId ?? '', pagina: l.fichaPagina ? String(l.fichaPagina) : '', trecho: l.fichaTrecho ?? '', ressalva: l.ressalva ?? '' })
+  const [f, setF] = useState({ doc: l.fichaDocumentoId ?? docPadrao ?? '', pagina: l.fichaPagina ? String(l.fichaPagina) : '', trecho: l.fichaTrecho ?? '', ressalva: l.ressalva ?? '' })
   const { enviando, erro, enviar } = useEnvio()
   const valido = f.doc !== '' && Number(f.pagina) >= 1 && f.trecho.trim().length >= 5
   return (

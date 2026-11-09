@@ -272,6 +272,7 @@ begin
     v_usr := (select id from core.usuarios where email like 'usuario_' || lower(v_letra) || '%' limit 1);
     insert into priv.documentos (empresa_id, tipo_id, descricao) values (v_emp, (select id from pub.tipos_documento limit 1), 'Documento ' || v_letra) returning id into v_doc;
     insert into priv.documento_versoes (empresa_id, documento_id, versao, arquivo_chave, nome_original) values (v_emp, v_doc, 1, 'k-' || v_letra, 'a.pdf') returning id into v_ver;
+    insert into priv.documento_trechos (empresa_id, documento_id, versao_id, pagina, ordem, texto) values (v_emp, v_doc, v_ver, 1, 1, 'Trecho ' || v_letra);
     insert into priv.documento_alertas (empresa_id, documento_id, versao_id, marco_dias) values (v_emp, v_doc, v_ver, 30);
     insert into priv.documento_downloads (empresa_id, documento_id, versao_id, usuario_id) values (v_emp, v_doc, v_ver, v_usr);
     insert into priv.documento_pendencias (empresa_id, documento_id, instrucoes) values (v_emp, v_doc, 'Atualizar ' || v_letra);
