@@ -1,6 +1,6 @@
 # Fila de desenvolvimento
 
-Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o orquestrador edita este arquivo**, no commit de integração. Montada a partir de [`COMECE-AQUI.md`](COMECE-AQUI.md) §4–§5 e das pendências das specs. Última atualização: 2026-11-08 (Q-01, Q-02, Q-05, Q-04a, Q-04b, Q-06, Q-09, Q-22, Q-23/1–4, Q-24, Q-13a, Q-23 (12 rodadas), Q-28 a Q-31b, Q-33 a Q-37 integrados; Q-03 já estava no `main`; Q-04 dividido; Q-22 novo).
+Fila que o orquestrador consome ([`orquestracao.md`](orquestracao.md)). **Só o orquestrador edita este arquivo**, no commit de integração. Montada a partir de [`COMECE-AQUI.md`](COMECE-AQUI.md) §4–§5 e das pendências das specs. Última atualização: 2026-11-10 (Q-01, Q-02, Q-05, Q-04a, Q-04b, Q-06, Q-09, Q-22, Q-23/1–4, Q-24, Q-13a, Q-23 (12 rodadas), Q-28 a Q-31b, Q-26 e Q-33 a Q-37 integrados; Q-03 já estava no `main`; Q-04 dividido; Q-22 novo).
 
 - **Prioridade:** 1 = MVP e uso real primeiro; 2 = completa fase em curso; 3 = melhoria.
 - **Tier:** A Claude Opus · B Gemini 4 Argon (Antigravity) · B' GPT-6.1 Sol · C GPT-6 Luna ([tabela](orquestracao.md#2-roteamento-por-modelo)).
