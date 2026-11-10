@@ -62,7 +62,7 @@ export default function Agenda() {
               <Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/agenda/eventos.csv?${exportacao}`)}>Baixar CSV</Botao>
               <Botao variante="secundario" onClick={() => window.location.assign(`/api/empresas/${empresaId}/agenda/eventos.xlsx?${exportacao}`)}>Baixar Excel</Botao>
             </> : null}
-            <span className="flex items-center gap-2"><Botao variante="secundario" disabled>Importar planilha</Botao><Etiqueta cor="aviso">EM DESENVOLVIMENTO</Etiqueta></span>
+            <span className="flex flex-wrap items-center gap-2"><Botao variante="secundario" disabled>Importar planilha</Botao><Etiqueta cor="aviso">EM DESENVOLVIMENTO</Etiqueta></span>
           </>
         }
       />

@@ -64,8 +64,8 @@ export default function PaginaEdital() {
       <h2>Itens ({d.itens.length})</h2>
       <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {d.itens.map((i) => (
-          <div key={i.id} className={`flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left ${i.retirado ? 'opacity-55' : ''}`}>
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
+          <div key={i.id} className={`flex min-h-14 w-full flex-wrap items-center gap-3 px-4 py-3 text-left ${i.retirado ? 'opacity-55' : ''}`}>
+            <span className="flex min-w-48 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
               <strong>Item {i.numeroItem}{i.retirado ? ' (retirado em retificação)' : ''}</strong>
               <span><bdi>{i.descricao}</bdi></span>
               <span className="text-sm text-tertiary [overflow-wrap:anywhere]">{i.quantidade ?? '—'} {i.unidadeMedida ?? ''} · unitário {moeda(i.valorUnitario)} · total {moeda(i.valorTotal)}</span>
@@ -78,8 +78,8 @@ export default function PaginaEdital() {
       <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary">
         {d.versoes.map((v) => (
           <div key={v.versao} className="flex flex-col gap-3 px-4 py-3">
-            <div className="flex min-h-10 w-full items-center gap-3 text-left">
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
+            <div className="flex min-h-10 w-full flex-wrap items-center gap-3 text-left">
+              <span className="flex min-w-48 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
                 <strong>Versão {v.versao}</strong>
                 <span className="text-sm text-tertiary [overflow-wrap:anywhere]">{quando(v.coletadaEm)}{v.camposAlterados.length ? ` · mudou: ${v.camposAlterados.map((c) => CAMPO[c] ?? c).join(', ')}` : ' · primeira coleta'}</span>
               </span>

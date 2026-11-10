@@ -235,16 +235,18 @@ export function DocumentosPosteriores({
 
         {podeEditar && veDocs ? (
           <div className="flex flex-wrap items-end gap-3 border-t border-secondary pt-3">
-            <Campo
-              rotulo="Data da apresentação da habilitação"
-              type="date"
-              value={dataHabilitacao}
-              onChange={setDataHabilitacao}
-            />
+            <div className="w-full min-w-0 sm:w-64">
+              <Campo
+                rotulo="Data da apresentação da habilitação"
+                type="date"
+                value={dataHabilitacao}
+                onChange={setDataHabilitacao}
+              />
+            </div>
             <Botao variante="secundario" carregando={enviando} onClick={() => void registrarFotoHabilitacao()}>
               Registrar habilitação apresentada
             </Botao>
-            <Legenda>Fixa as versões liberadas do checklist documental nesta data (não muda se o documento for renovado depois).</Legenda>
+            <Legenda className="w-full">Fixa as versões liberadas do checklist documental nesta data (não muda se o documento for renovado depois).</Legenda>
           </div>
         ) : null}
 
@@ -452,12 +454,14 @@ export function DocumentosPosteriores({
 
               {removendoId === item.id ? (
                 <div className="flex flex-wrap items-end gap-2 border-t border-secondary pt-2">
-                  <Campo
-                    rotulo="Motivo da remoção (mínimo 5 caracteres)"
-                    value={motivoRemocao}
-                    onChange={setMotivoRemocao}
-                    maxLength={500}
-                  />
+                  <div className="w-full min-w-0 sm:min-w-64 sm:flex-1">
+                    <Campo
+                      rotulo="Motivo da remoção (mínimo 5 caracteres)"
+                      value={motivoRemocao}
+                      onChange={setMotivoRemocao}
+                      maxLength={500}
+                    />
+                  </div>
                   <Botao
                     variante="perigo"
                     carregando={enviando}

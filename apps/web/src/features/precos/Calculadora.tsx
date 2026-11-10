@@ -119,18 +119,18 @@ function HistoricoPrecosPncp({ empresaId, descricaoInicial }: { empresaId: strin
               <li key={it.id} className="flex flex-col gap-1 p-3 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <strong className="text-primary">{reais(it.valorUnitario, 4)} <span className="font-normal text-tertiary">/ {it.item.unidade ?? 'UN'}</span></strong>
-                  <span className="text-xs text-tertiary">{it.edital.orgao ?? 'Órgão'}{it.edital.uf ? ` (${it.edital.uf})` : ''}</span>
+                  <span className="text-xs text-tertiary [overflow-wrap:anywhere]">{it.edital.orgao ?? 'Órgão'}{it.edital.uf ? ` (${it.edital.uf})` : ''}</span>
                 </div>
-                <span className="text-secondary">
+                <span className="text-secondary [overflow-wrap:anywhere]">
                   <bdi>{it.item.descricao}</bdi>
                   {it.marca || it.modelo ? ` · Marca/modelo: ${[it.marca, it.modelo].filter(Boolean).join(' ')}` : ''}
                 </span>
-                <span className="text-xs text-tertiary">
+                <span className="text-xs text-tertiary [overflow-wrap:anywhere]">
                   Vencedora: {it.fornecedor.tipo === 'pessoa_fisica' ? 'Pessoa física (ocultado pela LGPD)' : (it.fornecedor.nome ?? 'Não informado')}
                   {it.fornecedor.cnpj ? ` (${it.fornecedor.cnpj})` : ''}
                 </span>
                 {it.privado ? (
-                  <span className="text-xs font-medium text-brand-secondary">
+                  <span className="text-xs font-medium text-brand-secondary [overflow-wrap:anywhere]">
                     Nossa participação neste item: oferta {reais(it.privado.nossaOferta, 4)}
                     {it.privado.nossoCustoUnitario ? ` · custo ${reais(it.privado.nossoCustoUnitario, 4)}` : ''}
                     {it.privado.nossaMargem ? ` · margem ${pct(it.privado.nossaMargem)}` : ''}
@@ -198,7 +198,7 @@ function Linhas({ empresaId, p, linhas, podeEditar, podeAprovar, aoMudar }: { em
         <ul className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl ring-1 ring-secondary">
           {linhas.map((l) => (
             <li key={l.id} className="flex flex-wrap items-center gap-3 p-3">
-              <span className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere]"><strong className="text-primary"><bdi>{l.nome}</bdi></strong> · {TIPO_LINHA[l.tipo] ?? l.tipo} · {l.categoria === 'custo' ? `${reais(l.valor, 4)} ${l.forma === 'total_lote' ? 'no lote todo' : 'por unidade'}` : `${pct(l.percentual)} sobre o preço`}</span>
+              <span className="w-full min-w-0 text-sm [overflow-wrap:anywhere] sm:flex-1"><strong className="text-primary"><bdi>{l.nome}</bdi></strong> · {TIPO_LINHA[l.tipo] ?? l.tipo} · {l.categoria === 'custo' ? `${reais(l.valor, 4)} ${l.forma === 'total_lote' ? 'no lote todo' : 'por unidade'}` : `${pct(l.percentual)} sobre o preço`}</span>
               {l.validadoEm ? <Etiqueta cor="sucesso">🧾 validado por {l.validadoPor}</Etiqueta> : l.tipo === 'tributo' ? <Etiqueta cor="aviso">🧾 não validado pelo contador</Etiqueta> : null}
               {podeAprovar && !l.validadoEm ? <Botao variante="secundario" disabled={enviando} onClick={() => void enviar(async () => { await chamar('POST', `/empresas/${empresaId}/preco-linhas/${l.id}/validar`); aoMudar() })}>Marcar como validado</Botao> : null}
               {podeEditar ? <Botao variante="texto" disabled={enviando} onClick={() => void enviar(async () => { await chamar('DELETE', `/empresas/${empresaId}/preco-linhas/${l.id}`); aoMudar() })}>Remover</Botao> : null}

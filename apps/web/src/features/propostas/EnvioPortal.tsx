@@ -191,7 +191,7 @@ export function EnvioPortal({
           {envios.map((e) => (
             <li key={e.id} className="flex flex-col gap-2 rounded-lg bg-primary p-3 text-sm ring-1 ring-secondary">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className={e.anulado ? 'line-through text-tertiary' : 'font-medium text-primary'}>
+                <span className={`min-w-0 [overflow-wrap:anywhere] ${e.anulado ? 'line-through text-tertiary' : 'font-medium text-primary'}`}>
                   Enviado em {dataHoraSP(e.enviadoEm)} · {e.formato.toUpperCase()}
                   {e.portal ? ` · ${e.portal}` : ''}
                   {e.identificadorPortal ? ` · protocolo/recibo ${e.identificadorPortal}` : ''}

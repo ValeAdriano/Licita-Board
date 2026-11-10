@@ -7,7 +7,7 @@ const COR = { cinza: 'gray', aviso: 'warning', sucesso: 'success', erro: 'error'
 // Selo (badge) do Untitled UI para estado e classificação.
 export function Etiqueta({ cor = 'cinza', children }: { cor?: Cor; children: ReactNode }) {
   return (
-    <Badge type="pill-color" size="md" color={COR[cor]}>
+    <Badge type="pill-color" size="md" color={COR[cor]} className="max-w-full whitespace-normal [overflow-wrap:anywhere]">
       {children}
     </Badge>
   )

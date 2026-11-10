@@ -31,7 +31,7 @@ export function Botao({ variante = 'primario', cheio, carregando, disabled, onCl
       showTextWhileLoading
       isDisabled={disabled}
       onPress={onClick}
-      className={[cheio && 'w-full', className].filter(Boolean).join(' ')}
+      className={['max-w-full whitespace-normal [overflow-wrap:anywhere]', cheio && 'w-full', className].filter(Boolean).join(' ')}
     >
       {children}
     </Button>

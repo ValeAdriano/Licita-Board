@@ -99,6 +99,6 @@ export function EnviarAnexo({ empresaId, base, destino, aoVincular }: {
     <Campo rotulo="Validade do documento (opcional)" type="date" value={validade} onChange={setValidade} disabled={ocupado} />
     <p role="status" className="text-sm text-secondary [overflow-wrap:anywhere]">{tipos.carregando ? 'Carregando tipos…' : msg}</p>
     <Botao carregando={ocupado} disabled={!tipo || !arquivo || !!pendente} onClick={() => void enviar()}>Enviar e vincular</Botao>
-    {pendente && !ocupado ? <><Botao onClick={() => { setErro(null); setOcupado(true); setRetentativa((n) => n + 1) }}>Tentar verificar e vincular novamente</Botao><Botao variante="texto" onClick={() => { sessionStorage.removeItem(chavePendencia); setPendente(null); setMsg('Pendência descartada. O arquivo continua no repositório de Documentos.'); setOcupado(false); trava.current = false }}>Descartar pendência</Botao></> : null}
+    {pendente && !ocupado ? <div className="flex flex-wrap items-center gap-2"><Botao onClick={() => { setErro(null); setOcupado(true); setRetentativa((n) => n + 1) }}>Tentar verificar e vincular novamente</Botao><Botao variante="texto" onClick={() => { sessionStorage.removeItem(chavePendencia); setPendente(null); setMsg('Pendência descartada. O arquivo continua no repositório de Documentos.'); setOcupado(false); trava.current = false }}>Descartar pendência</Botao></div> : null}
   </div>
 }

@@ -78,8 +78,8 @@ function EquipeDaEmpresa({ empresa }: { empresa: Vinculo }) {
           </div>
           <div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary md:hidden">
             {usuarios.dados.map((m) => (
-              <button key={m.vinculoId} type="button" className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left" onClick={() => setEditando(m.vinculoId)}>
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
+              <button key={m.vinculoId} type="button" className="flex min-h-14 w-full flex-wrap items-center gap-3 px-4 py-3 text-left" onClick={() => setEditando(m.vinculoId)}>
+                <span className="flex min-w-40 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
                   <strong>{m.nome || m.email}</strong>
                   <span className="text-sm text-tertiary [overflow-wrap:anywhere]">{m.email}</span>
                 </span>
@@ -97,8 +97,8 @@ function EquipeDaEmpresa({ empresa }: { empresa: Vinculo }) {
                 <Table aria-label="Convites pendentes" size="sm"><Table.Header><Table.Head id="email" isRowHeader label="E-mail" /><Table.Head id="papel" label="Papel e validade" /><Table.Head id="acao" label="Ações" /></Table.Header><Table.Body items={pendentes.map((c) => ({ ...c, key: c.id }))}>{(c) => <Table.Row id={c.id}><Table.Cell>{c.email}</Table.Cell><Table.Cell>{rotuloPapel(c.papel)} · expira em {new Date(c.expiraEm).toLocaleDateString('pt-BR')}</Table.Cell><Table.Cell>{podeAdministrar ? <Botao variante="secundario" onClick={() => void revogar(c.id)}>Revogar convite</Botao> : null}</Table.Cell></Table.Row>}</Table.Body></Table>
               </div><div className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl bg-primary shadow-xs ring-1 ring-secondary md:hidden">
                 {pendentes.map((c) => (
-                  <div key={c.id} className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left">
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
+                  <div key={c.id} className="flex min-h-14 w-full flex-wrap items-center gap-3 px-4 py-3 text-left">
+                    <span className="flex min-w-40 flex-1 flex-col gap-0.5 [overflow-wrap:anywhere]">
                       <strong>{c.email}</strong>
                       <span className="text-sm text-tertiary [overflow-wrap:anywhere]">
                         {rotuloPapel(c.papel)} · expira em {new Date(c.expiraEm).toLocaleDateString('pt-BR')}

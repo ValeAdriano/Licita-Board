@@ -65,7 +65,7 @@ function Cartao({ empresaId, p, d, podeCadastrar, podeEditar, podeAprovar, aoMud
   return (
     <section className="flex flex-col gap-3 rounded-xl bg-primary p-4 shadow-xs ring-1 ring-secondary md:p-6" aria-label={`Proposta versão ${p.versao}`}>
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="min-w-0 flex-1">Proposta · versão {p.versao}</h2>
+        <h2 className="w-full min-w-0 sm:flex-1">Proposta · versão {p.versao}</h2>
         {p.ultimoEnvio ? <Etiqueta cor="sucesso">Enviada em {dataHoraSP(p.ultimoEnvio.enviadoEm)}</Etiqueta> : null}
         <Etiqueta cor={cor}>{rotulo}</Etiqueta>
       </div>
@@ -74,7 +74,7 @@ function Cartao({ empresaId, p, d, podeCadastrar, podeEditar, podeAprovar, aoMud
       <ul className="flex flex-col divide-y divide-secondary overflow-hidden rounded-xl ring-1 ring-secondary">
         {p.conteudo.map((i) => (
           <li key={i.numero_item} className="flex flex-wrap items-center gap-2 p-3 text-sm">
-            <span className="min-w-0 flex-1 [overflow-wrap:anywhere]"><strong>Item {i.numero_item}</strong> · <bdi>{i.descricao}</bdi>{i.marca ? ` · ${i.marca} ${i.modelo ?? ''}` : ''}</span>
+            <span className="w-full min-w-0 [overflow-wrap:anywhere] sm:flex-1"><strong>Item {i.numero_item}</strong> · <bdi>{i.descricao}</bdi>{i.marca ? ` · ${i.marca} ${i.modelo ?? ''}` : ''}</span>
             <span className="text-secondary">{semZeros(i.quantidade)} × {reais(i.valor_unitario, i.casas)} = <strong className="text-primary">{reais(i.valor_total)}</strong></span>
           </li>
         ))}
