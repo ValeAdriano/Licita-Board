@@ -111,3 +111,4 @@ Plano de blocos (modo rápido): (1) S3 de desenvolvimento (SeaweedFS) no compose
 
 
 - Q-23, rodada 11: matriz e2e A x B das 10 rotas de documentos e 3 de atestados em `pesquisa.e2e-spec.ts`, nos dois sentidos, fixtures por caso, UUID inexistente, snapshot por hash e assinatura S3 simulada. POST de atestado com documento alheio pela própria empresa: desde o Q-34 responde 404 (checagem prévia na API, mesmo filtro da FK), indistinguível de documento inexistente; leituras de versões/pendências retornam lista vazia. Checklist fora desta rodada.
+- **Ensaio com ClamAV real (2026-11-10, orquestrador):** pela API de dev, usuário de teste; limpo → liberado; `.docx` com EICAR → bloqueado por "antivírus: Eicar-Test-Signature"; EICAR solto → bloqueado antes, por tipo real. Ordem real da verificação: tamanho → tipo → antivírus → SHA-256.

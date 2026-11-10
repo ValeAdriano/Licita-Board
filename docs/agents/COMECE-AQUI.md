@@ -38,6 +38,7 @@ PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # 
 - pytest com banco usa o CNPJ fixo `11222333000181`: teste que deixa empresa para trás quebra os outros com `empresas_cnpj_key`; gere CNPJ válido próprio (como `test_checklist.py`).
 - e2e `auth › força bruta` falha às vezes na suíte inteira (passa sozinho).
 - CSP estrita: sem `data:` em imagens, sem `style=` inline; o hash do `<style>` do react-aria está no Caddyfile (ADR-020).
+- **ClamAV real ensaiado (2026-11-10)** pela API de dev, com o usuário de teste: PDF e `.docx` limpos → `liberado`; `.docx` com EICAR interno → `bloqueado` ("antivírus: Eicar-Test-Signature", `FOUND` no log do ClamAV). EICAR solto para antes, no tipo real (`text/plain`). O upload do contrato (Q-09) usa o mesmo fluxo.
 - Coleta PNCP está **desligada** para poupar disco: `update ops.fontes set ativa = true where slug = 'pncp'` religa.
 
 Plano de marcos, MVP e sprints: [`../roadmap-marcos.md`](../roadmap-marcos.md) (próximo sprint: S5 · Endurecimento).

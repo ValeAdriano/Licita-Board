@@ -15,7 +15,7 @@ Python 3.12, `uv`, FastAPI (só `/health`), Pydantic v2, Ruff, mypy strict, pyte
 - **Dinheiro em `Decimal`.** `float` é bloqueado em `rules/` por hook e Semgrep. Quantize com a regra de arredondamento do edital.
 - **IA:** só via `llm/`. Texto externo entra delimitado como dado; o modelo não tem ferramentas de escrita; saída validada por Pydantic; inválida vira `A CONFIRMAR`. Registrar modelo, versão do prompt e custo em `ops.llm_execucoes`. Não enviar custo, margem ou dado pessoal.
 - **Conectores:** um por fonte, isolados. Retry com backoff, `User-Agent` identificado, respeito a termos de uso. Teste com fixture gravada, nunca rede real no CI.
-- **Arquivos externos** (editais, anexos, uploads): quarentena → ClamAV → tipo real (`python-magic`) → tamanho → SHA-256 → bucket definitivo. Nunca executar nem renderizar conteúdo.
+- **Arquivos externos** (editais, anexos, uploads): quarentena → tamanho → tipo real (`python-magic`, lista permitida) → ClamAV → SHA-256 → bucket definitivo (ordem de `documentos.verificar`; o primeiro problema bloqueia). Nunca executar nem renderizar conteúdo. Para ensaiar o ClamAV real, o EICAR precisa estar dentro de um tipo permitido (ex.: arquivo interno de um `.docx`): EICAR solto para no tipo real.
 - Logs JSON via `worker.logging`, sem PII. Datas sempre com fuso (`ruff` regra DTZ).
 
 ## Checks
