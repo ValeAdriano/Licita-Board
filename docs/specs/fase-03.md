@@ -53,7 +53,7 @@ Status calculado por view `priv.documentos_status` (security_invoker) a partir d
 3. Substituir arquivo = nova versão (`documentos/substituir_arquivos`); a anterior fica legível no histórico.
 4. Alertas por job diário do worker, idempotente por (versão, marco); marcos conforme o tipo; destinatários: usuários com `documentos/visualizar` e responsável.
 5. "Atualizar": sem integração oficial, cria pendência com instruções e o link do emissor (Receita, PGFN, TST, Caixa, SEFAZ/prefeitura); só quando um arquivo novo é anexado e liberado a pendência fecha como `sucesso`; senão `falha` registrada. **Proibido** simular renovação, contornar CAPTCHA ou usar credencial de terceiro.
-6. ⚖️ **VALIDAR JURÍDICO:** texto de sinalização ME/EPP (LC 123, art. 43 §1º: regularização fiscal tardia **não** dispensa o documento) e quantos balanços são exigíveis por edital (parâmetro do edital, não regra fixa).
+6. **Decidido (Adriano, 2026-11-10, Q-25):** o aviso ME/EPP vale também para MEI (só alerta, nunca dispensa documento) e o checklist pede só `documentos/visualizar` e `documentos/editar`, sem `agenda/visualizar`. ⚖️ **VALIDAR JURÍDICO:** texto de sinalização ME/EPP (LC 123, art. 43 §1º: regularização fiscal tardia **não** dispensa o documento) e quantos balanços são exigíveis por edital (parâmetro do edital, não regra fixa).
 7. Texto de nome de arquivo e descrição é dado, nunca instrução; exibido como texto.
 8. Nenhum arquivo em `quarentena/` é servido; documento `bloqueado` não tem download.
 
