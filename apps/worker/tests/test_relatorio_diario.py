@@ -4,12 +4,13 @@ import datetime as dt
 import os
 import uuid
 from typing import Any
+from unittest.mock import MagicMock
 
 import psycopg
 import pytest
 
 from tests.test_coleta import _admin
-from worker.email import Mensagem
+from worker.email import EnviadorSmtp, Mensagem
 from worker.fila import Handlers, processar_lote
 from worker.relatorio_diario import Secao, coletar, compor, enfileirar
 from worker.settings import Settings
@@ -30,6 +31,7 @@ def test_compor_lista_as_secoes_sem_valor_financeiro_e_aponta_o_app() -> None:
     assert (
         "Pendências\n  - 2 proposta(s) pendente(s)." in m.texto and "https://app.teste/" in m.texto
     )
+    assert m.html is not None and "2 proposta(s) pendente(s)." in m.html
     assert "R$" not in m.texto and "validação pelo jurídico" in m.texto
 
 
@@ -112,6 +114,15 @@ def cena() -> Any:
         ed,
         it,
     )
+    _admin("update pub.edital_itens set created_at = %s where id = %s", AGORA, it)
+    _admin(
+        "insert into pub.edital_versoes (edital_id, versao, coletada_em, hash_conteudo, conteudo) "
+        "values (%s, 2, %s, repeat('b', 64), '{}'), (%s, 3, %s, repeat('c', 64), '{}')",
+        ed,
+        AGORA,
+        ed,
+        AGORA,
+    )
     ac = _admin(
         "insert into priv.acompanhamentos (empresa_id, edital_id, data_abertura) values (%s, %s, %s) returning id",
         emp,
@@ -129,7 +140,13 @@ def cena() -> Any:
         emp,
         ac,
     )
-    yield {"emp": emp, "completo": completo, "so_juridico": so_juridico, "sem_nada": sem_nada}
+    yield {
+        "ed": ed,
+        "emp": emp,
+        "completo": completo,
+        "so_juridico": so_juridico,
+        "sem_nada": sem_nada,
+    }
     _admin("delete from priv.relatorio_diario_assinaturas")
     _admin("delete from priv.sugestoes_pecas")
     _admin("delete from priv.agenda_eventos")
@@ -150,10 +167,16 @@ def test_cada_pessoa_so_recebe_as_secoes_dos_modulos_que_pode_ver(cena: Any) -> 
         completo = titulos(cena["completo"])
         assert {
             "Oportunidades",
+            "Novos itens",
+            "Editais alterados",
             "Disputas nos próximos 7 dias",
             "Prazos jurídicos (próximos 7 dias e vencidos)",
             "Jurídico",
         } <= completo
+        secoes = coletar(conn, cena["completo"], cena["emp"], AGORA)
+        for secao in secoes:
+            if secao.titulo in {"Novos itens", "Editais alterados"}:
+                assert secao.linhas == ["PNCP · Portal Nacional de Contratações Públicas: 1."]
         assert titulos(cena["so_juridico"]) == {"Jurídico"}
         assert titulos(cena["sem_nada"]) == set()  # contratos sem nada a relatar: nada a enviar
 
@@ -188,3 +211,90 @@ def test_fila_envia_uma_vez_por_dia_so_para_assinatura_ativa(cena: Any) -> None:
         "select count(*) from priv.relatorio_diario_assinaturas where ultimo_envio is not null"
     )[0][0]
     assert ultimos == 2
+
+
+def test_html_escapa_dados_hostis() -> None:
+    m = compor("a@b.test", '<script>"&', [Secao("<script>", ['"<img>&'])], HOJE, "https://app.test")
+    assert m.html is not None
+    assert "<script>" not in m.html and "<img>" not in m.html
+    assert "&lt;script&gt;&quot;&amp;" in m.html
+    assert "&quot;&lt;img&gt;&amp;" in m.html
+
+
+def test_smtp_envia_multipart(monkeypatch: pytest.MonkeyPatch) -> None:
+    smtp = MagicMock()
+    monkeypatch.setattr("worker.email.smtplib.SMTP", smtp)
+    m = compor(
+        "a@b.test", "Empresa", [Secao("Novos itens", ["PNCP: 2."])], HOJE, "https://app.test"
+    )
+    EnviadorSmtp(Settings()).enviar(m)
+    enviado = smtp.return_value.__enter__.return_value.send_message.call_args.args[0]
+    assert enviado.get_content_type() == "multipart/alternative"
+    partes = list(enviado.iter_parts())
+    assert [p.get_content_type() for p in partes] == ["text/plain", "text/html"]
+    assert partes[0].get_content().strip() == m.texto.strip()
+    assert partes[1].get_content().strip() == m.html
+
+
+@pytestmark_db
+def test_janela_de_24h_e_empresa_sem_vinculo(cena: Any) -> None:
+    with psycopg.connect(os.environ["VV_DATABASE_URL_TEST"]) as conn:
+        for instante in (AGORA - dt.timedelta(seconds=1), AGORA + dt.timedelta(hours=24)):
+            titulos = {s.titulo for s in coletar(conn, cena["completo"], cena["emp"], instante)}
+            assert not {"Novos itens", "Editais alterados"} & titulos
+        assert coletar(conn, cena["completo"], uuid.uuid4(), AGORA) == []
+
+
+@pytestmark_db
+def test_contagens_separadas_por_fonte_sem_valores(cena: Any) -> None:
+    fonte = _admin(
+        "insert into ops.fontes (slug, nome, url_base, tipo_integracao) "
+        "values (%s, 'Fonte fictícia', 'https://exemplo.test', 'api_oficial') returning id",
+        "q40_" + uuid.uuid4().hex,
+    )[0][0]
+    ed = _admin(
+        "insert into pub.editais (fonte_id, id_externo, orgao_id, objeto, hash_conteudo, valor_estimado) "
+        "select %s, %s, orgao_id, objeto, hash_conteudo, 987654.3210 from pub.editais where id = %s returning id",
+        fonte,
+        str(uuid.uuid4()),
+        cena["ed"],
+    )[0][0]
+    for numero in (1, 2):
+        item = _admin(
+            "insert into pub.edital_itens (edital_id, numero_item, descricao, created_at) "
+            "values (%s, %s, 'Item fictício', %s) returning id",
+            ed,
+            numero,
+            AGORA,
+        )[0][0]
+        _admin(
+            "insert into priv.oportunidades (empresa_id, edital_id, item_id, nota, faixa, versao_regra, edital_versao) "
+            "values (%s, %s, %s, 90, 'alta', 'v1', 1)",
+            cena["emp"],
+            ed,
+            item,
+        )
+    with psycopg.connect(os.environ["VV_DATABASE_URL_TEST"]) as conn:
+        secoes = coletar(conn, cena["completo"], cena["emp"], AGORA)
+    novos = next(s for s in secoes if s.titulo == "Novos itens")
+    assert novos.linhas == [
+        "Fonte fictícia: 2.",
+        "PNCP · Portal Nacional de Contratações Públicas: 1.",
+    ]
+    msg = compor("a@b.test", "Empresa", secoes, HOJE, "https://app.test")
+    assert "987654" not in msg.texto and msg.html is not None and "987654" not in msg.html
+
+
+@pytestmark_db
+def test_retificacao_nao_conferida_continua_no_aviso(cena: Any) -> None:
+    _admin("update pub.editais set versao_atual = 3 where id = %s", cena["ed"])
+    with psycopg.connect(os.environ["VV_DATABASE_URL_TEST"]) as conn:
+        fora_da_janela = AGORA + dt.timedelta(hours=24)  # versões novas já fora das 24 h
+        secoes = {
+            s.titulo: s.linhas for s in coletar(conn, cena["completo"], cena["emp"], fora_da_janela)
+        }
+        assert secoes["Editais alterados"] == [
+            "1 edital(is) acompanhado(s) foram retificados e ainda não conferidos."
+        ]
+        secoes = {s.titulo: s.linhas for s in coletar(conn, cena["completo"], cena["emp"], AGORA)}
+        assert len(secoes["Editais alterados"]) == 2  # por fonte + aviso, na mesma seção

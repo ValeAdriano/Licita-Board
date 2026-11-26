@@ -7,6 +7,7 @@ O e-mail leva contagens, nomes públicos de órgão e links: nunca valor finance
 import datetime as dt
 import logging
 from dataclasses import dataclass, field
+from html import escape
 from typing import Any
 
 import psycopg
@@ -56,6 +57,40 @@ def coletar(
     secoes: list[Secao] = []
     ate = agora + dt.timedelta(days=7)
     with conn.cursor(row_factory=dict_row) as cur:
+        # As mesmas tabelas privadas já concedidas ao worker nas seções existentes.
+        for titulo, modulo, consulta in (
+            (
+                "Novos itens",
+                "editais",
+                "select f.nome as fonte, count(*) as n from pub.edital_itens i "
+                "join pub.editais e on e.id = i.edital_id join ops.fontes f on f.id = e.fonte_id "
+                "where i.created_at > %s and i.created_at <= %s and exists "
+                "(select 1 from priv.oportunidades o where o.empresa_id = %s "
+                "and o.edital_id = e.id and o.item_id = i.id and not o.retirado) "
+                "group by f.id, f.nome order by f.nome, f.id",
+            ),
+            (
+                "Editais alterados",
+                "agenda",
+                "select f.nome as fonte, count(*) as n from pub.editais e "
+                "join ops.fontes f on f.id = e.fonte_id where exists "
+                "(select 1 from pub.edital_versoes v where v.edital_id = e.id "
+                "and v.versao > 1 and v.coletada_em > %s and v.coletada_em <= %s) "
+                "and (exists (select 1 from priv.acompanhamentos a where a.edital_id = e.id "
+                "and a.empresa_id = %s and a.deleted_at is null) or exists "
+                "(select 1 from priv.oportunidades o where o.edital_id = e.id "
+                "and o.empresa_id = %s and not o.retirado)) "
+                "group by f.id, f.nome order by f.nome, f.id",
+            ),
+        ):
+            if ver(modulo):
+                params = (agora - dt.timedelta(hours=24), agora, empresa)
+                cur.execute(
+                    consulta, (*params, empresa) if titulo == "Editais alterados" else params
+                )
+                linhas = [f"{r['fonte']}: {r['n']}." for r in cur.fetchall()]
+                if linhas:
+                    secoes.append(Secao(titulo, linhas))
         if ver("editais"):
             cur.execute(
                 "select count(*) filter (where triagem = 'nova') as novas, "
@@ -92,12 +127,6 @@ def coletar(
             )
             disputas = cur.fetchall()
             cur.execute(
-                "select count(*) as n from priv.acompanhamentos a join pub.editais e on e.id = a.edital_id where a.empresa_id = %s and a.deleted_at is null "
-                "and a.status not in ('encerrado', 'desistiu') and a.edital_versao_vista < e.versao_atual",
-                (empresa,),
-            )
-            alterados = (cur.fetchone() or {"n": 0})["n"]
-            cur.execute(
                 "select ev.tipo, ev.data_limite_legal, g.razao_social as orgao from priv.agenda_eventos ev join priv.acompanhamentos a on a.id = ev.acompanhamento_id "
                 "join pub.editais e on e.id = a.edital_id join pub.orgaos g on g.id = e.orgao_id where ev.empresa_id = %s and ev.tipo = any(%s) and ev.status = any(%s) "
                 "and ev.data_limite_legal is not null and ev.data_limite_legal <= %s and a.deleted_at is null and a.status not in ('encerrado', 'desistiu') "
@@ -105,20 +134,24 @@ def coletar(
                 (empresa, list(JURIDICOS), list(ABERTOS), ate),
             )
             prazos = cur.fetchall()
+            cur.execute(
+                "select count(*) as n from priv.acompanhamentos a join pub.editais e on e.id = a.edital_id where a.empresa_id = %s and a.deleted_at is null "
+                "and a.status not in ('encerrado', 'desistiu') and a.edital_versao_vista < e.versao_atual",
+                (empresa,),
+            )
+            if alterados := (cur.fetchone() or {"n": 0})["n"]:
+                # Aviso aprovado antes do Q-40: fica até a pessoa conferir a retificação.
+                aviso = f"{alterados} edital(is) acompanhado(s) foram retificados e ainda não conferidos."
+                existente = next((s for s in secoes if s.titulo == "Editais alterados"), None)
+                if existente:
+                    existente.linhas.append(aviso)
+                else:
+                    secoes.append(Secao("Editais alterados", [aviso]))
             if disputas:
                 secoes.append(
                     Secao(
                         "Disputas nos próximos 7 dias",
                         [f"{d['orgao']} · {_dh(d['data_abertura'])}" for d in disputas],
-                    )
-                )
-            if alterados:
-                secoes.append(
-                    Secao(
-                        "Editais alterados",
-                        [
-                            f"{alterados} edital(is) acompanhado(s) foram retificados e ainda não conferidos."
-                        ],
                     )
                 )
             if prazos:
@@ -206,7 +239,18 @@ def compor(para: str, empresa: str, secoes: list[Secao], hoje: dt.date, app_url:
         "Os prazos seguem regras ainda em validação pelo jurídico: confira sempre o edital.\n"
         "Para parar de receber este resumo, desligue-o no Início (Relatório diário por e-mail).\n"
     )
-    return Mensagem(para=para, assunto=f"Relatório diário · {empresa} · {hoje:%d/%m}", texto=texto)
+    # Renderizar o próprio texto mantém conteúdo e avisos idênticos nas duas alternativas.
+    html = (
+        '<!doctype html><html lang="pt-BR"><body>'
+        + "".join(
+            "<p>" + escape(paragrafo).replace("\n", "<br>\n") + "</p>"
+            for paragrafo in texto.split("\n\n")
+        )
+        + "</body></html>"
+    )
+    return Mensagem(
+        para=para, assunto=f"Relatório diário · {empresa} · {hoje:%d/%m}", texto=texto, html=html
+    )
 
 
 def enfileirar(conn: psycopg.Connection[Any], hoje: dt.date) -> int:

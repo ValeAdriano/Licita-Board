@@ -12,6 +12,7 @@ class Mensagem:
     para: str
     assunto: str
     texto: str
+    html: str | None = None
 
 
 class Enviador(Protocol):
@@ -19,7 +20,7 @@ class Enviador(Protocol):
 
 
 class EnviadorSmtp:
-    """SMTP simples: Mailpit em dev, provedor transacional via SMTP em prod. Só texto."""
+    """SMTP simples: Mailpit em dev, provedor transacional via SMTP em prod. Texto com HTML opcional."""
 
     def __init__(self, settings: Settings) -> None:
         self._s = settings
@@ -30,6 +31,8 @@ class EnviadorSmtp:
         email["To"] = msg.para
         email["Subject"] = msg.assunto
         email.set_content(msg.texto)
+        if msg.html is not None:
+            email.add_alternative(msg.html, subtype="html")
         with smtplib.SMTP(self._s.smtp_host, self._s.smtp_port, timeout=15) as smtp:
             if self._s.smtp_starttls:
                 smtp.starttls(context=ssl.create_default_context())  # confere o certificado
