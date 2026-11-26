@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { useAcesso, type Vinculo } from '../features/acesso/contexto'
 import { Atestados } from '../features/acesso/cadastros/Atestados'
 import { Documentos } from '../features/acesso/cadastros/Documentos'
@@ -33,8 +34,9 @@ function CadastrosDaEmpresa({ empresa }: { empresa: Vinculo }) {
     { id: 'ia', rotulo: 'IA', visivel: pode('configuracoes', 'visualizar') },
   ]
   const visiveis = abas.filter((a) => a.visivel)
-  const [aba, setAba] = useState<Aba | null>(null)
-  const ativa = aba ?? visiveis[0]?.id
+  const [pedida] = useSearchParams()
+  const [aba, setAba] = useState<string | null>(pedida.get('aba'))
+  const ativa = (visiveis.find((a) => a.id === aba) ?? visiveis[0])?.id
   if (!ativa) return <p className="px-4 py-10 text-center text-sm text-tertiary">Você não tem permissão para ver os cadastros de {empresa.empresa}.</p>
   const id = empresa.empresaId
   return (

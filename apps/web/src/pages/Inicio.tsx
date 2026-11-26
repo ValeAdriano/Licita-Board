@@ -3,6 +3,7 @@ import { useAcesso } from '../features/acesso/contexto'
 import { ConvitesRecebidos } from '../features/acesso/equipe/ConvitesRecebidos'
 import { Painel } from '../features/dashboard/Painel'
 import { Link } from 'react-router'
+import { PrimeirosPassos } from '../features/onboarding/PrimeirosPassos'
 import { CentralDeTrabalho } from '../features/tarefas/CentralDeTrabalho'
 
 // Início: o painel da empresa selecionada (Fase 12). Cada indicador vem dos registros e só aparece para quem tem a permissão do módulo de origem.
@@ -14,6 +15,7 @@ export default function Inicio() {
       <ConvitesRecebidos />
       {empresa ? (
         <>
+          <PrimeirosPassos />
           <Atalhos />
           {pode('relatorios', 'visualizar') ? <CentralDeTrabalho /> : null}
           <Painel key={empresa.empresaId} empresaId={empresa.empresaId} />
