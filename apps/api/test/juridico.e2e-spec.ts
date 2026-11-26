@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SENHA, admin, lembrarMfa, stepUp, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
+import { admin, cnpjFicticio, contarJobs, criarEmpresa, criarUsuario, ipNovo, lembrarMfa, SENHA, servidor, stepUp, subirApp, totpDaUri, vincular } from './apoio.js';
 
 // Jurídico da Fase 10: base verificada, fluxo da peça com permissões, aprovação, protocolo humano, final imutável e A x B.
 describe('jurídico: fluxo e A x B', () => {
@@ -57,9 +57,9 @@ describe('jurídico: fluxo e A x B', () => {
     await http().post(`/empresas/${empA}/juridico/acompanhamentos/${acomp}/pecas`).set(bearer(leitor)).send({ tipo: 'impugnacao', titulo: 'Impugnação' }).expect(404);
     const r = await http().post(`/empresas/${empA}/juridico/acompanhamentos/${acomp}/pecas`).set(bearer(redator)).send({ tipo: 'impugnacao', titulo: 'Impugnação ao item 3', eventoId: evento }).expect(201);
     peca = (r.body as { id: string }).id;
-    const jobs = Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'processar_peca'`)).rows[0]?.count);
+    const jobs = (await contarJobs('processar_peca', [empA, empB]));
     await http().put(`/empresas/${empA}/juridico/pecas/${peca}/minuta`).set(bearer(redator)).send({ minuta: 'Violação do art. 165 da Lei 14.133/2021 pela cláusula 7.2.', clausulas: 'Cláusula 7.2, página 12' }).expect(202);
-    expect(Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'processar_peca'`)).rows[0]?.count)).toBe(jobs + 1);
+    expect((await contarJobs('processar_peca', [empA, empB]))).toBe(jobs + 1);
     const lista = (await http().get(`/empresas/${empA}/juridico/pecas`).set(bearer(leitor)).expect(200)).body as { id: string; status: string; prazoLegal: string | null }[];
     expect(lista.map((p) => [p.id, p.status, p.prazoLegal !== null])).toEqual([[peca, 'minuta', true]]); // prazo vem do evento da agenda
     await http().post(`/empresas/${empA}/juridico/pecas/${peca}/descartar`).set(bearer(redator)).send({ justificativa: 'curta' }).expect(400);

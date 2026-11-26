@@ -3,7 +3,7 @@ import request from 'supertest';
 import { createHash } from 'node:crypto';
 import { S3Servico } from '../src/documentos/s3.service.js';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { SENHA, admin, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
+import { admin, cnpjFicticio, criarEmpresa, criarUsuario, idsJobs, ipNovo, SENHA, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
 
 // A x B dos endpoints da Fase 03 (documentos, atestados) e da Fase 04 (oportunidades, edital, importação,
 // pesquisa manual, cobertura): empresa B nunca lê nem mexe no que é de A; quem não tem editais/visualizar
@@ -169,7 +169,7 @@ describe('A x B: documentos, atestados e pesquisa de editais', () => {
         const antes = await get(empresa, token, 'oportunidades?encerradas=1');
         const importacoes = await get(empresa, token, 'importacoes');
         const execucoes = (await admin.query('select id from ops.execucoes order by id')).rows;
-        const jobs = (await admin.query("select id from ops.jobs where tipo in ('importar_edital', 'coletar_fonte') order by id")).rows;
+        const jobs = (await idsJobs(['importar_edital', 'coletar_fonte'], [empA, empB], true));
         const rotas: { metodo: 'get' | 'post'; path: string; corpo?: object; recurso?: boolean }[] = [
           { metodo: 'get', path: 'oportunidades?encerradas=1' },
           { metodo: 'post', path: `oportunidades/${op}/triagem`, corpo: { triagem: 'descartada_pelo_usuario', motivo: 'Tentativa fictícia de invasão' }, recurso: true },
@@ -184,7 +184,7 @@ describe('A x B: documentos, atestados e pesquisa de editais', () => {
         expect(await get(empresa, token, 'oportunidades?encerradas=1')).toEqual(antes);
         expect(await get(empresa, token, 'importacoes')).toEqual(importacoes);
         expect((await admin.query('select id from ops.execucoes order by id')).rows).toEqual(execucoes);
-        expect((await admin.query("select id from ops.jobs where tipo in ('importar_edital', 'coletar_fonte') order by id")).rows).toEqual(jobs);
+        expect((await idsJobs(['importar_edital', 'coletar_fonte'], [empA, empB], true))).toEqual(jobs);
         expect(JSON.stringify(await get(outra, invasor, 'oportunidades?encerradas=1'))).not.toContain(op);
         expect(JSON.stringify(await get(outra, invasor, 'importacoes'))).not.toContain(criada.importacaoId);
       } finally {

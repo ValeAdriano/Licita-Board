@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SENHA, admin, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
+import { admin, contarJobs, criarEmpresa, criarUsuario, ipNovo, SENHA, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
 
 // Chave de IA por empresa: cifrada antes do banco, nunca devolvida, só quem configura edita, A x B.
 describe('chave de IA: sigilo, permissão e A x B', () => {
@@ -59,10 +59,10 @@ describe('chave de IA: sigilo, permissão e A x B', () => {
   it('modelo, teste (job do worker; a API não chama o provedor) e remoção exigem configuracoes/editar', async () => {
     await http().post(`/empresas/${empA}/ia/modelo`).set(bearer(a)).send({ modelo: 'claude-opus-5-5' }).expect(204);
     await http().post(`/empresas/${empA}/ia/modelo`).set(bearer(leitor)).send({ modelo: 'claude-opus-5-5' }).expect(404);
-    const antes = Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'testar_chave_ia'`)).rows[0]?.count);
+    const antes = (await contarJobs('testar_chave_ia', [empA, empB]));
     await http().post(`/empresas/${empA}/ia/testar`).set(bearer(leitor)).expect(404);
     await http().post(`/empresas/${empA}/ia/testar`).set(bearer(a)).expect(202);
-    expect(Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'testar_chave_ia'`)).rows[0]?.count)).toBe(antes + 1);
+    expect((await contarJobs('testar_chave_ia', [empA, empB]))).toBe(antes + 1);
     expect(((await http().get(`/empresas/${empA}/ia`).set(bearer(a)).expect(200)).body as { testeStatus: string }).testeStatus).toBe('pendente');
   });
 

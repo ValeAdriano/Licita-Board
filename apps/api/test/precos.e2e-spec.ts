@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SENHA, admin, lembrarMfa, stepUp, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
+import { admin, cnpjFicticio, contarJobs, criarEmpresa, criarUsuario, idsJobs, ipNovo, lembrarMfa, SENHA, servidor, stepUp, subirApp, totpDaUri, vincular } from './apoio.js';
 
 // Formação de preços da Fase 07: custos como string decimal, sigilo (ver_custos_margens), alçada e A x B de cada endpoint.
 describe('preços: fluxo, sigilo e A x B', () => {
@@ -45,10 +45,10 @@ describe('preços: fluxo, sigilo e A x B', () => {
 
   it('cria a precificação (quantidade e estimado vêm do item), recusa number e valores fora do limite', async () => {
     await http().post(`/empresas/${empA}/participacoes/${part}/preco`).set(bearer(a)).send({ quantidade: 5 }).expect(400); // number não é aceito
-    const antes = Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'calcular_preco'`)).rows[0]?.count);
+    const antes = (await contarJobs('calcular_preco', [empA, empB]));
     const r = await http().post(`/empresas/${empA}/participacoes/${part}/preco`).set(bearer(editor)).send({}).expect(201);
     prec = (r.body as { id: string }).id;
-    expect(Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'calcular_preco'`)).rows[0]?.count)).toBe(antes + 1);
+    expect((await contarJobs('calcular_preco', [empA, empB]))).toBe(antes + 1);
     const d = (await http().get(`/empresas/${empA}/participacoes/${part}/preco`).set(bearer(a)).expect(200)).body as { precificacao: { id: string; quantidade: string; valorEstimadoUnit: string }; item: { valorUnitarioEstimado: string } };
     expect([d.precificacao.id, d.precificacao.quantidade, d.precificacao.valorEstimadoUnit]).toEqual([prec, '10.0000', '200.0000']);
     expect(d.item.valorUnitarioEstimado).toBe('200.0000');
@@ -210,7 +210,7 @@ describe('preços: fluxo, sigilo e A x B', () => {
       expect(positivo.linhas[0]?.valor).toBe('9876.5432');
       expect(typeof positivo.precificacao.quantidade).toBe('string');
       const antes = await get();
-      const jobs = (await admin.query("select id from ops.jobs where tipo = 'calcular_preco' order by id")).rows;
+      const jobs = (await idsJobs(['calcular_preco'], [empA, empB]));
       const rotas: { metodo: 'get' | 'post' | 'delete'; path: string; corpo?: object }[] = [
         { metodo: 'get', path: `participacoes/${id}/preco` },
         { metodo: 'get', path: `participacoes/${id}/historico-sugerido` },
@@ -228,7 +228,7 @@ describe('preços: fluxo, sigilo e A x B', () => {
         }
       }
       expect(await get()).toEqual(antes);
-      expect((await admin.query("select id from ops.jobs where tipo = 'calcular_preco' order by id")).rows).toEqual(jobs);
+      expect((await idsJobs(['calcular_preco'], [empA, empB]))).toEqual(jobs);
     });
   }
 

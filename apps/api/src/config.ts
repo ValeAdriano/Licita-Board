@@ -32,6 +32,9 @@ const esquema = z.object({
     ),
   // Autocadastro (POST /auth/cadastro). Vazio = só em VV_ENV=dev; o banco também precisa estar com vv.cadastro='aberto'.
   CADASTRO_ABERTO: z.stringbool().optional(),
+  // Conexões do pool com o banco por instância da API. O papel vv_api tem connection limit 30
+  // (db/init/01_papeis.sql.inc): a soma dos pools de todas as instâncias precisa ficar abaixo disso.
+  DB_POOL_MAX: z.coerce.number().int().min(1).max(30).default(10),
   // Atraso fixo na resposta de login recusado (ms): iguala senha errada e corrida perdida.
   LOGIN_ATRASO_MS: z.coerce.number().int().min(0).max(1000).default(250),
   // Senha vazada (HIBP, k-anonymity). Vazio = só a lista local (testes, sem rede).

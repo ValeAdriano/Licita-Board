@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SENHA, admin, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
+import { admin, cnpjFicticio, contarJobs, criarEmpresa, criarUsuario, ipNovo, SENHA, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
 
 // Agenda da Fase 05: fluxo (acompanhar, confirmar abertura, participações, override, status) e A x B de cada endpoint.
 describe('agenda: fluxo e A x B', () => {
@@ -50,11 +50,11 @@ describe('agenda: fluxo e A x B', () => {
   });
 
   it('confirmar abertura enfileira o recálculo (a API não calcula) e exige a data', async () => {
-    const antes = Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'calcular_prazos'`)).rows[0]?.count);
+    const antes = (await contarJobs('calcular_prazos', [empA, empB]));
     await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/abertura`).set(bearer(a)).send({ origem: 'edital' }).expect(400);
     await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/abertura`).set(bearer(a))
       .send({ data: '2026-12-16T10:00:00-03:00', origem: 'edital', clausula: 'item 4.1' }).expect(202);
-    expect(Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'calcular_prazos'`)).rows[0]?.count)).toBe(antes + 1);
+    expect((await contarJobs('calcular_prazos', [empA, empB]))).toBe(antes + 1);
     expect((await admin.query(`select abertura_confirmada, confiabilidade from priv.acompanhamentos where id = $1`, [acomp])).rows[0]).toEqual({ abertura_confirmada: true, confiabilidade: 'alta' });
   });
 

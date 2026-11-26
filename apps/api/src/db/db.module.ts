@@ -19,7 +19,7 @@ export const DB = Symbol('DB');
       useFactory: (config: Config) =>
         new Kysely<Database>({
           dialect: new PostgresDialect({
-            pool: new Pool({ connectionString: config.DATABASE_URL, max: 10 }),
+            pool: new Pool({ connectionString: config.DATABASE_URL, max: config.DB_POOL_MAX }),
           }),
         }),
     },

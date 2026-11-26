@@ -39,7 +39,7 @@ Claude Code: hooks rodam os testes relacionados a cada edição e os afetados pe
 - Nova tabela `priv` com `on delete cascade` para `core.empresas` entra na lista do pgTAP `080_exclusao_dupla_aprovacao`.
 - Postgres separado para um worker (ex.: porta 5434): a imagem `vv-licitacoes-postgres` só sobe com `VV_OWNER_PASSWORD`, `VV_API_PASSWORD`, `VV_WORKER_PASSWORD` e `VV_DB` definidos (sem eles sai logo depois do initdb).
 - pytest com banco usa o CNPJ fixo `11222333000181`: teste que deixa empresa para trás quebra os outros com `empresas_cnpj_key`; gere CNPJ válido próprio (como `test_checklist.py`).
-- e2e `auth › força bruta` falha às vezes na suíte inteira (passa sozinho).
+- e2e em paralelo (Q-45, resolvido em 2026-11-26): o papel `vv_api` tem `connection limit 30`; o e2e usa `DB_POOL_MAX=3` por API e `npm run test:e2e` limita a 6 arquivos simultâneos (rode por ele, não por `npx vitest` direto). Conte jobs com `idsJobs`/`contarJobs` de `test/apoio.ts` (filtram pelas empresas do arquivo) e use `ipNovo()` (um /64 IPv6 por chamada). Sintoma antigo: login 500 em rajadas e contagens de job erradas, só na suíte inteira.
 - CSP estrita: sem `data:` em imagens, sem `style=` inline; o hash do `<style>` do react-aria está no Caddyfile (ADR-020).
 - **ClamAV real ensaiado (2026-11-10)** pela API de dev, com o usuário de teste: PDF e `.docx` limpos → `liberado`; `.docx` com EICAR interno → `bloqueado` ("antivírus: Eicar-Test-Signature", `FOUND` no log do ClamAV). EICAR solto para antes, no tipo real (`text/plain`). O upload do contrato (Q-09) usa o mesmo fluxo.
 - Coleta PNCP está **desligada** para poupar disco: `update ops.fontes set ativa = true where slug = 'pncp'` religa.

@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SENHA, admin, lembrarMfa, stepUp, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
+import { admin, cnpjFicticio, contarJobs, criarEmpresa, criarUsuario, idsJobs, ipNovo, lembrarMfa, SENHA, servidor, stepUp, subirApp, totpDaUri, vincular } from './apoio.js';
 
 // Propostas da Fase 08: só de preço aprovado, fluxo com permissões, final imutável, download e A x B de cada endpoint.
 describe('propostas: fluxo e A x B', () => {
@@ -47,11 +47,11 @@ describe('propostas: fluxo e A x B', () => {
   it('sem preço aprovado não há proposta; com preço aprovado nasce o rascunho (sem custos) e o worker é enfileirado', async () => {
     await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/propostas`).set(bearer(a)).send({}).expect(400); // preço ainda não aprovado
     await admin.query(`update priv.precificacoes set aprovado_em = now(), aprovado_por = (select usuario_id from core.vinculos where empresa_id = $1 limit 1) where empresa_id = $1`, [empA]);
-    const antes = Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'gerar_proposta'`)).rows[0]?.count);
+    const antes = (await contarJobs('gerar_proposta', [empA, empB]));
     await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/propostas`).set(bearer(leitor)).send({}).expect(404); // só visualizar
     const r = await http().post(`/empresas/${empA}/acompanhamentos/${acomp}/propostas`).set(bearer(editor)).send({ validadeDias: 60, prazoEntregaDias: 30, garantiaMeses: 12, condicoes: 'Pagamento em 30 dias', local: 'Curitiba' }).expect(201);
     prop = (r.body as { id: string }).id;
-    expect(Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'gerar_proposta'`)).rows[0]?.count)).toBe(antes + 1);
+    expect((await contarJobs('gerar_proposta', [empA, empB]))).toBe(antes + 1);
     const d = (await http().get(`/empresas/${empA}/acompanhamentos/${acomp}/propostas`).set(bearer(leitor)).expect(200)).body as { propostas: { id: string; versao: number; status: string; total: string; conteudo: object[]; bloqueada: boolean }[] };
     expect(d.propostas.map((p) => [p.id, p.versao, p.status, p.total, p.bloqueada])).toEqual([[prop, 1, 'rascunho', '1250.0000', true]]);
     expect(JSON.stringify(d.propostas[0]?.conteudo)).not.toMatch(/custo|margem/i);
@@ -85,9 +85,9 @@ describe('propostas: fluxo e A x B', () => {
     const dl = await http().post(`/empresas/${empA}/propostas/${prop}/download`).set(bearer(leitor));
     await http().post(`/empresas/${empA}/propostas/${prop}/download`).set(bearer(leitor)).send({ formato: 'pdf' }).expect(404); // final sem PDF ainda
     await http().post(`/empresas/${empA}/propostas/${prop}/download`).set(bearer(leitor)).send({ formato: 'odt' }).expect(400);
-    const jobs = Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'gerar_proposta'`)).rows[0]?.count);
+    const jobs = (await contarJobs('gerar_proposta', [empA, empB]));
     await http().post(`/empresas/${empA}/propostas/${prop}/pdf`).set(bearer(leitor)).expect(202); // pedir o PDF enfileira o worker
-    expect(Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'gerar_proposta'`)).rows[0]?.count)).toBe(jobs + 1);
+    expect((await contarJobs('gerar_proposta', [empA, empB]))).toBe(jobs + 1);
     await http().post(`/empresas/${empA}/propostas/${v2}/pdf`).set(bearer(leitor)).expect(400); // rascunho não tem PDF (estado, 22023; Q-35)
     expect([200, 503]).toContain(dl.status); // 503 quando o armazenamento de teste não está ligado; nunca 404 para quem vê
   });
@@ -216,7 +216,7 @@ describe('propostas: fluxo e A x B', () => {
       expect(antes.propostas[0]?.total).toBe('1250.0000');
       const snapshot = async () => (await admin.query<Record<string, unknown>>('select * from priv.propostas where acompanhamento_id = $1 order by id', [ac])).rows;
       const intactas = await snapshot();
-      const jobs = (await admin.query("select id from ops.jobs where tipo = 'gerar_proposta' order by id")).rows;
+      const jobs = (await idsJobs(['gerar_proposta'], [empA, empB]));
       const rotas: { path: string; corpo?: object; compararInexistente?: boolean }[] = [
         { path: `acompanhamentos/${ac}/propostas` },
         { path: `propostas/${id}/dados`, corpo: { validadeDias: 99 } },
@@ -252,7 +252,7 @@ describe('propostas: fluxo e A x B', () => {
       }
       expect(await get()).toEqual(antes);
       expect(await snapshot()).toEqual(intactas);
-      expect((await admin.query("select id from ops.jobs where tipo = 'gerar_proposta' order by id")).rows).toEqual(jobs);
+      expect((await idsJobs(['gerar_proposta'], [empA, empB]))).toEqual(jobs);
     });
   }
 

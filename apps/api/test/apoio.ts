@@ -23,7 +23,10 @@ export function urls(): { api: string; admin: string } {
 
 export async function subirApp(extra: Record<string, string> = {}): Promise<INestApplication> {
   const config = carregarConfig({
-    DATABASE_URL: urls().api, LOG_LEVEL: 'fatal', TRUST_PROXY: 'loopback', LOGIN_ATRASO_MS: '0', VV_KEK: KEK_TESTE,
+    DATABASE_URL: urls().api, LOG_LEVEL: 'fatal', TRUST_PROXY: 'loopback', LOGIN_ATRASO_MS: '0',
+    // Até 6 arquivos em paralelo (test:e2e) × 3 conexões, mais as APIs extras de alguns arquivos, abaixo do
+    // connection limit 30 do vv_api: com o pool padrão (10), rajadas recebiam "too many connections" (500, Q-45).
+    DB_POOL_MAX: '3', VV_KEK: KEK_TESTE,
     HIBP_URL: '', ...extra,
   });
   const modulo = await Test.createTestingModule({ imports: [AppModule.com(config)] }).compile();
@@ -38,6 +41,17 @@ export function servidor(app: INestApplication): Server {
 }
 
 export const admin = new Pool({ connectionString: process.env.DATABASE_URL_ADMIN_TEST, max: 2 });
+
+// Jobs só das empresas do próprio arquivo: as suítes rodam em paralelo no mesmo banco, e contar por tipo
+// sem filtrar pela empresa vê os jobs de outra suíte (Q-45). `semEmpresa` inclui jobs de plataforma.
+export async function idsJobs(tipos: string[], empresas: string[], semEmpresa = false): Promise<{ id: string }[]> {
+  return (await admin.query<{ id: string }>(
+    `select id from ops.jobs where tipo = any($1) and (empresa_id = any($2::uuid[]) or ($3 and empresa_id is null)) order by id`,
+    [tipos, empresas, semEmpresa])).rows;
+}
+export async function contarJobs(tipo: string, empresas: string[]): Promise<number> {
+  return (await idsJobs([tipo], empresas)).length;
+}
 
 export const SENHA = 'senha-de-teste-bem-longa';
 
@@ -80,13 +94,14 @@ export function valorCookie(lista: string[], nome: string): string | undefined {
   return c?.split(';')[0]?.slice(nome.length + 1);
 }
 
-// IP fictício (faixa de testes 198.18.0.0/15) por requisição: o limite de 10 tentativas/min por IP é
-// real e vive no banco, compartilhado entre os arquivos de teste que rodam em paralelo. Cada arquivo
-// parte de um ponto aleatório, para os contadores não colidirem.
-let ultimoIp = Math.floor(Math.random() * 60000);
+// IP fictício por requisição: o limite de 10 tentativas/min por IP é real e vive no banco,
+// compartilhado entre os arquivos de teste que rodam em paralelo. Cada chamada sorteia um /64 próprio
+// da faixa de documentação 2001:db8::/32 (o banco e a borda agrupam IPv6 por /64), então dois arquivos
+// não caem no mesmo contador (Q-45: com IPv4 sequencial de ponto aleatório, arquivos colidiam e
+// x.0/x.1 viravam o mesmo IP).
 export function ipNovo(): string {
-  ultimoIp = (ultimoIp + 1) % 65536;
-  return `198.18.${String(ultimoIp >> 8)}.${String((ultimoIp & 255) || 1)}`;
+  const [a = 1, b = 1] = Array.from(crypto.getRandomValues(new Uint16Array(2)), (n) => n || 1);
+  return `2001:db8:${a.toString(16)}:${b.toString(16)}::1`;
 }
 
 // TOTP (RFC 6238) calculado como um app autenticador, a partir da URI otpauth do cadastro.

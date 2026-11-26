@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SENHA, admin, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
+import { admin, cnpjFicticio, contarJobs, criarEmpresa, criarUsuario, idsJobs, ipNovo, SENHA, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
 
 // Resultados da Fase 09: registro, gatilho de intenção de recurso, arrematação ≠ homologação, histórico pesquisável e A x B.
 describe('resultados: fluxo e A x B', () => {
@@ -54,10 +54,10 @@ describe('resultados: fluxo e A x B', () => {
     const base = { resultado: 'perdida', valorInicial: '100000', valorFinal: '98000', classificacao: 3, melhorLance: '90000' };
     await http().post(`/empresas/${empA}/participacoes/${part}/resultado`).set(bearer(a)).send({ ...base, classificacao: undefined }).expect(400); // sem motivo
     await http().post(`/empresas/${empA}/participacoes/${part}/resultado`).set(bearer(a)).send({ ...base, classificacao: 3, vencedoraCnpj: '11111111111111', motivo: 'Preço menor' }).expect(400); // CNPJ inválido
-    const jobs = Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'calcular_prazos'`)).rows[0]?.count);
+    const jobs = (await contarJobs('calcular_prazos', [empA, empB]));
     await http().post(`/empresas/${empA}/participacoes/${part}/resultado`).set(bearer(a)).send({ ...base, vencedoraCnpj: '11.222.333/0001-81', vencedoraNome: 'Concorrente Ltda', vencedoraMarcaModelo: 'Marca Z Modelo 9', motivo: 'Preço final menor que o nosso', habilitacao: 'habilitada' }).expect(200);
     expect((await admin.query(`select 1 from priv.agenda_eventos where acompanhamento_id = $1 and tipo = 'intencao_recurso'`, [acomp])).rowCount).toBe(1);
-    expect(Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'calcular_prazos'`)).rows[0]?.count)).toBe(jobs + 1);
+    expect((await contarJobs('calcular_prazos', [empA, empB]))).toBe(jobs + 1);
     expect((await admin.query<{ status: string }>(`select status from priv.participacoes where id = $1`, [part])).rows[0]?.status).toBe('perdida');
     expect((await admin.query(`select 1 from priv.resultados_item where participacao_id = $1`, [part])).rowCount).toBe(1); // corrigir não duplica
   });
@@ -106,7 +106,7 @@ describe('resultados: fluxo e A x B', () => {
       const lista = await historico(); expect(lista).toHaveLength(1);
       const snapshot = async () => (await admin.query<Record<string, unknown>>(`select to_jsonb(p) as participacao, (select jsonb_agg(r) from priv.resultados_item r where r.participacao_id = p.id) as resultados, (select jsonb_agg(e) from priv.agenda_eventos e where e.acompanhamento_id = p.acompanhamento_id) as eventos from priv.participacoes p where p.id = $1`, [id])).rows;
       const intactos = await snapshot();
-      const jobs = (await admin.query("select id from ops.jobs where tipo = 'calcular_prazos' order by id")).rows;
+      const jobs = (await idsJobs(['calcular_prazos'], [empA, empB]));
       for (const e of [empresa, outra]) {
         const r = await http().get(`/empresas/${e}/${path}`).set(bearer(invasor)).expect(e === empresa ? 404 : 200);
         if (e === outra) expect(r.body).toEqual({});
@@ -117,7 +117,7 @@ describe('resultados: fluxo e A x B', () => {
       expect(await get()).toEqual(antes);
       expect(await historico()).toEqual(lista);
       expect(await snapshot()).toEqual(intactos);
-      expect((await admin.query("select id from ops.jobs where tipo = 'calcular_prazos' order by id")).rows).toEqual(jobs);
+      expect((await idsJobs(['calcular_prazos'], [empA, empB]))).toEqual(jobs);
     });
   }
 

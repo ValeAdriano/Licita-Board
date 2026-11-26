@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SENHA, admin, cnpjFicticio, criarEmpresa, criarUsuario, ipNovo, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
+import { admin, cnpjFicticio, contarJobs, criarEmpresa, criarUsuario, idsJobs, ipNovo, SENHA, servidor, subirApp, totpDaUri, vincular } from './apoio.js';
 
 // Análise técnica da Fase 06: requisitos, pedido de análise, conferência da ficha, aprovação e A x B de cada endpoint.
 describe('análise técnica: fluxo e A x B', () => {
@@ -59,10 +59,10 @@ describe('análise técnica: fluxo e A x B', () => {
   it('pedir análise exige produto da própria empresa e enfileira o worker; leitor não pede', async () => {
     await http().post(`/empresas/${empA}/participacoes/${part}/analises`).set(bearer(leitor)).send({ produtoId: produto }).expect(404);
     await http().post(`/empresas/${empA}/participacoes/${part}/analises`).set(bearer(a)).send({ produtoId: crypto.randomUUID() }).expect(404);
-    const antes = Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'analisar_item'`)).rows[0]?.count);
+    const antes = (await contarJobs('analisar_item', [empA, empB]));
     const r = await http().post(`/empresas/${empA}/participacoes/${part}/analises`).set(bearer(editor)).send({ produtoId: produto }).expect(202);
     analise = (r.body as { id: string }).id;
-    expect(Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'analisar_item'`)).rows[0]?.count)).toBe(antes + 1);
+    expect((await contarJobs('analisar_item', [empA, empB]))).toBe(antes + 1);
     // simula o worker (a API não classifica): uma linha A CONFIRMAR e o resumo
     linha = (await admin.query<{ id: string }>(`insert into priv.analise_linhas (empresa_id, analise_id, requisito_id, resultado) values ($1, $2, $3, 'A CONFIRMAR') returning id`, [empA, analise, requisito])).rows[0]?.id ?? '';
     await admin.query(`update priv.analises_item set resumo = 'PENDENTE', calculado_em = now() where id = $1`, [analise]);
@@ -131,9 +131,9 @@ describe('análise técnica: fluxo e A x B', () => {
 
   it('extração por IA: só enfileira o worker (a API não chama a IA), limite diário, e a sugestão só vale depois de confirmada', async () => {
     await http().post(`/empresas/${empA}/participacoes/${part}/extrair-requisitos`).set(bearer(leitor)).expect(404);
-    const jobs = Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'extrair_requisitos'`)).rows[0]?.count);
+    const jobs = (await contarJobs('extrair_requisitos', [empA, empB]));
     await http().post(`/empresas/${empA}/participacoes/${part}/extrair-requisitos`).set(bearer(editor)).expect(202);
-    expect(Number((await admin.query<{ count: string }>(`select count(*) from ops.jobs where tipo = 'extrair_requisitos'`)).rows[0]?.count)).toBe(jobs + 1);
+    expect((await contarJobs('extrair_requisitos', [empA, empB]))).toBe(jobs + 1);
     await http().post(`/empresas/${empA}/participacoes/${part}/extrair-requisitos`).set(bearer(editor)).expect(400); // já há uma em andamento
     await admin.query(`update priv.extracoes_ia set status = 'concluida' where participacao_id = $1`, [part]); // worker simulado
     await admin.query(`insert into priv.extracoes_ia (empresa_id, participacao_id, status) select $1, $2, 'concluida' from generate_series(1, 4)`, [empA, part]);
@@ -181,7 +181,7 @@ describe('análise técnica: fluxo e A x B', () => {
       const li = (await admin.query<{ id: string }>(`insert into priv.analise_linhas (empresa_id, analise_id, requisito_id, resultado) values ($1, $2, $3, 'A CONFIRMAR') returning id`, [empresa, an.id, req.id])).rows[0]?.id ?? '';
       await admin.query(`update priv.requisitos_item set origem = 'ia', modelo_ia = 'teste', prompt_versao = 'req-v1', confirmado_em = null, confirmado_por = null where id = $1`, [req.id]);
       const antes = await get();
-      const jobs = (await admin.query("select id from ops.jobs where tipo in ('analisar_item', 'extrair_requisitos') order by id")).rows;
+      const jobs = (await idsJobs(['analisar_item', 'extrair_requisitos'], [empA, empB]));
       const rotas: { metodo: 'get' | 'post' | 'delete'; path: string; corpo?: object }[] = [
         { metodo: 'get', path: `participacoes/${id}/analise` },
         { metodo: 'post', path: `participacoes/${id}/requisitos`, corpo: { nome: 'Intruso', operador: 'sim' } },
@@ -200,7 +200,7 @@ describe('análise técnica: fluxo e A x B', () => {
         }
       }
       expect(await get()).toEqual(antes);
-      expect((await admin.query("select id from ops.jobs where tipo in ('analisar_item', 'extrair_requisitos') order by id")).rows).toEqual(jobs);
+      expect((await idsJobs(['analisar_item', 'extrair_requisitos'], [empA, empB]))).toEqual(jobs);
     });
   }
 

@@ -14,7 +14,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --project unit",
-    "test:e2e": "vitest run --project e2e"
+    "test:e2e": "vitest run --project e2e --maxWorkers=6"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1161.0",
