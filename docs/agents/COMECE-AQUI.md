@@ -19,7 +19,10 @@ cd apps/worker && uv run ruff check . && uv run mypy && uv run pytest      # pyt
 npm run lint --prefix apps/web && npm run typecheck --prefix apps/web && npm test --prefix apps/web
 npm run lint --prefix apps/api && npm run typecheck --prefix apps/api && npm test --prefix apps/api
 PGPORT=5433 PGPASSWORD=<POSTGRES_PASSWORD do .env> db/scripts/test-local.sh   # pgTAP (recria o vv_test)
+make test-file F=<arquivo>             # só os testes relacionados (também: test-block B=, test-changed, test-all); precisa de .claude/ALLOW_TESTS
 ```
+
+Claude Code: hooks rodam os testes relacionados a cada edição e os afetados pelo diff ao fim do turno (detalhes no `CLAUDE.md`, "Testes em blocos").
 
 2FA: em desenvolvimento é **opcional** (ADR-021, `vv.mfa='opcional'` no banco, ligado pelo `dev-up.sh`); quem cadastrou TOTP ainda precisa do código.
 

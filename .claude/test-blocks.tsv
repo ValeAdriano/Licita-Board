@@ -1,0 +1,10 @@
+# nome	comando (um bloco por linha, separado por TAB)
+web	npm test --prefix apps/web
+web-checks	npm run lint --prefix apps/web && npm run typecheck --prefix apps/web
+api	npm test --prefix apps/api
+api-checks	npm run lint --prefix apps/api && npm run typecheck --prefix apps/api
+api-e2e	npm run test:e2e --prefix apps/api
+worker	cd apps/worker && uv run pytest -q --tb=short
+worker-rules	cd apps/worker && uv run pytest -q --tb=short --cov=worker.rules --cov-report=term-missing
+worker-checks	cd apps/worker && uv run ruff check . && uv run ruff format --check . && uv run mypy
+isolamento	python3 scripts/check_isolation_coverage.py
