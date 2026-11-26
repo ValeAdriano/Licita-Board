@@ -10,9 +10,12 @@ const fonte = (rootDirectory?: string) => github(REPO, { branch: RAMO, ...(rootD
 const docker = (dockerfilePath: string) => ({ builder: "DOCKERFILE" as const, dockerfilePath });
 const PUBLICO = "https://${{web.RAILWAY_PUBLIC_DOMAIN}}";
 
+// Iguais aos que o Railway criou: sem eles o apply tentaria apagar região e tamanho do volume.
+const VOLUME = { region: "us-east4-eqdc4a", sizeMB: 5000 };
+
 export default defineRailway(() => {
-  const pgdata = volume("pgdata");
-  const clamdata = volume("clamdata");
+  const pgdata = volume("pgdata", VOLUME);
+  const clamdata = volume("clamdata", VOLUME);
 
   const postgres = service("postgres", {
     source: fonte("db"),
