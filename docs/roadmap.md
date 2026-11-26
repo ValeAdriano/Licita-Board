@@ -37,7 +37,7 @@ Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada
 | 50 editais da amostra de cobertura | Operação VV | Aceite da Fase 04 |
 | 20 editais de veículos com gabarito | Operação VV | Aceite da Fase 06 |
 | Decisão ADR-007 | Adriano | Fechamento da Fase 00 |
-| Provedor da VPS (São Paulo) e do S3 de produção | Adriano | Deploy da Fase 00 |
+| Primeiro deploy no Railway (`infra/railway/subir.sh`, ADR-022) ou provedor da VPS (São Paulo) e do S3 de produção | Adriano | Deploy da Fase 00 |
 | Aceite do relatório da Fase 01 e confirmação do CA-1 (SUPERADMIN vê todas as empresas) | Adriano | Fechar a Fase 01 |
 | Destino do projeto Supabase `gqrilopolbanlrdyrrsd` | Adriano | — (custo/limpeza) |
 | Domínio e identidade visual (logo, ícones do PWA) | Adriano | PWA em produção (Fase 01) |

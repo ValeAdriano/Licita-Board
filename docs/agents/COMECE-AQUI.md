@@ -82,7 +82,7 @@ Plano de marcos, MVP e sprints: [`../roadmap-marcos.md`](../roadmap-marcos.md) (
 2. Fase 05 e anteriores: A x B (pgTAP e e2e) das tabelas `priv` novas **antes de uso real** (regra 13). Matriz e2e A x B por endpoint (todas as rotas `:empresa` da API, dois sentidos, recurso intacto, comparação com UUID inexistente) **completa em todos os módulos** (Q-02 e Q-23, rodadas 1 a 12, 2026-11-08), sem vazamento encontrado.
 3. Fase 04: decidir Compras.gov.br com o Adriano (recomendação: só conferência cruzada).
 4. UI: `Table` nas telas restantes, modo escuro, revisão em 360 px.
-5. Infra: VPS, S3 de produção, ensaio de restauração do backup (precisa do Adriano).
+5. Infra: caminho Railway pronto e ainda não aplicado (`docs/operacao/railway.md`, ADR-022: rodar `infra/railway/subir.sh`). Ou VPS, S3 de produção, ensaio de restauração do backup (precisa do Adriano).
 6. Fase 06: para ligar a IA, a empresa cadastra a chave em Cadastros → IA e usa "Testar a chave" (sem tocar no `.env`); confira o plano do provedor (sem treino com os dados) e acompanhe a primeira extração real (nunca rodou com chave válida). O worker precisa de `VV_KEK` (o `compose.yml` já passa).
 
 - O cruzamento de documentos (RF-05.15) considera todos os documentos da empresa com validade, não só os exigidos pelo edital (falta o checklist por edital).

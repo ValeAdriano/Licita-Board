@@ -39,3 +39,6 @@ infra/s3/s3.json
 .claude/NO_STOP_TESTS
 graphify-out/
 .claude/work/
+
+# SDK do Railway (ADR-022)
+.railway/node_modules/

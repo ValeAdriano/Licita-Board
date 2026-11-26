@@ -1,0 +1,33 @@
+#!/usr/bin/env node
+// Preparo do banco no Railway (ADR-022). Idempotente: pode rodar a cada deploy.
+import { execFileSync, spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+
+const { VV_OWNER_PASSWORD: senha, VV_KEK: kek, VV_DB_HOST: host = 'postgres.railway.internal' } = process.env;
+if (!senha || !kek) throw new Error('Defina VV_OWNER_PASSWORD e VV_KEK (infra/railway/subir.sh faz isso).');
+const url = `postgres://vv_owner:${encodeURIComponent(senha)}@${host}:5432/vv?sslmode=disable`;
+const env = { ...process.env, DATABASE_URL: url };
+
+execFileSync('dbmate', ['--wait', '--wait-timeout', '120s', '--migrations-dir', 'db/migrations',
+  '--migrations-table', 'dbmate.schema_migrations', '--no-dump-schema', 'up'], { env, stdio: 'inherit' });
+
+const { Client } = createRequire(new URL('../../apps/api/package.json', import.meta.url))('pg');
+const c = new Client({ connectionString: url });
+await c.connect();
+try {
+  await c.query('select core.registrar_kek(1, $1)', [kek]);
+  console.log('Verificador da KEK versão 1 registrado.');
+} catch (e) {
+  if (e.code !== '23505') throw new Error(`Registro da KEK falhou (${e.code}).`);
+  console.log('KEK versão 1 já registrada.');
+} finally {
+  await c.end();
+}
+
+const { VV_SUPERADMIN_EMAIL: email, VV_NOVA_SENHA: nova } = process.env;
+if (email && nova) {
+  const r = spawnSync('node', ['scripts/criar-usuario.mjs', '--email', email, '--superadmin'], { env, encoding: 'utf8' });
+  const saida = `${r.stdout}${r.stderr}`;
+  if (r.status !== 0 && !saida.includes('Já existe usuário')) throw new Error(saida.trim());
+  console.log(r.status === 0 ? 'SUPERADMIN criado. Apague VV_NOVA_SENHA do serviço.' : 'SUPERADMIN já existia.');
+}
