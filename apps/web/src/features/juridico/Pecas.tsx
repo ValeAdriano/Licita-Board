@@ -43,7 +43,7 @@ export function Pecas({ empresaId }: { empresaId: string }) {
           return (
             <Link key={p.id} to={`/juridico/pecas/${p.id}`} className="flex flex-col gap-1 rounded-xl bg-primary p-4 no-underline shadow-xs ring-1 ring-secondary hover:bg-primary_hover">
               <span className="flex flex-wrap items-center gap-2"><strong className="text-md text-primary [overflow-wrap:anywhere]"><bdi>{p.titulo}</bdi></strong><Etiqueta cor={cor}>{rotulo}</Etiqueta><Etiqueta cor="cinza">{TIPO_PECA[p.tipo] ?? p.tipo}</Etiqueta>{p.bloqueada && ['minuta', 'revisao'].includes(p.status) && p.validadaEm ? <Etiqueta cor="erro">Citação ou dado bloqueando</Etiqueta> : null}</span>
-              <Legenda>{p.orgao ?? '—'}{p.numeroEdital ? ` · nº ${p.numeroEdital}` : ''}{p.prazoLegal ? ` · prazo legal ${dataHoraSP(p.prazoLegal)}` : ''}{p.protocoloNumero ? ` · protocolo ${p.protocoloNumero}` : ''}</Legenda>
+              <Legenda>{p.orgao ?? '—'}{p.numeroEdital ? ` · nº ${p.numeroEdital}` : p.contratoNumero ? ` · contrato nº ${p.contratoNumero}` : ''}{p.prazoLegal ? ` · prazo legal ${dataHoraSP(p.prazoLegal)}` : ''}{p.protocoloNumero ? ` · protocolo ${p.protocoloNumero}` : ''}</Legenda>
             </Link>
           )
         })}

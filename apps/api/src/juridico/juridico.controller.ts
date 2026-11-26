@@ -73,8 +73,8 @@ export class JuridicoController {
     const status = f.status ? f.status.split(',') : null;
     return this.q(req, async (tx) => (await sql`
       select p.id, p.tipo, p.titulo, p.status, p.acompanhamento_id as "acompanhamentoId", p.evento_id as "eventoId", ev.data_limite_legal as "prazoLegal", ev.data_interna_recomendada as "prazoInterno", ev.status as "statusEvento",
-             p.bloqueada, p.validada_em as "validadaEm", p.protocolo_numero as "protocoloNumero", p.protocolado_em as "protocoladoEm", p.resultado, p.created_at as "criadaEm", g.razao_social as orgao, e.numero_edital as "numeroEdital"
-        from priv.pecas p join priv.acompanhamentos a on a.id = p.acompanhamento_id left join pub.editais e on e.id = a.edital_id left join pub.orgaos g on g.id = e.orgao_id left join priv.agenda_eventos ev on ev.id = p.evento_id
+             p.bloqueada, p.validada_em as "validadaEm", p.protocolo_numero as "protocoloNumero", p.protocolado_em as "protocoladoEm", p.resultado, p.created_at as "criadaEm", coalesce(g.razao_social, c.orgao) as orgao, e.numero_edital as "numeroEdital", c.numero as "contratoNumero"
+        from priv.pecas p left join priv.acompanhamentos a on a.id = p.acompanhamento_id left join pub.editais e on e.id = a.edital_id left join pub.orgaos g on g.id = e.orgao_id left join priv.agenda_eventos ev on ev.id = p.evento_id left join priv.contratos c on c.id = p.contrato_id and c.empresa_id = p.empresa_id
        where p.empresa_id = ${empresa}::uuid and (${f.acompanhamento ?? null}::uuid is null or p.acompanhamento_id = ${f.acompanhamento ?? null}::uuid) and (${status}::text[] is null or p.status = any (${status}::text[]))
        order by case p.status when 'descartada' then 9 when 'respondida' then 8 else 0 end, ev.data_limite_legal nulls last, p.created_at desc limit 300`.execute(tx)).rows);
   }
@@ -86,8 +86,8 @@ export class JuridicoController {
       select p.id, p.tipo, p.titulo, p.status, p.acompanhamento_id as "acompanhamentoId", p.evento_id as "eventoId", (select rt.id from priv.recursos_terceiros rt where rt.peca_id = p.id) as "recursoId", p.minuta, p.clausulas, p.minuta_origem as "minutaOrigem", p.minuta_modelo as "minutaModelo", p.justificativa_descarte as "justificativaDescarte", p.validacao, p.validada_em as "validadaEm", p.bloqueada,
              p.arquivo_sha256 as "arquivoSha256", p.arquivo_chave is not null as "temArquivo", p.arquivo_pdf_chave is not null as "temPdf", p.gerado_em as "geradoEm", p.protocolo_numero as "protocoloNumero", p.protocolado_em as "protocoladoEm",
              p.comprovante, p.resultado, p.resultado_obs as "resultadoObs", p.resultado_em as "resultadoEm", ua.nome as "aprovadoPor", p.aprovado_em as "aprovadoEm", ue.nome as "elaboradoPor",
-             ev.data_limite_legal as "prazoLegal", ev.data_interna_recomendada as "prazoInterno", g.razao_social as orgao, e.numero_edital as "numeroEdital"
-        from priv.pecas p join priv.acompanhamentos a on a.id = p.acompanhamento_id left join pub.editais e on e.id = a.edital_id left join pub.orgaos g on g.id = e.orgao_id left join priv.agenda_eventos ev on ev.id = p.evento_id
+             ev.data_limite_legal as "prazoLegal", ev.data_interna_recomendada as "prazoInterno", coalesce(g.razao_social, c.orgao) as orgao, e.numero_edital as "numeroEdital", c.numero as "contratoNumero"
+        from priv.pecas p left join priv.acompanhamentos a on a.id = p.acompanhamento_id left join pub.editais e on e.id = a.edital_id left join pub.orgaos g on g.id = e.orgao_id left join priv.agenda_eventos ev on ev.id = p.evento_id left join priv.contratos c on c.id = p.contrato_id and c.empresa_id = p.empresa_id
         left join core.usuarios ua on ua.id = p.aprovado_por left join core.usuarios ue on ue.id = p.elaborado_por where p.id = ${id}::uuid and p.empresa_id = ${empresa}::uuid`.execute(tx)).rows[0]);
     if (!r) throw new NotFoundException();
     return r;

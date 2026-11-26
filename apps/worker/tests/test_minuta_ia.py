@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from tests.test_coleta import _admin
-from tests.test_peca import HOJE, cena  # noqa: F401 - fixture reaproveitada
+from tests.test_peca import HOJE, _pedido_sem_edital, cena  # noqa: F401 - fixture reaproveitada
 from worker.llm.extracao_requisitos import ErroLLM, Resposta
 from worker.llm.minuta_peca import interpretar, referencia
 from worker.minuta_ia import minutar
@@ -152,3 +152,17 @@ def test_referencias_no_formato_que_o_verificador_reconhece() -> None:
     )
     with pytest.raises(ErroLLM):
         interpretar('{"minuta": "curta"}')
+
+
+def test_pedido_de_contrato_sem_edital_nao_chama_a_ia(cena: Any) -> None:
+    _pedido_sem_edital(cena, "triagem")
+    mid = _admin(
+        "insert into priv.pecas_ia (empresa_id, peca_id) values (%s, %s) returning id",
+        cena["emp"],
+        cena["peca"],
+    )[0][0]
+    ia = IAFalsa()
+    assert minutar(cena["conn"], str(mid), ia, HOJE, cena["emp"]) == "falhou"
+    assert ia.pedidos == []
+    erro = _admin("select erro from priv.pecas_ia where id = %s", mid)[0][0]
+    assert "não tem edital" in erro

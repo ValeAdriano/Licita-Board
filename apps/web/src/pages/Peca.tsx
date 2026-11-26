@@ -43,7 +43,7 @@ function Conteudo({ empresaId, p, pode, recarregar }: { empresaId: string; p: Pe
   return (
     <Pagina larga>
       <Link to="/juridico">← Jurídico</Link>
-      <CabecalhoPagina titulo={p.titulo} subtitulo={`${TIPO_PECA[p.tipo] ?? p.tipo} · ${p.orgao ?? ''}${p.numeroEdital ? ` · edital nº ${p.numeroEdital}` : ''}`} acoes={<Etiqueta cor={cor}>{rotulo}</Etiqueta>} />
+      <CabecalhoPagina titulo={p.titulo} subtitulo={`${TIPO_PECA[p.tipo] ?? p.tipo} · ${p.orgao ?? ''}${p.numeroEdital ? ` · edital nº ${p.numeroEdital}` : p.contratoNumero ? ` · contrato nº ${p.contratoNumero}` : ''}`} acoes={<Etiqueta cor={cor}>{rotulo}</Etiqueta>} />
       <Aviso texto={erro} />
       {p.prazoLegal ? <Aviso tipo="atencao" texto={`Prazo legal na agenda: ${dataHoraSP(p.prazoLegal)}${p.prazoInterno ? ` (data interna ${dataHoraSP(p.prazoInterno)})` : ''}. ⚖️ A regra do prazo ainda não foi validada pelo jurídico: confira o edital.`} /> : null}
       {p.recursoId ? <Link to={`/juridico/recursos/${p.recursoId}`}>Ver o recurso de terceiro e as alegações →</Link> : null}

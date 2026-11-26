@@ -174,3 +174,33 @@ def test_peca_de_outra_empresa_e_ignorada(cena: Any) -> None:
 def test_todos_os_tipos_de_peca_do_banco_tem_titulo_e_rotulo() -> None:
     tipos = {"esclarecimento", "impugnacao", "recurso", "contrarrazoes", "reajuste", "reequilibrio"}
     assert tipos <= set(TITULO) and tipos <= set(ROTULO)
+
+
+def _pedido_sem_edital(c: dict[str, Any], status: str) -> None:
+    """Q-44: pedido de reajuste de contrato cadastrado à mão, sem acompanhamento."""
+    ct = _admin(
+        "insert into priv.contratos (empresa_id, numero, orgao, objeto, vigencia_inicio, vigencia_fim) "
+        "values (%s, 'CT-44/2026', 'Câmara Municipal de Teste', 'Fornecimento', '2026-01-01', '2026-12-31') returning id",
+        c["emp"],
+    )[0][0]
+    _admin(
+        "update priv.pecas set acompanhamento_id = null, contrato_id = %s, tipo = 'reajuste', status = %s where id = %s",
+        ct,
+        status,
+        c["peca"],
+    )
+
+
+def test_pedido_de_contrato_sem_edital_gera_o_final_citando_o_contrato(cena: Any) -> None:
+    _pedido_sem_edital(cena, "minuta")
+    _admin(
+        "update priv.pecas set status = 'aprovada', aprovado_por = %s, aprovado_em = now() where id = %s",
+        cena["usuario"],
+        cena["peca"],
+    )
+    with patch("worker.peca.docx_para_pdf", return_value=b"%PDF-1.7 teste"):
+        assert _roda(cena) == "final"
+    chave = _p(cena)[3]
+    xml = zipfile.ZipFile(io.BytesIO(cena["s3"].objetos[chave])).read("word/document.xml").decode()
+    assert "Câmara Municipal de Teste" in xml and "Contrato nº CT-44/2026" in xml
+    assert "Edital nº" not in xml

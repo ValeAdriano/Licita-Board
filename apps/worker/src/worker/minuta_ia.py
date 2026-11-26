@@ -40,8 +40,8 @@ def minutar(
         cur.execute(
             "select m.id, m.empresa_id, m.peca_id, m.status, m.instrucao, p.tipo, p.titulo, p.status as peca_status, ed.numero_edital, ed.id as edital_id, "
             "g.razao_social as orgao from priv.pecas_ia m join priv.pecas p on p.id = m.peca_id and p.empresa_id = m.empresa_id "
-            "join priv.acompanhamentos a on a.id = p.acompanhamento_id join pub.editais ed on ed.id = a.edital_id "
-            "join pub.orgaos g on g.id = ed.orgao_id where m.id = %s",
+            "left join priv.acompanhamentos a on a.id = p.acompanhamento_id left join pub.editais ed on ed.id = a.edital_id "
+            "left join pub.orgaos g on g.id = ed.orgao_id where m.id = %s",
             (minuta_id,),
         )
         m = cur.fetchone()
@@ -51,6 +51,13 @@ def minutar(
             return str(m["status"])  # idempotente
         if m["peca_status"] not in ("triagem", "minuta"):
             return _fim(conn, m["id"], "falhou", "a peça já saiu da fase de minuta")
+        if m["edital_id"] is None:  # pedido de contrato cadastrado sem edital (Q-44)
+            return _fim(
+                conn,
+                m["id"],
+                "falhou",
+                "a minuta por IA usa o texto do edital, e este contrato não tem edital: redija o pedido à mão",
+            )
         if cliente is None:
             return _fim(conn, m["id"], "desligada", "IA não configurada para esta empresa")
         cur.execute(

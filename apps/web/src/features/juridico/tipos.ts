@@ -8,8 +8,8 @@ export const STATUS_PECA: Record<string, [string, 'cinza' | 'aviso' | 'marca' | 
 export const RESULTADO_PECA: Record<string, string> = { deferido: 'Deferido', parcialmente_deferido: 'Parcialmente deferido', indeferido: 'Indeferido' }
 export const TIPO_BASE: Record<string, string> = { lei: 'Lei', lei_complementar: 'Lei Complementar', decreto: 'Decreto', regulamento: 'Regulamento', acordao: 'Acórdão', sumula: 'Súmula', constituicao: 'Constituição' }
 export interface PecaLinha {
-  id: string; tipo: string; titulo: string; status: string; acompanhamentoId: string; eventoId: string | null; prazoLegal: string | null; prazoInterno: string | null; statusEvento: string | null
-  bloqueada: boolean; validadaEm: string | null; protocoloNumero: string | null; protocoladoEm: string | null; resultado: string | null; orgao: string | null; numeroEdital: string | null
+  id: string; tipo: string; titulo: string; status: string; acompanhamentoId: string | null; eventoId: string | null; prazoLegal: string | null; prazoInterno: string | null; statusEvento: string | null
+  bloqueada: boolean; validadaEm: string | null; protocoloNumero: string | null; protocoladoEm: string | null; resultado: string | null; orgao: string | null; numeroEdital: string | null; contratoNumero: string | null
 }
 export interface Peca extends PecaLinha {
   recursoId: string | null; minuta: string | null; minutaOrigem: 'manual' | 'ia' | 'ia_revisada'; minutaModelo: string | null; clausulas: string | null; justificativaDescarte: string | null; validacao: { codigo: string; mensagem: string; bloqueia: boolean }[] | null; arquivoSha256: string | null

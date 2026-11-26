@@ -128,8 +128,14 @@ describe('contratos: saldos, financeiro e A x B', () => {
     expect(semDoc.map((x) => x.descricao)).toEqual([null, null]); // sem documentos/visualizar o vínculo aparece, o documento não
     await http().delete(`${base}/anexos/${anx}`).set(bearer(b)).expect(404);
     await http().delete(`${base}/anexos/${anx}`).set(bearer(a)).expect(204);
-    // pedidos ao órgão: peça jurídica ligada ao contrato (precisa do edital: contrato cadastrado a partir do resultado)
-    await http().post(`${base}/pedidos`).set(bearer(a)).send({ tipo: 'reajuste', titulo: 'Pedido de reajuste anual' }).expect(400);
+    // pedidos ao órgão: peça jurídica ligada ao contrato; contrato sem edital (cadastrado à mão) também abre (Q-44)
+    const semEdital = ((await http().post(`${base}/pedidos`).set(bearer(a)).send({ tipo: 'reequilibrio', titulo: 'Reequilíbrio sem edital' }).expect(201)).body as { pecaId: string }).pecaId;
+    const pe = (await http().get(`/empresas/${empA}/juridico/pecas/${semEdital}`).set(bearer(a)).expect(200)).body as { acompanhamentoId: string | null; orgao: string; numeroEdital: string | null; contratoNumero: string };
+    expect([pe.acompanhamentoId, pe.orgao, pe.numeroEdital, pe.contratoNumero]).toEqual([null, 'Prefeitura Y', null, 'CT-88/2026']);
+    const lista = (await http().get(`/empresas/${empA}/juridico/pecas`).set(bearer(a)).expect(200)).body as { id: string }[];
+    expect(lista.map((x) => x.id)).toContain(semEdital);
+    await http().get(`/empresas/${empB}/juridico/pecas/${semEdital}`).set(bearer(b)).expect(404);
+    await admin.query(`delete from priv.pecas where id = $1`, [semEdital]);
     const ed = (await admin.query<{ id: string }>(`select a.id from priv.acompanhamentos a where a.empresa_id = $1 limit 1`, [empA])).rows[0]?.id;
     await admin.query(`update priv.contratos set acompanhamento_id = $1 where id = $2`, [ed, c.id]);
     await http().post(`${base}/pedidos`).set(bearer(a)).send({ tipo: 'recurso', titulo: 'Tipo inválido' }).expect(400);

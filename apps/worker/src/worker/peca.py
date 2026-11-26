@@ -87,11 +87,18 @@ def validar(p: dict[str, Any], base: list[Entrada], riscos: int = 0) -> list[dic
     return out
 
 
+def _referencia(ctx: dict[str, Any]) -> str:
+    """Edital quando há; pedido de contrato cadastrado sem edital (Q-44) cita o contrato."""
+    if ctx.get("numero_edital") or not ctx.get("contrato_numero"):
+        return f"Edital nº {ctx.get('numero_edital') or ''}"
+    return f"Contrato nº {ctx['contrato_numero']}"
+
+
 def _documento(p: dict[str, Any], ctx: dict[str, Any], hoje: date) -> bytes:
     corpo = [
         paragrafo(TITULO[p["tipo"]], negrito=True, tamanho=16, centro=True),
         paragrafo(p["titulo"], centro=True),
-        paragrafo(f"Ao {ctx['orgao']} · Edital nº {ctx['numero_edital'] or ''}", negrito=True),
+        paragrafo(f"Ao {ctx['orgao'] or ''} · {_referencia(ctx)}", negrito=True),
         paragrafo(f"{ctx['razao_social']} · CNPJ {ctx['cnpj']}"),
     ]
     corpo += [paragrafo(par.strip()) for par in (p["minuta"] or "").split("\n\n") if par.strip()]
@@ -128,9 +135,12 @@ def processar(
 ) -> str | None:
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            "select p.*, e.razao_social, e.cnpj::text as cnpj, ed.numero_edital, g.razao_social as orgao, u.nome as aprovador, u.oab from priv.pecas p "
-            "join core.empresas e on e.id = p.empresa_id join priv.acompanhamentos a on a.id = p.acompanhamento_id join pub.editais ed on ed.id = a.edital_id "
-            "join pub.orgaos g on g.id = ed.orgao_id left join core.usuarios u on u.id = p.aprovado_por where p.id = %s",
+            "select p.*, e.razao_social, e.cnpj::text as cnpj, ed.numero_edital, coalesce(g.razao_social, c.orgao) as orgao, "
+            "c.numero as contrato_numero, u.nome as aprovador, u.oab from priv.pecas p "
+            "join core.empresas e on e.id = p.empresa_id left join priv.acompanhamentos a on a.id = p.acompanhamento_id "
+            "left join pub.editais ed on ed.id = a.edital_id left join pub.orgaos g on g.id = ed.orgao_id "
+            "left join priv.contratos c on c.id = p.contrato_id and c.empresa_id = p.empresa_id "
+            "left join core.usuarios u on u.id = p.aprovado_por where p.id = %s",
             (peca_id,),
         )
         p = cur.fetchone()

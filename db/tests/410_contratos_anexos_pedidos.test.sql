@@ -1,7 +1,7 @@
 -- Anexos do contrato (vínculo a documentos do repositório) e pedidos de reajuste/reequilíbrio como peças jurídicas; permissões e A x B.
 begin;
 set local search_path = tap;
-select plan(12);
+select plan(15);
 
 select tests.criar_empresas_ab();
 select tests.criar_usuario('so_ver');
@@ -30,8 +30,12 @@ select throws_ok($$ select priv.anexar_documento_contrato(tests.empresa_id('A'),
 select tests.sair();
 
 select tests.autenticar_como('juridico');
-select throws_ok($$ select priv.abrir_pedido_contratual(tests.empresa_id('A'), (select id from g where nome = 'ct'), 'reajuste', 'Pedido de reajuste') $$, '22023', null, 'contrato sem edital ligado não gera pedido jurídico');
+-- Q-44: contrato sem edital (cadastrado à mão) também abre pedido; a peça fica ligada só ao contrato.
+select lives_ok($$ insert into g select 'ped0', priv.abrir_pedido_contratual(tests.empresa_id('A'), (select id from g where nome = 'ct'), 'reajuste', 'Pedido de reajuste') $$, 'contrato sem edital também abre pedido jurídico');
+select is((select (acompanhamento_id is null)::text || ':' || (contrato_id = (select id from g where nome = 'ct'))::text from priv.pecas where id = (select id from g where nome = 'ped0')), 'true:true', 'pedido sem edital: sem acompanhamento, ligado ao contrato');
 select tests.sair();
+select throws_ok($$ insert into priv.pecas (empresa_id, tipo, titulo) values (tests.empresa_id('A'), 'impugnacao', 'Impugnação solta') $$, '23514', null, 'só pedido de contrato existe sem acompanhamento');
+select throws_ok($$ insert into priv.pecas (empresa_id, tipo, titulo) values (tests.empresa_id('A'), 'reajuste', 'Reajuste sem contrato') $$, '23514', null, 'pedido sem acompanhamento precisa do contrato');
 update priv.contratos set acompanhamento_id = (select id from priv.acompanhamentos where empresa_id = tests.empresa_id('A')) where empresa_id = tests.empresa_id('A');
 select tests.autenticar_como('so_ver');
 select throws_ok($$ select priv.abrir_pedido_contratual(tests.empresa_id('A'), (select id from g where nome = 'ct'), 'reajuste', 'Pedido de reajuste') $$, '42501', null, 'sem elaborar peça não abre pedido');
