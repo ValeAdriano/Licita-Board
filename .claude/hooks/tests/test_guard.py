@@ -36,6 +36,17 @@ class GuardTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(r.stdout.strip(), "")
 
+    def test_lembrete_de_revisao_por_caminho(self) -> None:
+        sys.path.insert(0, str(GUARD.parent))
+        from guard import reviewers_for
+
+        self.assertEqual(reviewers_for([".railway/railway.ts"]), ["revisor-seguranca"])
+        self.assertEqual(reviewers_for(["infra/railway/subir.sh", "apps/web/Dockerfile"]), ["revisor-seguranca"])
+        self.assertEqual(reviewers_for(["db/migrations/1_x.sql"]), ["revisor-migration"])
+        self.assertEqual(reviewers_for(["apps/api/src/auth/auth.controller.ts"]), ["reviewer", "revisor-seguranca"])
+        self.assertEqual(reviewers_for(["apps/worker/src/worker/rules/precos.py"]), ["reviewer", "revisor-seguranca"])
+        self.assertEqual(reviewers_for(["apps/web/src/ui/Botao.tsx", "docs/roadmap.md"]), [])
+
     def test_service_role_no_front(self) -> None:
         self.assertBlocked(run("Write", {"file_path": path("apps/web/src/x.ts"), "content": "const k = SUPABASE_SERVICE_ROLE_KEY"}))
         self.assertBlocked(run("Edit", {"file_path": path("apps/web/src/x.ts"), "old_string": "a", "new_string": "sb_secret_abc"}))

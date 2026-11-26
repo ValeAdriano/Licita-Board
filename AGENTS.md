@@ -9,9 +9,21 @@ Nada está funcionando de verdade ainda; o objetivo agora é **construir o máxi
 - **Tudo direto no `main`.** Sem branch, sem PR, sem worktree (salvo agentes em paralelo), sem "PR N" no plano. Commit curto (1 a 3 linhas, Conventional Commits em português) e push quando fechar um bloco de trabalho. Nunca `--force`.
 - **Não use o CI do GitHub.** Ele só roda sob demanda (`workflow_dispatch`). Não espere, não consulte e não corrija CI; não escreva scripts de espera. Falha de CI não é problema agora.
 - **Testes não travam o avanço.** Escreva o teste quando ele acelerar você (regra com muitos casos, SQL complicado); caso contrário, siga. Rode localmente só o que for rápido e útil. Não diga "testado" sem ter rodado. O teste de isolamento A x B (regra 13) e os e2e viram requisito **antes de qualquer uso real**, não antes de continuar.
-- **Sem cerimônia:** nada de subagente revisor/auditor (`revisor-migration`, `revisor-seguranca`, `auditor-fase`), nada de relatório de fase, descrição de PR, checklist de DoD, nem ameaça/ADR por tabela. Registre só o essencial: uma linha no `docs/agents/em-andamento.md` e o que mudar de arquitetura em ADR. Revisão e relatório voltam quando o Adriano pedir.
+- **Sem cerimônia:** nada de subagente revisor/auditor (`revisor-migration`, `revisor-seguranca`, `auditor-fase`) **fora das exceções abaixo**, nada de relatório de fase, descrição de PR, checklist de DoD, nem ameaça/ADR por tabela. Registre só o essencial: uma linha no `docs/agents/em-andamento.md` e o que mudar de arquitetura em ADR. Revisão e relatório voltam quando o Adriano pedir.
 - **Perguntar continua valendo** para regra jurídica/tributária e para o que for irreversível (produção, segredos, dado real).
 - O que ficar sem teste ou pela metade, diga em uma frase no fim da resposta (e marque "EM DESENVOLVIMENTO" na tela).
+
+### Exceções: revisão obrigatória mesmo no modo rápido
+
+Rode antes de encerrar o bloco que tocar:
+
+| O diff toca | Revisão |
+| --- | --- |
+| Segredos, `.env*`, configuração de ambiente, deploy (`infra/`, `.railway/`, Docker, compose, workflows) | `revisor-seguranca` |
+| Migrations, RLS, grants (`db/`) | `revisor-migration` |
+| Autenticação, permissões, dados de usuário, integrações externas, regras de prazo ou preço | `reviewer` + `revisor-seguranca` |
+
+O resto segue sem revisão. O `.claude/hooks/guard.py` lembra a revisão no `git commit` (só no Claude Code; os demais agentes seguem a tabela).
 
 ## 1. O projeto em 5 linhas
 
@@ -187,5 +199,5 @@ Pergunte com: contexto em 1 linha, opções (com a sua recomendação primeiro) 
 - **Só um agente por vez escreve em `db/migrations/`.** Migrations usam timestamp, mas ordem lógica importa; quem pegar a tarefa de banco anota em [`docs/agents/em-andamento.md`](docs/agents/em-andamento.md).
 - Front e worker podem andar em paralelo depois que a migration da fase estiver no `main` e os tipos gerados.
 - Ao terminar ou pausar, deixe um **handoff** em `em-andamento.md` (ou no corpo do commit): o que foi feito, o que falta, comandos para verificar, dúvidas abertas. Modelo em [`docs/agents/handoff.md`](docs/agents/handoff.md).
-- Revisão cruzada (e subagentes revisores) só quando o Adriano pedir (§0).
+- Revisão cruzada (e subagentes revisores) só quando o Adriano pedir ou nas exceções da §0.
 - **Modo orquestrado (Paseo):** um orquestrador (Claude) consome [`docs/agents/fila.md`](docs/agents/fila.md) e dispara workers em worktrees `orq/<id>`. O worker não faz push e não edita `COMECE-AQUI.md`, `em-andamento.md`, `roadmap.md` nem `fila.md`: descreve o efeito na nota de entrega. O orquestrador confere com `scripts/conferir-entrega.py`, integra com `git merge --squash` e atualiza esses arquivos **no mesmo commit** (regra 20). Detalhes e roteamento por modelo: [`docs/agents/orquestracao.md`](docs/agents/orquestracao.md).

@@ -13,7 +13,7 @@ Como rodar o plano de desenvolvimento de ponta a ponta com **um orquestrador e v
 | --- | --- | --- | --- |
 | Orquestrador | Claude Code (Opus) no Paseo, com **Enable Paseo tools** ligado | Escolhe o próximo item da fila, escreve a tarefa, dispara o worker, confere, integra no `main`, atualiza a documentação compartilhada | Implementar código volumoso; ler diffs inteiros sem necessidade |
 | Worker | Antigravity (Gemini 4 Argon), Codex (GPT-6.1 Sol / GPT-6 Luna) ou Claude | Implementa **uma** tarefa numa worktree, com testes e documentação local | Mexer nos arquivos de estado compartilhado (§5), fazer push, tocar em outra área |
-| Verificador | Claude Sonnet (ou Codex Sol, quando o autor foi Claude) | Revisão curta do diff, **só quando o Adriano pedir** (AGENTS.md §0) ou no `/paseo-loop` | Reescrever o trabalho |
+| Verificador | Claude Sonnet (ou Codex Sol, quando o autor foi Claude) | Revisão curta do diff, nas **exceções do AGENTS.md §0**, quando o Adriano pedir ou no `/paseo-loop` | Reescrever o trabalho |
 | Adriano | Pessoa | Gates humanos (§6) | Microgerenciar a fila |
 
 O Antigravity não recebe as ferramentas MCP do Paseo nem steering: **nunca é orquestrador**, só worker.
@@ -49,7 +49,7 @@ fila ─► escolhe item ─► tarefa (07) ─► worker na worktree ─► con
 3. **Tarefa.** Preenche o modelo `07` com objetivo, requisitos da spec, arquivos prováveis, critérios de pronto e comandos de checagem. Tarefa que não cabe em uma sessão de worker é dividida na fila antes.
 4. **Disparo.** Cria a worktree `orq/<id>` a partir do `main` e lança o worker do tier certo nela, como subagente do Paseo. Registra a linha em `em-andamento.md`.
 5. **Paralelismo.** No máximo 3 workers ao mesmo tempo, em áreas diferentes, e **no máximo um** com escrita em `db/migrations/` (trava de banco).
-6. **Conferência.** Quando o worker avisa que terminou: `python3 scripts/conferir-entrega.py main` na worktree e os checks rápidos do pacote tocado (AGENTS.md §6). Sem subagente revisor (AGENTS.md §0): a conferência automática é o filtro. O orquestrador só lê o diff inteiro quando o script avisa algo ou quando a entrega toca dinheiro, permissão ou IA do produto.
+6. **Conferência.** Quando o worker avisa que terminou: `python3 scripts/conferir-entrega.py main` na worktree e os checks rápidos do pacote tocado (AGENTS.md §6). Fora das exceções do AGENTS.md §0 (onde a revisão é obrigatória), não há subagente revisor: a conferência automática é o filtro. O orquestrador só lê o diff inteiro quando o script avisa algo ou quando a entrega toca dinheiro, permissão ou IA do produto.
 7. **Falha.** Devolve ao mesmo worker com o erro exato (1 vez). Falhou de novo: escala um tier (C → B' → B → A) com o handoff do anterior. Falhou no tier A: estaciona o item como `parado` na fila com o motivo e segue para o próximo.
 8. **Integração.** `git merge --squash orq/<id>` no `main` + atualização da documentação compartilhada (§5) **no mesmo commit** (mantém a regra 20). Commit curto em português, push, remove a worktree e o branch.
 9. **Ritmo.** Usa um heartbeat do Paseo para continuar o ciclo sozinho. A cada 5 itens integrados (ou ao ficar sem item `pronto`), manda um resumo de 5 linhas ao Adriano: integrados, parados, bloqueios que dependem dele.

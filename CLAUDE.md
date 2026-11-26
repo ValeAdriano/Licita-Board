@@ -1,6 +1,6 @@
 # CLAUDE.md · VV Licitações
 
-As regras do projeto valem para todos os agentes e estão em `AGENTS.md`, importado abaixo. **Modo atual: desenvolvimento rápido, tudo no `main`, sem PR, sem CI, sem revisores (AGENTS.md §0).** Este arquivo só acrescenta o que é específico do Claude Code.
+As regras do projeto valem para todos os agentes e estão em `AGENTS.md`, importado abaixo. **Modo atual: desenvolvimento rápido, tudo no `main`, sem PR, sem CI, revisores só nas exceções (AGENTS.md §0).** Este arquivo só acrescenta o que é específico do Claude Code.
 
 @AGENTS.md
 
@@ -32,8 +32,8 @@ Os comandos são finos: cada um aponta para um prompt neutro em `docs/agents/pro
 
 ### Subagentes (`.claude/agents/`)
 
-- `revisor-migration` — revisa SQL, RLS e grants. **Só quando o Adriano pedir** (modo rápido).
-- `revisor-seguranca` — revisa um diff contra o modelo de ameaças e o ASVS L2 resumido. Só sob pedido.
+- `revisor-migration` — revisa SQL, RLS e grants. Obrigatório nas exceções do AGENTS.md §0; fora delas, só sob pedido.
+- `revisor-seguranca` — revisa um diff contra o modelo de ameaças e o ASVS L2 resumido. Obrigatório nas exceções do AGENTS.md §0; fora delas, só sob pedido.
 - `auditor-fase` — confere critérios de aceite de uma fase contra evidências reais e aponta lacunas. Só sob pedido.
 
 ### Hooks (`.claude/hooks/guard.py`)
@@ -45,7 +45,7 @@ Bloqueiam antes de executar: credencial de banco/S3/chave-mestra/service role em
 - Alvos: `make test-file F=<arquivo>`, `make test-block B=<nome>` (blocos em `.claude/test-blocks.tsv`), `make test-changed`, `make test-all`. O roteador `.claude/bin/test-monorepo.sh` manda cada arquivo para o app certo (web/api: `vitest related`; worker: `pytest` do `test_<módulo>.py`). `db/`, `infra/` e e2e não rodam no automático: use `make test-block B=api-e2e` ou o pgTAP da §6 do AGENTS.md.
 - Hooks: ao editar código, roda os testes relacionados (só as falhas voltam); ao encerrar o turno, roda os afetados pelo diff. Desligar o do encerramento: `touch .claude/NO_STOP_TESTS`.
 - Trava: sem `.claude/ALLOW_TESTS` (fora do git, só nesta máquina) nenhum teste roda. Worktrees de workers não têm a trava, então lá os hooks não rodam.
-- Os agentes globais (`planner`, `test-writer`, `implementer`, `reviewer`, `ui-designer`, `explorer`) e as skills `dev-workflow`/`design-guide` ficam em `~/.claude`. **O modo rápido (AGENTS.md §0) vence o `~/.claude/CLAUDE.md`**: tudo no `main`, sem branch, e o `reviewer` só quando o Adriano pedir.
+- Os agentes globais (`planner`, `test-writer`, `implementer`, `reviewer`, `ui-designer`, `explorer`) e as skills `dev-workflow`/`design-guide` ficam em `~/.claude`. **O modo rápido (AGENTS.md §0) vence o `~/.claude/CLAUDE.md`**: tudo no `main`, sem branch, e o `reviewer` só nas exceções do AGENTS.md §0 ou quando o Adriano pedir.
 
 ### Supabase (revisão 1, descontinuado)
 

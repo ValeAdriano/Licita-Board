@@ -52,6 +52,37 @@ DESTRUCTIVE_BASH = [
 ]
 
 
+# Exceções do modo rápido (AGENTS.md §0): caminho alterado -> quem precisa revisar antes de encerrar.
+REVIEW = [
+    (re.compile(r"(^|/)(\.env[^/]*|compose[^/]*\.ya?ml|[^/]*Dockerfile[^/]*)$|^(infra|\.railway|\.github/workflows)/"
+                r"|^apps/(api/src/config\.ts|worker/src/worker/settings\.py)$|^scripts/(dev-env|criar-usuario)"),
+     ("revisor-seguranca",)),
+    (re.compile(r"^db/(migrations|init|tests)/"), ("revisor-migration",)),
+    (re.compile(r"^apps/api/src/(auth|acesso|cripto|db|documentos|ia|push|pesquisa|precos|agenda)/"
+                r"|^apps/worker/src/worker/(rules|llm|connectors|pesquisa)/"
+                r"|^apps/worker/src/worker/(agenda\w*|preco|cripto|chave_ia|email|push|s3|extracao|minuta_ia)\.py$"),
+     ("reviewer", "revisor-seguranca")),
+]
+
+
+def reviewers_for(paths: list[str]) -> list[str]:
+    return sorted({r for pattern, names in REVIEW for p in paths if pattern.search(p) for r in names})
+
+
+def changed_paths() -> list[str]:
+    # Árvore inteira, não só o índice: "git add x && git commit" ainda não preparou nada neste ponto.
+    out = subprocess.run(["git", "-C", PROJECT_DIR, "status", "--porcelain", "-uall", "--no-renames"],
+                         capture_output=True, text=True, check=False).stdout
+    return [line[3:].strip('"') for line in out.splitlines()]
+
+
+def remind(names: list[str]) -> None:
+    msg = (f"[guard] Revisão obrigatória (AGENTS.md §0, exceções): o diff toca área sensível. "
+           f"Antes de encerrar, rode: {', '.join(names)}. Se já rodou sobre este diff, siga.")
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": msg}},
+                     ensure_ascii=False))
+
+
 def rel(path: str) -> str:
     try:
         return str(PurePosixPath(os.path.relpath(path, PROJECT_DIR)))
@@ -132,6 +163,10 @@ def check_bash(tool_input: dict[str, object]) -> None:
     for pattern, label in DESTRUCTIVE_BASH:
         if pattern.search(command):
             ask(label)
+    if re.search(r"\bgit\b[^;&|]*\bcommit\b", command):
+        names = reviewers_for(changed_paths())
+        if names:
+            remind(names)
 
 
 def main() -> None:
