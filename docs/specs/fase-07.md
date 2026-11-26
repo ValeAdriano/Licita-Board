@@ -6,6 +6,7 @@
 - **Validação:** **🧾 parâmetros tributários pendentes e bloqueantes para o uso real** (precisam do responsável contábil); **⚖️ regras de ME/EPP e de inexequibilidade pendentes do jurídico** (nada é suposto: tudo é parâmetro).
 - **Fontes:** Prompt Mestre Fase 07 (7.1 a 7.6) e regras 14 e 15 do AGENTS.md; Fase 02 (`priv.produtos`); Fase 05 (`priv.participacoes`).
 - **Bloco 7.5 (§8):** `Aprovada` em 2026-11-08 (Adriano Vale; recomendações de §8.11 adotadas).
+- **Bloco em rascunho:** 7.4 · cenários salvos de preço (§9), `Rascunho` desde 2026-11-12; aguarda as respostas de §9.11.
 
 > **Princípios:** dinheiro em `numeric(18,4)` no banco, `decimal.Decimal` no Python e `string` na API e no front, **nunca `float`** (regra 14); todo cálculo em código puro (`apps/worker/src/worker/rules/precos.py`, 100% de cobertura), reproduzível e auditável; a API só grava os insumos e enfileira o worker (como em prazos e análise técnica).
 
@@ -25,7 +26,7 @@
 | --- | --- |
 | Histórico comercial de preços vencedores (7.5) | Exige coletar resultados/homologações do PNCP (fonte pública) e busca por produto/marca/órgão. **Rascunho em §8.** |
 | Reautenticação ao aprovar preço abaixo do mínimo (7.6) | Depende de definir o "step-up" para essa ação (já existe o mecanismo de MFA recente). |
-| Cenários múltiplos salvos (inicial, alvo, mínimo autorizado, pós-negociação) | Entram junto da Fase 09 (disputa). Aqui há o preço mínimo, o de oferta e o proposto. |
+| Cenários múltiplos salvos (inicial, alvo, mínimo autorizado, pós-negociação) | Entram junto da Fase 09 (disputa). Aqui há o preço mínimo, o de oferta e o proposto. **Rascunho em §9.** |
 | Valor por extenso (7.3) | Entra com as propostas (Fase 08). |
 | Parâmetros tributários validados | 🧾 contador. |
 
@@ -278,3 +279,188 @@ Erros: `400` filtro inválido (valor não decimal, `de > ate`, texto curto); `40
 4. **Comparação "nosso preço × histórico":** **(a) não neste bloco inicial**, entrando a seguir em **(c) `rules/precos.py`** (100% de cobertura) para manter toda conta de preço em `rules/` (regra 15).
 5. **Informação comercial privada:** **só nossa oferta, custo e margem exigem `precos/ver_custos_margens`**; vencedora e marca/modelo digitadas em `priv.resultados_item` seguem `agenda/visualizar` (Fase 09).
 6. **Marca/modelo:** **aceitar busca pelo texto do item e pelos nossos registros quando o PNCP não trouxer estruturado** (extração de marca em atas/contratos fica para a Fase 13.5).
+
+## 9. Bloco 7.4 · Cenários salvos de preço · **Rascunho**
+
+- **Status deste bloco:** `Rascunho` em 2026-11-12 (Claude Code, Q-42). **Aguarda aprovação do Adriano** e as respostas de §9.11; nada aqui vira código antes disso.
+- **Fontes:** Prompt Mestre 7.4 (cenários: preço inicial, preço-alvo, preço mínimo autorizado, preço após negociação, margem resultante; empate ficto ME/EPP e direito de nova oferta; risco de inexequibilidade parametrizado), 7.2, 7.3, 7.5 (sigilo "Ver custos e margens"), 7.6 (alçada, reautenticação e justificativa abaixo do mínimo), 8.2 (proposta final "atualiza o preço final"), 9.2 (valores inicial/final, melhor lance); plano, Fase 07 ("Cenários: inicial, alvo, mínimo autorizado, pós-negociação; simulação de empate ficto ME/EPP") e Onda 5 (`priv.cenarios_preco`); regras 14 e 15. Código conferido: `rules/precos.py` (`calcular`, `empate_ficto`), `worker/preco.py`, `priv.precificacoes`/`priv.preco_linhas` (migration `20261111100000`), `priv.aprovar_preco` com step-up `preco_abaixo_minimo` (migration `20261123100000`), `apps/api/src/precos/precos.controller.ts`, `features/precos/Calculadora.tsx`.
+
+> **Princípios:** cenário é **o mesmo cálculo da precificação com outro preço unitário**, nunca outro conjunto de custos: as linhas de custo e os percentuais continuam sendo os de `priv.precificacoes` (um custo, uma verdade). Todo número de cenário (preço arredondado, total, margens, diferença para o estimado, abaixo do mínimo, inexequibilidade, empate ficto) sai de `rules/precos.py` em `Decimal` (regra 15, 100% de cobertura), gravado pelo worker; a API só grava o preço informado e enfileira. A IA não sugere cenário nem lance. O sistema **não dá lance** (regra 17): o "mínimo autorizado" é um limite interno para a pessoa que opera a sessão no portal.
+
+### 9.1 Escopo
+
+**Entra:**
+
+- **Quatro cenários fixos por precificação** (Prompt 7.4): `inicial`, `alvo`, `minimo_autorizado` e `pos_negociacao`, cada um com o preço unitário informado e o resultado calculado (preço arredondado pela regra do edital, total, margem bruta, margem líquida, diferença para o estimado, abaixo do mínimo comercial, risco de inexequibilidade).
+- **Cenário inicial preenchido a partir do preço aprovado** (o `preco_final_unit` que a proposta da Fase 08 já usa), editável enquanto não houver proposta final.
+- **Aprovação do mínimo autorizado** com a alçada da 7.6: `precos/aprovar`; abaixo do mínimo comercial, justificativa (≥ 10 caracteres) e reautenticação (o mesmo step-up `preco_abaixo_minimo`, vinculado ao cenário).
+- **Mudar insumo derruba a aprovação do cenário** (quantidade, linhas, percentuais, margens, casas, arredondamento): o cenário é recalculado e volta a "não aprovado", como já acontece com a precificação.
+- **Simulação do empate ficto na tela** (fecha o 🟡 de §7): a pessoa informa a melhor oferta conhecida; `empate_ficto` diz se há direito de nova oferta, o valor-limite e se o mínimo autorizado permite cobrir a melhor oferta. Percentual sempre parâmetro (⚖️).
+- **Pós-negociação** pré-preenchido com o valor final do resultado (Fase 09) quando ele existir, sempre confirmado pela pessoa; abaixo do mínimo autorizado gera alerta.
+- **Histórico dos cenários** (auditoria): cada gravação de preço e cada aprovação fica no `audit` e o cenário guarda a "foto" dos insumos usados no cálculo (hash), para reproduzir o número depois.
+
+**Não entra (e onde fica):**
+
+| Item | Onde fica |
+| --- | --- |
+| Cenários livres ("e se o frete subir 10%?") com custos próprios | Pergunta 1 (recomendação: não; cenário só muda o preço) |
+| Proposta final usando o cenário pós-negociação | Pergunta 5 (mexe na Fase 08; recomendação: item seguinte) |
+| Alerta durante a sessão (lance chegando perto do mínimo autorizado) | Spec 09 §6 (alerta em tempo real); este bloco só expõe o número |
+| Sugestão de lance, de preço ou de cenário pela IA ou pelo histórico (7.5) | Nunca (regra 15) |
+| Robô de lance, leitura automática do lance do portal | Nunca (regra 17) |
+| Alçada por faixa de valor/margem por papel | Pergunta 3 da §6 (continua `precos/aprovar`) |
+| Parâmetros tributários e percentuais de empate/inexequibilidade validados | 🧾 contador / ⚖️ jurídico (§6, perguntas 1 e 2) |
+
+### 9.2 Requisitos
+
+| ID | Requisito | Origem |
+| --- | --- | --- |
+| RF-07.17 | Quatro cenários por precificação (inicial, alvo, mínimo autorizado, pós-negociação), no máximo um de cada tipo, com o preço unitário informado | 7.4, plano Fase 07 |
+| RF-07.18 | O resultado de cada cenário (preço arredondado, total = quantidade × unitário arredondado, margem bruta, margem líquida, diferença para o estimado, abaixo do mínimo, risco de inexequibilidade) é calculado em `rules/precos.py` com os insumos da precificação | 7.2, 7.3, 7.4, regra 15 |
+| RF-07.19 | Cenário guarda o hash dos insumos usados; mudar insumo recalcula todos os cenários e marca os aprovados como "aprovação derrubada" (com o motivo no histórico) | 7.3 "reproduzíveis e auditáveis", 7.6 |
+| RF-07.20 | Mínimo autorizado só vale aprovado por `precos/aprovar`; abaixo do mínimo comercial exige justificativa e reautenticação vinculada ao cenário | 7.6 |
+| RF-07.21 | Empate ficto: com `me_epp` e a melhor oferta informada, mostra se há direito de nova oferta, o valor-limite e se o mínimo autorizado cobre a melhor oferta; percentual é parâmetro da precificação, marcado "não validado" até o jurídico | 7.4, ⚖️ |
+| RF-07.22 | Risco de inexequibilidade por cenário só com critério parametrizado; sem critério, "não parametrizado" | 7.4, regra 15 |
+| RF-07.23 | Pós-negociação pode ser pré-preenchido com o valor final do resultado (Fase 09); nada é gravado sem ação humana; abaixo do mínimo autorizado gera alerta | 7.4, 9.2 |
+| RF-07.24 | Custos e margens dos cenários só com `precos/ver_custos_margens`; o preço do mínimo autorizado aprovado, sem custo nem margem, conforme a pergunta 2 | 7.5 |
+| RF-07.25 | Isolamento A x B da tabela e das rotas; dinheiro como texto decimal na API | regras 13 e 14 |
+
+### 9.3 Modelo de dados
+
+#### `priv.cenarios_preco`
+
+| Coluna | Tipo | Nulo | Regra |
+| --- | --- | --- | --- |
+| id | uuid | não | v7, PK |
+| empresa_id | uuid | não | FK `core.empresas` |
+| precificacao_id | uuid | não | FK `(…, empresa_id)` → `priv.precificacoes` |
+| tipo | text | não | `inicial`, `alvo`, `minimo_autorizado`, `pos_negociacao` |
+| preco_informado_unit | numeric(18,6) | não | ≥ 0; o que a pessoa digitou (mesma precisão de `precificacoes.preco_*_unit`, que aceita 2 a 6 casas no unitário) |
+| origem | text | não | `manual`, `preco_aprovado` (inicial), `resultado` (pós-negociação pré-preenchido e confirmado) |
+| observacao | text | sim | ≤ 500 |
+| melhor_oferta_unit | numeric(18,6) | sim | ≥ 0; só para a simulação do empate ficto (informada pela pessoa) |
+| — resultado (só o worker grava) — | | | |
+| preco_unit | numeric(18,6) | sim | arredondado pela regra do edital |
+| total | numeric(18,4) | sim | quantidade × `preco_unit`, 2 casas |
+| margem_bruta_pct, margem_liquida_pct, diferenca_estimado_pct | numeric(12,4) | sim | como em `precificacoes` |
+| abaixo_do_minimo | boolean | sim | `preco_unit < preco_minimo_unit` da precificação |
+| abaixo_do_autorizado | boolean | sim | só em `pos_negociacao`/`alvo`: `preco_unit <` mínimo autorizado aprovado |
+| risco_inexequivel | text | sim | `OK`, `RISCO`, `NAO_PARAMETRIZADO` |
+| empate_ficto | text | sim | `sem_direito`, `com_direito`, `nao_me_epp`, `sem_melhor_oferta` |
+| empate_limite_unit | numeric(18,6) | sim | valor-limite do empate (sai de `empate_ficto`) |
+| cobre_melhor_oferta | boolean | sim | só em `minimo_autorizado`: mínimo autorizado `<` melhor oferta |
+| hash_insumos | text | sim | SHA-256 dos insumos da precificação no cálculo |
+| erro_calculo | text | sim | ≤ 300 |
+| calculado_em | timestamptz | sim | |
+| — aprovação (só `minimo_autorizado`) — | | | |
+| justificativa_abaixo | text | sim | ≤ 1000; obrigatória (≥ 10) se `abaixo_do_minimo` |
+| aprovado_por, aprovado_em | uuid, timestamptz | sim | juntos (check) |
+| created_at, updated_at, created_by, deleted_at | | | padrão |
+
+**Mudanças em `priv.precificacoes` (migration nova):** `percentual_empate_pct numeric(9,4)` (≥ 0, ≤ 100; nulo = "não parametrizado"; a tela oferece o padrão do Prompt, 5% pregão e 10% demais, **marcado ⚖️ não validado**), usado junto do `me_epp` e do `modalidade_empate` que já existem.
+
+**Checks:** `(aprovado_por is null) = (aprovado_em is null)`; `aprovado_em is null or tipo = 'minimo_autorizado'`; `melhor_oferta_unit is null or tipo in ('minimo_autorizado', 'alvo', 'pos_negociacao')`.
+**Unicidade:** `(precificacao_id, tipo) where deleted_at is null`; `(id, empresa_id)`. **Índices:** `(empresa_id)`, `(precificacao_id)`.
+
+**RLS:**
+
+| Operação | Policy |
+| --- | --- |
+| select | `core.has_permission(empresa_id, 'precos', 'ver_custos_margens')` (a mesma de `precificacoes`) |
+| insert / update / delete | nenhuma; só pelas funções abaixo |
+
+**Funções (security definer, `search_path = ''`):**
+
+- `priv.salvar_cenario_preco(p_empresa, p_precificacao, p_tipo, p_preco_unit, p_origem, p_melhor_oferta, p_observacao) returns uuid` — `precos/editar`; upsert por `(precificacao_id, tipo)`; zera o resultado e a aprovação do cenário; enfileira `calcular_preco` (o mesmo job recalcula a precificação e os cenários).
+- `priv.aprovar_cenario_minimo(p_empresa, p_cenario, p_justificativa, p_step_up) returns void` — `precos/aprovar`; só cenário calculado sem erro e com `hash_insumos` igual ao atual; abaixo do mínimo comercial exige justificativa e `core.exigir_step_up(p_step_up, 'preco_abaixo_minimo', p_empresa, 'cenario:' || p_cenario)`.
+- `priv.remover_cenario_preco(p_empresa, p_cenario)` — `precos/editar`; soft delete.
+- `priv.piso_autorizado(p_empresa, p_participacao) returns numeric` — **só se a pergunta 2 for (b)**: `precos/visualizar`; devolve só o `preco_unit` do mínimo autorizado **aprovado e não derrubado**, ou nulo; nunca custo nem margem.
+- As funções de insumo existentes (`salvar_parametros_preco`, `adicionar_linha_preco`, `remover_linha_preco`) passam a derrubar também a aprovação do mínimo autorizado (nova versão da função em migration nova).
+
+Auditoria `audit.registrar()` em insert/update (`enable always`). Teste de isolamento A x B em `db/tests/isolamento/priv_cenarios_preco.test.sql`.
+
+### 9.4 Regras
+
+1. **Mesmo cálculo:** `calcular_cenario(entrada, preco_unit)` em `rules/precos.py` reaproveita `calcular` com `preco_proposto = preco_unit` (mesmas casas, modo de arredondamento, percentuais, estimado e limite de inexequibilidade). Divisor ≤ 0 continua recusado.
+2. **Ordem esperada, só alerta (nunca bloqueio nem correção):** `inicial ≥ alvo ≥ minimo_autorizado` e `pos_negociacao ≥ minimo_autorizado`. Fora disso, aviso "cenários fora de ordem".
+3. **Aprovação derrubada:** `hash_insumos` do cenário diferente do hash atual da precificação = aprovação derrubada (o worker grava o novo hash e limpa `aprovado_*`, registrando no histórico "insumo alterado").
+4. **Empate ficto:** só com `me_epp = true`, `percentual_empate_pct` informado e `melhor_oferta_unit` informada; a função `empate_ficto` existente recebe os **totais** (`quantidade × unitário`), e o limite volta em unitário com a regra de arredondamento do edital (pergunta 4). Sem percentual: "não parametrizado". ⚖️ quem tem direito, em que ordem e com qual prazo para a nova oferta **não é decidido pelo sistema**; a tela só mostra a conta.
+5. **Inexequibilidade:** `preco_unit < estimado × limite%`, com o limite já existente na precificação. ⚖️ critério por modalidade/objeto continua pergunta 2 da §6.
+6. **Pós-negociação a partir do resultado:** a tela oferece "usar o valor final registrado" quando `priv.resultados_item.valor_final` existe; a pessoa confirma e o cenário grava `origem = 'resultado'`. Se o valor do resultado é total ou unitário, ver pergunta 4.
+7. **Sigilo:** cenário inteiro (preço, margens, total) é sigilo comercial (`ver_custos_margens`). A exceção, se aprovada (pergunta 2), é só o número do mínimo autorizado aprovado.
+
+### 9.5 Permissões (sugestão de padrão; a matriz é por vínculo)
+
+| Operação | ADMIN_EMPRESA | OPERADOR | JURÍDICO | CLIENTE | Step-up |
+| --- | --- | --- | --- | --- | --- |
+| Ver cenários com margens (`precos/ver_custos_margens`) | sim | conforme vínculo | não | não | não |
+| Salvar/remover cenário (`precos/editar`) | sim | conforme vínculo | não | não | não |
+| Aprovar mínimo autorizado (`precos/aprovar`) | sim | não | não | não | só abaixo do mínimo comercial |
+| Ver só o piso autorizado aprovado (`precos/visualizar`, se pergunta 2 = b) | sim | sim | não | não | não |
+
+### 9.6 Jobs
+
+| Job | Gatilho | Idempotência | Em caso de falha |
+| --- | --- | --- | --- |
+| `calcular_preco` (existente, ampliado) | qualquer função de insumo ou de cenário | o job recalcula tudo a partir do banco (resultado depende só dos insumos); mesmo hash = mesma saída | erro de um cenário vai para `erro_calculo` dele; a precificação continua; a tela mostra o erro, nunca um número antigo como atual |
+
+Sem integração externa neste bloco.
+
+### 9.7 API
+
+| Rota | Permissão | Corpo | Resposta |
+| --- | --- | --- | --- |
+| `GET /empresas/:empresa/participacoes/:id/preco` (existente) | `precos/ver_custos_margens` (guard e RLS, como hoje) | — | passa a incluir `cenarios: [{ id, tipo, precoInformado, origem, observacao, melhorOferta, precoUnit, total, margemBruta, margemLiquida, diferencaEstimado, abaixoDoMinimo, abaixoDoAutorizado, riscoInexequivel, empateFicto, empateLimite, cobreMelhorOferta, desatualizado, erroCalculo, calculadoEm, aprovadoEm, aprovadoPor, justificativaAbaixo }]` e `avisos: ['fora_de_ordem']`; dinheiro sempre string |
+| `POST /empresas/:empresa/precificacoes/:id/cenarios` | `precos/editar` | `{ tipo, precoUnit (texto decimal), origem?, melhorOferta?, observacao? }` | `202 { id, status: 'calculando' }`; `400` valor não decimal/negativo, tipo inválido; `404` precificação de outra empresa |
+| `POST /empresas/:empresa/cenarios-preco/:id/aprovar` | `precos/aprovar` | `{ justificativa?, stepUp? }` | `204`; `400` não calculado, desatualizado, sem justificativa; step-up ausente ou de outro alvo recusado com a mesma resposta da aprovação atual (`aprovar_preco`); `404` |
+| `DELETE /empresas/:empresa/cenarios-preco/:id` | `precos/editar` | — | `204`; `404` |
+| `GET /empresas/:empresa/participacoes/:id/piso-autorizado` (só se pergunta 2 = b) | `precos/visualizar` | — | `{ piso: string \| null, aprovadoEm }` (nada de custo, margem ou outros cenários) |
+
+### 9.8 Telas
+
+| Tela | Rota | Estados | 360 px |
+| --- | --- | --- | --- |
+| Aba "Cenários" na calculadora | `/agenda/participacoes/:id/preco` | sem precificação calculada ("calcule o preço primeiro"); vazio (só o inicial sugerido); calculando; erro de cálculo por cenário; desatualizado ("insumo mudou: aprovação derrubada"); sem permissão (`ver_custos_margens`: aba oculta); aviso "fora de ordem"; selo ⚖️ no empate ficto e na inexequibilidade | um cartão por cenário (tipo, preço, total, margem líquida, selos), em coluna; editar abre folha com teclado decimal; tabela comparativa só ≥ 768 px |
+| Aprovar mínimo autorizado | folha na aba | resumo (preço, margem, diferença para o mínimo comercial); abaixo do mínimo: justificativa + reautenticação (fluxo de step-up existente); recusado; aprovado | botões no rodapé fixo |
+| Simulação do empate ficto | bloco dentro do cartão do mínimo autorizado | não ME/EPP (oculto); sem percentual ("não parametrizado"); sem melhor oferta; com direito / sem direito; "o mínimo autorizado cobre / não cobre a melhor oferta" | campo da melhor oferta em linha única |
+| Pós-negociação | cartão | sem resultado registrado; com resultado ("usar o valor final registrado", a pessoa confirma); abaixo do autorizado (vermelho) | igual aos demais |
+
+### 9.9 Critérios de aceite
+
+| # | Critério | Como será comprovado |
+| --- | --- | --- |
+| CA-13 | Cada cenário reproduz exatamente o cálculo da precificação para o mesmo preço (sem float), com casos de borda de arredondamento e truncamento | pytest `rules/precos.py` (100%) |
+| CA-14 | Alterar quantidade ou um custo recalcula todos os cenários e derruba a aprovação do mínimo autorizado | pytest com banco + pgTAP |
+| CA-15 | Mínimo autorizado abaixo do mínimo comercial não é aprovado sem justificativa, sem `precos/aprovar` ou sem step-up do próprio cenário (step-up de outro cenário é recusado) | pgTAP + e2e |
+| CA-16 | Empate ficto: com/sem direito e valor-limite conferidos à mão em casos conhecidos; sem percentual, "não parametrizado" | pytest + e2e |
+| CA-17 | Pós-negociação vindo do resultado só é gravado com a confirmação; abaixo do autorizado gera o alerta | e2e + teste de tela |
+| CA-18 | Sem `ver_custos_margens` nenhum cenário aparece; B nunca vê nem altera cenário de A (404) | pgTAP de isolamento + e2e A x B |
+| CA-19 | (se pergunta 2 = b) a rota do piso devolve só o número aprovado, nunca custo/margem, e nulo quando a aprovação foi derrubada | e2e |
+
+### 9.10 Ameaças (proposta para `docs/threat-model.md`)
+
+| Ameaça | Controle | Teste |
+| --- | --- | --- |
+| **T1** · cenários de A (o piso de lance, a informação comercial mais sensível) vistos por B | RLS `ver_custos_margens` + `comContexto`; 404 sem revelar | CA-18 |
+| **T1.3 (nova)** · piso de lance vaza dentro da empresa para quem não deveria ver margens | piso separado só com o número (pergunta 2), nunca margens; sem piso no push/e-mail | CA-19 |
+| **T6** · operador usa um mínimo autorizado velho (custos mudaram) na sessão | hash dos insumos; aprovação derrubada ao mudar insumo; tela marca "desatualizado" | CA-14 |
+| **T5.1b** · step-up de outra aprovação reaproveitado para aprovar o piso | step-up vinculado a `cenario:<id>` | CA-15 |
+| **T14** · pressão para "dar lance até o piso" automaticamente | regra 17: nenhum job/rota fala com portal; o piso é só informação | revisão + e2e de rotas |
+
+### 9.11 Perguntas abertas
+
+1. **Cenários livres além dos quatro do Prompt?** (a) só os quatro fixos, mudando só o preço; (b) também até N simulações nomeadas com o mesmo cálculo; (c) simulações com custos próprios. **Recomendação: (a)**: cobre o 7.4 e mantém "um custo, uma verdade"; (b) entra depois se o uso pedir.
+2. **Quem vê o mínimo autorizado na sessão?** (a) só quem tem `ver_custos_margens` (como todo o resto); (b) o número do piso aprovado também para `precos/visualizar`, sem custo nem margem; (c) também no painel da sessão (spec 09 §6) para quem tem `agenda/editar`. **Recomendação: (b)**: o piso existe para quem opera a sessão, que nem sempre deve ver margens; (c) só se o Adriano quiser o piso no painel da sessão.
+3. **O inicial é sempre o preço aprovado?** (a) sim, preenchido do `preco_final_unit` aprovado e editável até a proposta final; (b) independente, digitado. **Recomendação: (a)**, evita dois "preços iniciais" diferentes entre preço e proposta.
+4. **Base da disputa (unitário ou total) e do valor final do resultado.** O núcleo da Fase 09 não define se `valor_final`/`melhor_lance` são unitários ou totais. (a) campo `base_disputa` (`unitario`/`total`) na precificação, e o resultado segue a mesma base; (b) sempre unitário; (c) sempre total. **Recomendação: (a)**, porque editais variam (item × lote/global); ⚖️ o empate ficto compara a proposta "como julgada no edital".
+5. **Proposta final (8.2) usa o pós-negociação?** (a) não neste bloco (a proposta final continua com o preço da precificação, que a pessoa ajusta); (b) sim: pós-negociação aprovado vira o preço da proposta final, com a mesma alçada e a mesma conferência de total. **Recomendação: (a) agora e (b) como item seguinte**, porque (b) mexe na geração e na validação da Fase 08.
+6. ⚖️ **Empate ficto: percentuais, quem tem direito e prazo da nova oferta** (LC 123, arts. 44 e 45). Continua a pergunta 2 da §6: **parâmetro por precificação, preenchido e validado pelo jurídico**; o sistema só faz a conta.
+7. 🧾 **Margem líquida por cenário** usa os mesmos percentuais sobre o preço (tributos) da precificação, ainda não validados pelo contador. **Recomendação:** mostrar o selo 🧾 "tributos não validados" no cartão enquanto alguma linha percentual não estiver validada.
+
+### 9.12 Plano de entregas
+
+1. `rules/precos.py`: `calcular_cenario`, ordem, empate com limite unitário, hash dos insumos; testes primeiro (100%). **Tier: médio · sem migration.**
+2. Migration: `priv.cenarios_preco`, coluna `percentual_empate_pct`, funções (salvar, aprovar com step-up, remover; novas versões das funções de insumo que derrubam a aprovação); pgTAP + isolamento A x B. **Tier: alto (sigilo + step-up) · com migration.**
+3. Job `calcular_preco` ampliado (cenários, derrubada de aprovação) + pytest com banco. **Tier: médio · sem migration.**
+4. API (cenários no GET, 3 rotas, piso se pergunta 2 = b) + e2e A x B. **Tier: médio · sem migration.**
+5. Tela (aba Cenários, aprovação, empate, pós-negociação) em 360 px e desktop. **Tier: médio · sem migration.**

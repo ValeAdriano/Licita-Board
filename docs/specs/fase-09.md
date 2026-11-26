@@ -6,6 +6,7 @@
 - **Validação:** ⚖️ o prazo da intenção de recurso vem da regra da agenda (Lei 14.133, art. 165, §1º, "imediato"), **ainda não validada pelo jurídico**.
 - **Fontes:** Prompt Mestre Fase 09 (9.1 a 9.5); Fase 05 (participações, eventos, `priv.registrar_fato`); regra 17 do AGENTS.md.
 - **Bloco 9.5 (§5):** `Aprovada` em 2026-11-08 (Adriano Vale; recomendações de §5.10 adotadas).
+- **Bloco em rascunho:** alerta durante a sessão (§6), `Rascunho` desde 2026-11-26; aguarda as respostas de §6.11.
 
 > O sistema **só registra**: nunca dá lance nem protocola nada em portal (regra 17). **Arrematação não é homologação**: são resultados diferentes.
 
@@ -13,7 +14,7 @@
 
 **Entra neste bloco:** os 20 status de participação do Prompt (9.1) mais os já existentes; o **resultado por item** (`priv.resultados_item`: valor inicial e final, classificação, melhor lance, vencedora com CNPJ/nome/marca-modelo, motivo da perda, situação de habilitação, resultado final e quando ocorreu); o **gatilho jurídico (9.3)**: perder, ser inabilitada ou desclassificada (ou não ficar em 1º) abre o evento **Intenção de recurso** na agenda, com prazo calculado pelo worker; o **histórico pesquisável (9.4)** por texto, órgão/município, marca/modelo (nossa e da vencedora), ano e resultado; tela de registro (item do acompanhamento) e aba **Resultados** na Agenda.
 
-**Fica para os próximos blocos:** documentos posteriores (9.5: ata, decisões, adjudicação, homologação, contrato, empenhos; **rascunho em §5**), análise de viabilidade recursal (Fase 10.4, que consome o gatilho), alerta durante a sessão em tempo real, busca por portal e por valor, registro do comprovante de envio da proposta ao portal (rascunho na spec da Fase 08, §7).
+**Fica para os próximos blocos:** documentos posteriores (9.5: ata, decisões, adjudicação, homologação, contrato, empenhos; **rascunho em §5**), análise de viabilidade recursal (Fase 10.4, que consome o gatilho), alerta durante a sessão em tempo real (**rascunho em §6**), busca por portal e por valor, registro do comprovante de envio da proposta ao portal (rascunho na spec da Fase 08, §7).
 
 ## 2. Requisitos
 
@@ -43,7 +44,7 @@
 - ✅ Valor é transportado como string decimal e escrita passa por função do banco: `apps/api/src/resultados/resultados.controller.ts`, `db/migrations/20261113100000_resultados.sql`.
 - 🟡 Gatilho de recurso está implementado, mas o cálculo do prazo continua marcado não validado pelo jurídico: `apps/worker/src/worker/agenda.py`.
 - ✅ **Documentos posteriores à disputa (9.5, §5):** `db/migrations/20261206100000_documentos_pos_disputa.sql` (`priv.documentos_posteriores`, 9 tipos de documento na pasta `licitacao`, `priv.registrar_documento_posterior`, `priv.registrar_habilitacao_apresentada`, `priv.remover_documento_posterior`), `db/tests/isolamento/priv_documentos_posteriores.test.sql`, `db/tests/500_documentos_pos_disputa.test.sql`, `apps/api/src/resultados/resultados.controller.ts` (linha do tempo unificada + 3 rotas de escrita), `apps/api/src/contratos/contratos.controller.ts` (leitura unificada na aba de anexos do contrato), `apps/api/test/resultados.e2e-spec.ts`, `apps/web/src/features/resultados/DocumentosPosteriores.tsx`, `apps/web/src/features/resultados/DocumentosPosteriores.test.tsx`, `apps/web/src/pages/Acompanhamento.tsx`, `apps/web/src/features/contratos/Anexos.tsx`.
-- ❌ Alerta em tempo real e busca por portal/valor: pendentes para blocos futuros.
+- ❌ Alerta em tempo real (**rascunho em §6**) e busca por portal/valor: pendentes para blocos futuros.
 - ✅ Isolamento A x B por endpoint (Q-23, rodada 3): matriz nas 3 rotas `:empresa`, nos dois sentidos, com empresa da vítima e do invasor na URL; leitura e histórico sem dados alheios, escrita negada e resultado/participação/eventos/jobs intactos. `propostas.e2e-spec.ts` e `resultados.e2e-spec.ts`: 12/12 testes passaram juntos; pgTAP reexecutado no banco descartável.
 
 - 2026-11-05 · núcleo pronto: migration `20261113100000` (status ampliados, `priv.resultados_item`, `priv.registrar_resultado`), API `apps/api/src/resultados`, tela (botão "Resultado" em cada item e aba "Resultados" na Agenda). Testes: pgTAP 290 e isolamento A x B, e2e (fluxo, gatilho, histórico, A x B). Conferido na stack real: registrar "perdida" criou o evento "Intenção de recurso" na agenda (selo ⚖️ regra não validada) e o histórico mostrou o resultado.
@@ -203,3 +204,151 @@ Upload e download pelas rotas existentes da Fase 03. Contrato existente: a tela 
 5. **Baixar o arquivo a partir do link pelo worker:** **(a) não neste bloco** (só guarda o link `https`; captura automática fica para a Fase 13.5).
 6. **Um documento para vários itens:** **(a) um item (`participacao_id`) ou todos os itens (`null`)**.
 7. **Foto da habilitação:** **botão manual (`Registrar habilitação apresentada`)** neste bloco e atalho opcional ao fim do registro de envio (8.7), sem automatismo.
+
+## 6. Bloco 9.3/10.4 · Alerta durante a sessão (intenção de recurso e pontos de atenção) · **Rascunho**
+
+- **Status deste bloco:** `Rascunho` em 2026-11-26 (Claude Code, Q-42). **Aguarda aprovação do Adriano** e as respostas de §6.11; nada aqui vira código antes disso.
+- **Fontes:** Prompt Mestre 9.3 ("alerta de intenção de recurso durante a sessão"), 10.4 ("durante a sessão: alerta imediato para manifestação da intenção de recorrer, com resumo dos motivos, pois a intenção deve ser manifestada imediatamente sob pena de preclusão"), 7.4/7.6 (mínimo autorizado), regras 15 e 17. Código conferido: `priv.registrar_fato` e o evento `intencao_recurso` (migration `20261108100000`, regra "imediato" ⚖️ não validada), `priv.registrar_resultado` (migration `20261113100000`, gatilho 9.3), `core.notificacoes` + Web Push (`apps/worker/src/worker/push.py`, `apps/web/src/push/push.ts`, ADR-018), alertas da agenda (`worker/agenda_alertas.py`), parecer de viabilidade (Fase 10.4/10.5, `priv.pareceres_recursais`).
+
+> **Princípios:** "tempo real" aqui é **o tempo do sistema reagir ao que a pessoa registra**, não leitura do portal: o sistema **não acessa a sala de disputa, não lê lance nem chat e não manifesta nada** (regra 17). Quem está na sessão registra o fato com um toque; o sistema avisa imediatamente quem precisa agir (jurídico e responsáveis) e mostra o que já se sabe. Prazos continuam vindo das regras da agenda (⚖️ "imediato" não validado pelo jurídico); a IA não decide se recorre.
+
+### 6.1 Escopo
+
+**Entra:**
+
+- **Modo sessão** por acompanhamento: a pessoa que opera a disputa abre "Sessão em andamento" no dia da abertura e registra os marcos com botões grandes: `sessao_aberta`, `lances_encerrados`, `arrematante_definido` (com classificação e, se souber, CNPJ/nome da arrematante), `habilitacao_em_julgamento`, `prazo_intencao_aberto` (o pregoeiro abriu o prazo de manifestação, com a duração informada pelo portal em minutos), `sessao_suspensa`, `sessao_encerrada`.
+- **Alerta imediato** (push + notificação no app + e-mail se a pessoa não tiver push) quando: (a) `prazo_intencao_aberto` é registrado; (b) o resultado do item registra perda, inabilitação, desclassificação ou classificação > 1 durante uma sessão aberta (o gatilho 9.3 já existente passa a avisar na hora, não só a lançar o evento). Destinatários: quem tem `juridico/elaborar_peca` e os responsáveis do acompanhamento (pergunta 1).
+- **Resumo dos motivos** no alerta e no painel: o que já existe no sistema para aquele item: parecer de viabilidade recursal (recomendação e achados fortes/moderados com prova), checklist documental da concorrente se houver, e "sem análise ainda" quando não houver. Só texto já registrado; nada gerado na hora pela IA (pergunta 4).
+- **Contagem regressiva** no painel a partir da duração informada (`prazo_intencao_aberto` + minutos), com o horário de Brasília, e registro de **"intenção manifestada no portal"** (pessoa confirma, com horário), que fecha o evento `intencao_recurso` da agenda e dispara o prazo das razões (já existente, ⚖️).
+- **Lembrete de abertura**: push para quem opera a sessão X minutos antes de `data_abertura` (pergunta 2), com link direto para o modo sessão.
+- **Piso autorizado no painel** (só se aprovado na spec 07 §9.11, pergunta 2): o número do mínimo autorizado aprovado, para quem pode vê-lo.
+
+**Não entra (e onde fica):**
+
+| Item | Onde fica |
+| --- | --- |
+| Ler lances, chat ou mensagens do pregoeiro no portal (automação, scraping logado) | Nunca neste projeto sem decisão e ADR (regra 17; termos de uso dos portais) |
+| Manifestar intenção, dar lance ou enviar mensagem no portal | Nunca (regra 17) |
+| Sugestão de motivos por IA durante a sessão | Pergunta 4 (recomendação: não neste bloco) |
+| Alerta de lance perto do mínimo autorizado | Depende de ler o lance; sem leitura do portal, a pessoa compara com o piso mostrado no painel |
+| Validação do prazo "imediato" e de prazos fixados pelo edital | ⚖️ jurídico (spec 05) |
+
+### 6.2 Requisitos
+
+| ID | Requisito | Origem |
+| --- | --- | --- |
+| RF-09.17 | Marcos da sessão registrados por pessoa, por acompanhamento, com horário e autor, em ordem cronológica; corrigir um marco gera novo registro (histórico) | 9.3, 10.4 |
+| RF-09.18 | `prazo_intencao_aberto` ou resultado desfavorável com sessão aberta notifica os destinatários em até 1 minuto (push, app; e-mail de reserva) | 9.3, 10.4 |
+| RF-09.19 | O alerta e o painel mostram só motivos já registrados (parecer, achados com prova) e o prazo; sem análise, dizem isso | 10.4, regra 15 |
+| RF-09.20 | "Intenção manifestada no portal" é registrada por pessoa com horário e conclui o evento `intencao_recurso`; o prazo das razões segue a regra da agenda | 10.4, 10.5 |
+| RF-09.21 | Lembrete antes da abertura para quem opera a sessão | 9.3 |
+| RF-09.22 | Texto do push genérico (sem órgão, valor ou motivo); o conteúdo só aparece depois do login (ADR-018) | T1, LGPD |
+| RF-09.23 | Isolamento A x B da tabela e das rotas | regra 13 |
+
+### 6.3 Modelo de dados
+
+#### `priv.sessao_marcos`
+
+| Coluna | Tipo | Nulo | Regra |
+| --- | --- | --- | --- |
+| id | uuid | não | v7, PK |
+| empresa_id | uuid | não | FK `core.empresas` |
+| acompanhamento_id | uuid | não | FK `(…, empresa_id)` → `priv.acompanhamentos` |
+| participacao_id | uuid | sim | item, quando o marco é de um item (`arrematante_definido`) |
+| marco | text | não | `sessao_aberta`, `lances_encerrados`, `arrematante_definido`, `habilitacao_em_julgamento`, `prazo_intencao_aberto`, `intencao_manifestada`, `sessao_suspensa`, `sessao_encerrada` |
+| ocorrido_em | timestamptz | não | padrão `now()`; editável para corrigir atraso de registro (≤ 24 h no passado, nunca no futuro) |
+| duracao_min | int | sim | só `prazo_intencao_aberto`: 1 a 1440 |
+| classificacao | int | sim | só `arrematante_definido` |
+| arrematante_cnpj, arrematante_nome | text | sim | CNPJ validado; nome ≤ 200 |
+| observacao | text | sim | ≤ 500 |
+| substitui_id | uuid | sim | correção de um marco anterior (o anterior continua no histórico) |
+| created_at, updated_at, created_by, deleted_at | | | padrão |
+
+**RLS:** select com `core.has_permission(empresa_id, 'agenda', 'visualizar')`; escrita só pelas funções.
+
+**Funções (security definer, `search_path = ''`):**
+
+- `priv.registrar_marco_sessao(p_empresa, p_acomp, p_marco, p_ocorrido, p_participacao, p_duracao, p_classificacao, p_cnpj, p_nome, p_obs) returns uuid` — `agenda/editar`; valida campos por marco; `prazo_intencao_aberto` e `intencao_manifestada` chamam `priv.registrar_fato` (evento `intencao_recurso`) e enfileiram `alerta_sessao`.
+- `priv.corrigir_marco_sessao(p_empresa, p_marco_id, …)` — `agenda/editar`; cria o substituto.
+- `priv.registrar_resultado` (existente): **nova versão** que, se houver `sessao_aberta` sem `sessao_encerrada` nas últimas 12 h, enfileira `alerta_sessao` no gatilho 9.3.
+
+Auditoria `audit.registrar()`; teste A x B em `db/tests/isolamento/priv_sessao_marcos.test.sql`.
+
+### 6.4 Regras
+
+1. **Sessão aberta** = existe `sessao_aberta` sem `sessao_encerrada` posterior, nas últimas 12 h (sessões suspensas continuam abertas).
+2. **Fim do prazo de intenção** = `ocorrido_em` de `prazo_intencao_aberto` + `duracao_min` (conta em `rules/`, relógio por parâmetro). Sem duração informada: "prazo imediato: manifeste agora" (⚖️).
+3. **Destinatários** (pergunta 1): vínculos com `juridico/elaborar_peca` + responsável do acompanhamento + quem registrou o marco; deduplicados; nunca quem não vê `agenda/visualizar`.
+4. **Idempotência do alerta:** um alerta por `(marco_id)` ou `(resultado_id, sessão)`; reprocessar não reenvia.
+5. **Resumo dos motivos:** recomendação do parecer da participação (se houver) + até 5 achados fortes/moderados com prova; nada de IA nova; "sem análise registrada" quando vazio.
+6. **Escalonamento:** sem `intencao_manifestada` nem descarte ("não vamos recorrer", com justificativa) até o fim do prazo, o evento fica como "prazo perdido" pela regra já existente da agenda.
+
+### 6.5 Permissões (sugestão de padrão)
+
+| Operação | ADMIN_EMPRESA | OPERADOR | JURÍDICO | CLIENTE | Step-up |
+| --- | --- | --- | --- | --- | --- |
+| Ver o painel da sessão (`agenda/visualizar`) | sim | sim | sim | não | não |
+| Registrar/corrigir marco (`agenda/editar`) | sim | sim | sim | não | não |
+| Ver o resumo dos motivos (`juridico/visualizar`) | sim | conforme vínculo | sim | não | não |
+| Registrar "não vamos recorrer" (`juridico/elaborar_peca`) | sim | não | sim | não | não |
+
+### 6.6 Jobs
+
+| Job | Gatilho | Idempotência | Em caso de falha |
+| --- | --- | --- | --- |
+| `alerta_sessao` (novo) | `registrar_marco_sessao` (marcos de prazo) e `registrar_resultado` com sessão aberta | chave `alerta_sessao:<marco_id>` ou `alerta_sessao:<resultado_id>` | push que falha vira notificação no app + e-mail; erro em `ops.execucoes`; nunca silencioso |
+| `lembrete_abertura` (novo, na rodada da agenda) | `data_abertura` − X min (pergunta 2) | um por acompanhamento e data de abertura | idem |
+
+### 6.7 API
+
+| Rota | Permissão | Corpo | Resposta |
+| --- | --- | --- | --- |
+| `GET /empresas/:empresa/acompanhamentos/:id/sessao` | `agenda/visualizar` | — | `{ aberta, marcos: [...], prazoIntencao: { fim, minutosRestantes } \| null, evento, motivos \| null (só com juridico/visualizar), piso \| null }` |
+| `POST /empresas/:empresa/acompanhamentos/:id/sessao/marcos` | `agenda/editar` | `{ marco, ocorridoEm?, participacaoId?, duracaoMin?, classificacao?, arrematanteCnpj?, arrematanteNome?, observacao? }` | `201 { id }`; `400` campo inválido para o marco; `404` |
+| `POST /empresas/:empresa/sessao/marcos/:id/corrigir` | `agenda/editar` | mesmos campos | `201 { id }`; `404` |
+| `POST /empresas/:empresa/acompanhamentos/:id/sessao/nao-recorrer` | `juridico/elaborar_peca` | `{ justificativa }` (≥ 10) | `204`; conclui o evento como descartado |
+
+### 6.8 Telas
+
+| Tela | Rota | Estados | 360 px |
+| --- | --- | --- | --- |
+| Modo sessão | `/agenda/acompanhamentos/:id/sessao` (atalho no Início no dia da abertura) | sem sessão (botão "Abrir sessão"); aberta; prazo de intenção correndo (contagem grande, vermelho no último minuto); prazo encerrado sem manifestação; encerrada; sem permissão de escrita (só leitura); offline (fila local desabilitada: mostra "sem conexão, registre de novo") | botões de marco em coluna, 48 px de altura, uma mão; contagem fixa no topo |
+| Notificação | push + central do app | texto genérico no push; ao abrir, vai direto ao modo sessão (padrão 4 do COMECE-AQUI §3) | — |
+| Resumo dos motivos | cartão no modo sessão | sem análise; com parecer (recomendação + achados com prova); sem permissão (oculto) | recolhido em uma linha com "Ler tudo" |
+
+### 6.9 Critérios de aceite
+
+| # | Critério | Como será comprovado |
+| --- | --- | --- |
+| CA-14 | Registrar `prazo_intencao_aberto` cria o alerta para os destinatários certos em até 1 minuto, uma vez só | pytest com banco + e2e |
+| CA-15 | Resultado desfavorável com sessão aberta avisa na hora; sem sessão aberta, só lança o evento (comportamento atual) | pgTAP + pytest |
+| CA-16 | Contagem do prazo calculada em `rules/` com relógio por parâmetro, casos de borda (meia-noite, duração 1 e 1440) | pytest |
+| CA-17 | "Intenção manifestada" conclui o evento e dispara as razões; "não vamos recorrer" exige justificativa e `juridico/elaborar_peca` | pgTAP + e2e |
+| CA-18 | Push sem órgão, valor nem motivo; motivos só para `juridico/visualizar` | e2e + teste de composição |
+| CA-19 | B nunca vê nem registra marco de A (404) | pgTAP isolamento + e2e A x B |
+| CA-20 | Nenhuma rota/job acessa portal | revisão + e2e de rotas (lista fechada) |
+
+### 6.10 Ameaças (proposta para `docs/threat-model.md`)
+
+| Ameaça | Controle | Teste |
+| --- | --- | --- |
+| **T1** · marcos e motivos de A vistos por B | RLS + `comContexto`; 404 | CA-19 |
+| **T1.4 (nova)** · push na tela bloqueada revela estratégia (órgão, motivo, piso) | push genérico; conteúdo só após login | CA-18 |
+| **T6** · alerta perdido = preclusão | push + app + e-mail de reserva; idempotente; falha registrada; "prazo perdido" pela agenda | CA-14 |
+| **T14** · pressão para automatizar a manifestação no portal | regra 17; sem integração | CA-20 |
+
+### 6.11 Perguntas abertas
+
+1. **Quem recebe o alerta?** (a) jurídico (`juridico/elaborar_peca`) + responsável do acompanhamento + quem registrou; (b) também todos os `ADMIN_EMPRESA`; (c) lista configurável por empresa. **Recomendação: (a)**, menos ruído; (c) entra se o uso pedir.
+2. **Lembrete antes da abertura:** (a) 30 min antes, fixo; (b) configurável por empresa (D-N da agenda já existe para dias; aqui seriam minutos); (c) sem lembrete. **Recomendação: (a)** agora.
+3. **Duração do prazo de intenção:** os portais mostram minutos (ex.: 10, 20, 30). (a) a pessoa digita a duração ao registrar; (b) padrão por portal configurável; (c) sem duração (sempre "imediato"). **Recomendação: (a)**; ⚖️ o jurídico valida se "imediato" sem duração deve virar alerta de minutos.
+4. **IA no resumo dos motivos durante a sessão?** (a) não: só o que já foi registrado (parecer, achados); (b) botão "analisar agora" que roda a análise da vencedora (10.4) com o que estiver colado. **Recomendação: (a)** neste bloco: a análise leva minutos e sem documentos da concorrente não há prova; (b) depois, se o parecer preliminar estiver pronto antes da sessão (como pede o 10.4).
+5. **E-mail de reserva:** (a) só para quem não tem push ativo; (b) sempre; (c) nunca. **Recomendação: (a)**.
+
+### 6.12 Plano de entregas
+
+1. `rules/sessao.py` (sessão aberta, fim do prazo, destinatários deduplicados), testes primeiro. **Tier: médio · sem migration.**
+2. Migration: `priv.sessao_marcos`, funções, nova versão de `registrar_resultado` com o alerta; pgTAP + isolamento A x B. **Tier: alto (prazo ⚖️ + gatilho existente) · com migration.**
+3. Jobs `alerta_sessao` e `lembrete_abertura` (push, app, e-mail de reserva) + pytest com banco. **Tier: médio.**
+4. API (4 rotas) + e2e A x B. **Tier: médio.**
+5. Tela do modo sessão em 360 px (uso no celular durante a disputa) e desktop. **Tier: médio.**

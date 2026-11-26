@@ -87,6 +87,8 @@ Plano de marcos, MVP e sprints: [`../roadmap-marcos.md`](../roadmap-marcos.md) (
 
 - O cruzamento de documentos (RF-05.15) considera todos os documentos da empresa com validade, não só os exigidos pelo edital (falta o checklist por edital).
 
+**Rascunhos aguardando aprovação (2026-11-26):** spec 07 §9 (cenários salvos de preço, perguntas §9.11) e spec 09 §6 (alerta durante a sessão, perguntas §6.11).
+
 ## 6. Dependências que só o Adriano/jurídico resolvem
 
 Planilha atual da agenda, regras de prazo e 30 casos de teste do jurídico, amostra de 50 editais, decisão Compras.gov.br, destino do projeto Supabase antigo, provedores (VPS/S3 de backup). Lista viva em `docs/roadmap.md` ("Dependências externas abertas").
