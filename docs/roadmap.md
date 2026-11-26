@@ -2,7 +2,7 @@
 
 Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada fase.
 
-**Fase atual (2026-11-06):** Fases 00 a 12 com núcleo no `main` em modo rápido (rodam no Docker); specs 00 a 12 aprovadas (Fase 05 em 2026-11-05). Desenvolvimento orquestrado pelo Paseo a partir de [`agents/fila.md`](agents/fila.md) ([`agents/orquestracao.md`](agents/orquestracao.md)). Stack: Docker + Postgres + API NestJS + front React (Untitled UI, PWA) + worker Python (ADR-011 a 020).
+**Fase atual (revisto em 2026-11-26):** Fases 00 a 12 com núcleo no `main` em modo rápido (rodam no Docker); specs 00 a 12 aprovadas (Fase 05 em 2026-11-05). Desenvolvimento orquestrado pelo Paseo a partir de [`agents/fila.md`](agents/fila.md) ([`agents/orquestracao.md`](agents/orquestracao.md)). Stack: Docker + Postgres + API NestJS + front React (Untitled UI, PWA) + worker Python (ADR-011 a 020).
 **Visão por marcos, MVP e sprints:** [`roadmap-marcos.md`](roadmap-marcos.md).
 **Próximo passo:** seguir a fila ([`agents/fila.md`](agents/fila.md)); o Adriano decide o Compras.gov.br na Fase 04. Estado item a item das Fases 05 a 12 conferido contra o código em 2026-11-07 (seção de estado de cada spec). Em paralelo, dependem de fora do código: planilha atual da agenda e 30+ casos de prazo do jurídico (Fase 05), 50 editais da amostra (Fase 04), VPS, bucket S3 e ensaio de restauração (Fases 00 e 01), decisões do jurídico e do contador.
 
@@ -10,12 +10,12 @@ Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada
 
 | Onda | Fase | Nome | Horas est. | Spec | Status |
 | --- | --- | --- | --- | --- | --- |
-| 1 | 00 | Fundação técnica | ~40 h | [fase-00](specs/fase-00.md) · Em revisão | 🟡 banco, API, app, worker, CI e guardas no main; falta: rodar com Docker, produção (VPS), Sentry, ameaças revisadas |
+| 1 | 00 | Fundação técnica | ~40 h | [fase-00](specs/fase-00.md) · Em revisão | 🟡 banco, API, app, worker, CI e guardas no main; stack inteira roda no Docker (`scripts/dev-up.sh`); falta: produção (VPS), Sentry, ameaças revisadas |
 | 1 | 01 | Arquitetura, segurança e acessos | ~90 h | [fase-01](specs/fase-01.md) · Aprovada (revisão 2) | 🟡 PRs 1–11 e 3b no main; relatório escrito, **aguardando aceite**. CA-1 a CA-5, CA-7 e CA-8 COMPROVADOS (CA-5 sem teste em navegador); CA-6 PARCIAL (falta o ensaio real). PR 12 entregue (primeiro SUPERADMIN, Caddy com CSP no CI, telas de plataforma, exclusão e auditoria); resta infraestrutura (VPS, bucket, ensaio de restauração) |
-| 2 | 02 | Empresas, representantes e produtos | ~50 h | [fase-02](specs/fase-02.md) · Aprovada | 🟡 banco, API e telas no main (modo rápido); faltam testes A x B de priv, docs e decisões do jurídico/contador |
-| 2 | 03 | Gestão documental e certidões | ~60 h | [fase-03](specs/fase-03.md) · Aprovada | 🟡 no main (modo rápido): repositório com quarentena e antivírus, versões, download auditado, alertas diários, pendência "Atualizar", atestados, checklist (regra pura); falta tela do checklist (com os editais), A x B de `priv`, retenção e ME/EPP do jurídico; checklist por edital com banco, job, API e tela (Q-04a/b; falta ensaio na stack real) |
+| 2 | 02 | Empresas, representantes e produtos | ~50 h | [fase-02](specs/fase-02.md) · Aprovada | 🟡 banco, API e telas no main (modo rápido); A x B de todas as tabelas `priv` (58) e das rotas prontos; faltam decisões do jurídico/contador |
+| 2 | 03 | Gestão documental e certidões | ~60 h | [fase-03](specs/fase-03.md) · Aprovada | 🟡 no main (modo rápido): repositório com quarentena e antivírus, versões, download auditado, alertas diários, pendência "Atualizar", atestados, checklist (regra pura); checklist por edital com banco, job, API e tela (Q-04a/b), ClamAV real ensaiado; falta retenção e o texto ME/EPP do jurídico |
 | 2 | 05 | Agenda e prazos jurídicos ★ MVP | ~70 h | [fase-05](specs/fase-05.md) · Aprovada | 🟡 no main (modo rápido): banco, cálculo de prazos, API e telas (calendário, prazos, acompanhamento); alertas e "Prazo perdido" prontos; exportação CSV e diff de versões do edital na tela (Acompanhamento e Edital) prontos; e2e A x B das 20 rotas da Agenda pronto; falta importar planilha; aceite depende da planilha e dos 30 casos do jurídico |
-| 3 | 04 | Motor de pesquisa (PNCP) | ~90 h | [fase-04](specs/fase-04.md) · Aprovada | 🟡 PNCP no main (modo rápido): coleta, arquivos, texto, relevância, API e telas; falta Compras.gov.br, embeddings, e2e A x B e a amostra de 50 editais |
+| 3 | 04 | Motor de pesquisa (PNCP) | ~90 h | [fase-04](specs/fase-04.md) · Aprovada | 🟡 PNCP no main (modo rápido): coleta, arquivos, texto, relevância, API e telas; e2e A x B pronto (Q-23); ZIP seguro (Q-13a); falta Compras.gov.br (decisão), embeddings (decisão), upload manual (Q-13b) e a amostra de 50 editais |
 | 4 | 06 | IA para análise técnica (veículos) | ~100 h | [fase-06](specs/fase-06.md) · Aprovada | 🟡 no main (requisitos, matriz por código, evidência do edital e texto de ficha privada conferidos automaticamente, produtos alternativos 6.4 ranqueados por código, aprovação, extração por IA pronta com chave por empresa); falta primeiro uso real da IA, sinalização jurídica (6.5) e gabarito de 20 editais |
 | 5 | 07 | Formação de preços | ~50 h | [fase-07](specs/fase-07.md) · Aprovada | 🟡 no main (calculadora por código em Decimal, custos com sigilo por permissão, alçada com step-up, histórico comercial de preços vencedores do PNCP 7.5 no banco, worker, API e tela); falta empate ficto na tela; 🧾 tributos e ⚖️ percentuais pendentes |
 | 5 | 08 | Propostas, declarações e habilitação | ~70 h | [fase-08](specs/fase-08.md) · Aprovada | 🟡 propostas no main (preço aprovado → validação 8.6 → conferência → aprovação → .docx e PDF finais com hash, imutáveis, e comprovante de envio ao portal 8.7); falta modelo oficial/papel timbrado, declarações e checklist 8.5 |
@@ -37,7 +37,6 @@ Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada
 | 50 editais da amostra de cobertura | Operação VV | Aceite da Fase 04 |
 | 20 editais de veículos com gabarito | Operação VV | Aceite da Fase 06 |
 | Decisão ADR-007 | Adriano | Fechamento da Fase 00 |
-| Docker instalado na máquina de dev | Adriano | Rodar a stack local |
 | Provedor da VPS (São Paulo) e do S3 de produção | Adriano | Deploy da Fase 00 |
 | Aceite do relatório da Fase 01 e confirmação do CA-1 (SUPERADMIN vê todas as empresas) | Adriano | Fechar a Fase 01 |
 | Destino do projeto Supabase `gqrilopolbanlrdyrrsd` | Adriano | — (custo/limpeza) |
