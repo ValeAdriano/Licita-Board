@@ -11,7 +11,7 @@ Como rodar o plano de desenvolvimento de ponta a ponta com **um orquestrador e v
 
 | Papel | Quem | Faz | Não faz |
 | --- | --- | --- | --- |
-| Orquestrador | Claude Code (Opus) no Paseo, com **Enable Paseo tools** ligado | Escolhe o próximo item da fila, escreve a tarefa, dispara o worker, confere, integra no `main`, atualiza a documentação compartilhada | Implementar código volumoso; ler diffs inteiros sem necessidade |
+| Orquestrador | Claude Code (Sonnet) no Paseo, com **Enable Paseo tools** ligado | Escolhe o próximo item da fila, escreve a tarefa, dispara o worker, confere, integra no `main`, atualiza a documentação compartilhada | Implementar código volumoso; ler diffs inteiros sem necessidade |
 | Worker | Antigravity (Gemini 4 Argon), Codex (GPT-6.1 Sol / GPT-6 Luna) ou Claude | Implementa **uma** tarefa numa worktree, com testes e documentação local | Mexer nos arquivos de estado compartilhado (§5), fazer push, tocar em outra área |
 | Verificador | Claude Sonnet (ou Codex Sol, quando o autor foi Claude) | Revisão curta do diff, nas **exceções do AGENTS.md §0**, quando o Adriano pedir ou no `/paseo-loop` | Reescrever o trabalho |
 | Adriano | Pessoa | Gates humanos (§6) | Microgerenciar a fila |
@@ -24,7 +24,8 @@ IDs exatos dos modelos mudam: o orquestrador descobre os provedores e modelos co
 
 | Tier | Modelo (provedor no Paseo) | Recebe |
 | --- | --- | --- |
-| **A** | Claude Opus (`claude`) | Spec em rascunho, migration + RLS + pgTAP, `rules/` (prazo, preço), autenticação, sessão, permissões, cifra, upload, IA do produto (prompts e validação de citação), qualquer item com ⚖️/🧾, ADR |
+| **A** | Claude Opus (`claude`) | Só banco (migration + RLS + pgTAP), prazos, preços (`rules/`, itens ⚖️/🧾) e segurança (autenticação, sessão, permissões, cifra, upload) |
+| **A'** | Claude Sonnet (`claude`) | Spec em rascunho, ADR, IA do produto (prompts e validação de citação) |
 | **B** | Gemini 4 Argon (`antigravity`) | Telas e fluxos de front a partir de spec aprovada (o Antigravity confere a tela no navegador), endpoints da API e jobs do worker que seguem padrão existente, fora das áreas do tier A |
 | **B'** | GPT-6.1 Sol (`codex`) | e2e A x B por endpoint, testes de regressão, revisão cruzada de entrega feita por Argon, refatoração média |
 | **C** | GPT-6 Luna (`codex`) | Sincronizar documentação com o código, lint e typecheck, troca mecânica de componente, renomeações, ajustes pequenos de tela |
@@ -75,7 +76,7 @@ Os arquivos de estado são os que mais geram conflito entre agentes em paralelo;
 
 O orquestrador **não decide** e marca o item como `bloqueado (Adriano)` na fila quando encontra:
 
-- spec sem status `Aprovada` (pode pedir ao tier A um rascunho e parar ali);
+- spec sem status `Aprovada` (pode pedir ao tier A' um rascunho e parar ali);
 - regra jurídica ou tributária (⚖️/🧾), regra de prazo sem caso do jurídico;
 - correção de migration já aplicada, mudança em RLS existente;
 - dependência nova com custo, serviço externo novo, decisão de arquitetura (ADR fica `Proposto`);
