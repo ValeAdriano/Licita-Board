@@ -29,7 +29,7 @@
 | RF-00.11 | `docker compose up` sobe Postgres, API e worker com healthcheck | ADR-015 | feito no código; **não executado** (Docker não instalado na máquina de dev) |
 | RF-00.12 | Papéis `vv_owner`/`vv_api`/`vv_worker` e contexto do usuário preso à transação | ADR-013 | feito (`db/tests/001`, `002`) |
 | RF-00.13 | Front chamando `/api/health` | ADR-018 (antes: app Expo, ADR-016) | feito no front React web; apps nativos adiados |
-| RF-00.14 | Produção vazia: VPS, Caddy (TLS), `infra/compose.prod.yml`, deploy pelo pipeline | ADR-015 | pendente (escolha da VPS) |
+| RF-00.14 | Produção vazia: VPS, Caddy (TLS), `infra/compose.prod.yml`, deploy pelo pipeline | ADR-015 | código pronto (2026-11-26): `infra/compose.prod.yml` (Docker secrets, redes separadas, só o Caddy publica 80/443), `infra/deploy/` (preparar servidor, segredos, deploy com volta automática, primeiro SUPERADMIN), workflow `imagens.yml` (GHCR) e ensaio local `infra/ensaio/ensaiar-producao.sh`; passo a passo em `docs/operacao/producao.md`. Falta a VPS (Adriano) |
 
 ## 3. Tarefas restantes
 
@@ -42,7 +42,7 @@
 
 **Dos agentes:**
 1. Revisar `docs/threat-model.md` para a stack nova (T5 sessão, T1 contexto, servidor único).
-2. `infra/`: `compose.prod.yml`, Caddyfile, script de deploy e de backup (WAL), assim que houver VPS.
+2. ✅ `infra/`: `compose.prod.yml`, Caddyfile, scripts de deploy e de backup (WAL) prontos e ensaiados localmente (2026-11-26); falta rodar numa VPS de verdade.
 3. Sentry na API, no worker e no app.
 
 ## 4. Critérios de aceite

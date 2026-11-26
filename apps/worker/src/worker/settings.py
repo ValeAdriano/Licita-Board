@@ -1,8 +1,41 @@
-from typing import Literal
+import os
+from pathlib import Path
+from typing import Any, Literal
 from urllib.parse import urlsplit
 
 from pydantic import SecretStr, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic.fields import FieldInfo
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
+
+
+class SegredoEmArquivo(PydanticBaseSettingsSource):
+    """`VV_X_FILE=/run/secrets/x` vira o campo `x` com o conteúdo do arquivo (Docker secrets, ADR-015).
+
+    O segredo não fica no ambiente do container (`docker inspect`). `VV_X` e `VV_X_FILE` juntos é erro.
+    """
+
+    def get_field_value(self, field: FieldInfo, field_name: str) -> tuple[Any, str, bool]:
+        return None, field_name, False  # tudo é resolvido em __call__
+
+    def __call__(self) -> dict[str, Any]:
+        saida: dict[str, Any] = {}
+        for nome in self.settings_cls.model_fields:
+            chave = f"VV_{nome.upper()}"
+            caminho = os.environ.get(f"{chave}_FILE")
+            if not caminho:
+                continue
+            if chave in os.environ:
+                raise ValueError(f"{chave} e {chave}_FILE ao mesmo tempo")
+            try:
+                texto = Path(caminho).read_text(encoding="utf-8")
+            except OSError:
+                raise ValueError(f"não consegui ler o arquivo de {chave}_FILE") from None
+            saida[nome] = texto.removesuffix("\n").removesuffix("\r")
+        return saida
 
 
 class Settings(BaseSettings):
@@ -12,6 +45,23 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="VV_", env_file=".env", extra="ignore", hide_input_in_errors=True
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (
+            init_settings,
+            env_settings,
+            SegredoEmArquivo(settings_cls),
+            dotenv_settings,
+            file_secret_settings,
+        )
 
     env: Literal["dev", "homolog", "prod"] = "dev"
     # Conexão como vv_worker (ADR-013): BYPASSRLS, então todo job valida empresa_id no banco.

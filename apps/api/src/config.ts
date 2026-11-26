@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { isIP } from 'node:net';
 import { z } from 'zod';
 
@@ -79,8 +80,28 @@ const esquema = z.object({
 
 export type Config = z.infer<typeof esquema>;
 
+// Segredo em arquivo (Docker secrets em produção, ADR-015): `X_FILE=/run/secrets/x` vira `X` com o
+// conteúdo do arquivo, sem a quebra de linha final. Assim o segredo não fica no ambiente do container
+// (visível em `docker inspect`). Definir `X` e `X_FILE` juntos é erro: não há como saber qual vale.
+export function lerSegredosDeArquivo(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const saida: NodeJS.ProcessEnv = Object.fromEntries(Object.entries(env).filter(([k]) => !k.endsWith('_FILE')));
+  for (const [chave, caminho] of Object.entries(env)) {
+    if (!chave.endsWith('_FILE') || !caminho) continue;
+    const alvo = chave.slice(0, -'_FILE'.length);
+    if (env[alvo] !== undefined) throw new Error(`Configuração inválida: ${alvo} e ${chave} ao mesmo tempo`);
+    let valor: string;
+    try {
+      valor = readFileSync(caminho, 'utf8').replace(/\r?\n$/, '');
+    } catch {
+      throw new Error(`Configuração inválida: não consegui ler o arquivo de ${chave}`);
+    }
+    saida[alvo] = valor;
+  }
+  return saida;
+}
+
 export function carregarConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const r = esquema.safeParse(env);
+  const r = esquema.safeParse(lerSegredosDeArquivo(env));
   if (!r.success) {
     // Só os caminhos e mensagens: nunca o valor, que pode conter senha.
     const erros = r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');

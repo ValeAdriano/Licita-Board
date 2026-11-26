@@ -1,0 +1,27 @@
+# Ensaio LOCAL da produção (infra/ensaio/ensaiar-producao.sh): o mesmo infra/compose.prod.yml, com
+# imagens construídas na máquina e substitutos locais só para o que é externo em produção (S3 e SMTP).
+# Nada aqui vai para o servidor.
+services:
+  web:
+    # Porta alta só no loopback (o 80/443 da máquina ficam livres). Domínio de teste sem DNS público:
+    # certificado da CA interna do Caddy (em produção VV_CADDY_TLS fica vazio = Let's Encrypt).
+    ports: !override ["127.0.0.1:18443:443"]
+    environment:
+      VV_CADDY_TLS: tls internal
+
+  # S3 de mentira (SeaweedFS, o mesmo do dev), na rede da API ("borda") e do worker ("saida").
+  s3:
+    image: chrislusf/seaweedfs:latest
+    command: server -s3 -s3.config=/config/s3.json -dir=/data -ip.bind=0.0.0.0
+    volumes: ["${VV_ENSAIO_DIR:?}/s3.json:/config/s3.json:ro"]
+    networks: [borda, saida]
+
+  # SMTP de mentira (Mailpit) com STARTTLS de certificado próprio: o worker sobe como em produção
+  # (a validação exige STARTTLS e usuário); o envio real falha na verificação do certificado, e tudo bem.
+  mailpit:
+    image: axllent/mailpit:v1.27
+    environment:
+      MP_SMTP_TLS_CERT: "sans:mailpit"
+      MP_SMTP_TLS_KEY: "sans:mailpit"
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+    networks: [saida]

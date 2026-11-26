@@ -17,3 +17,6 @@ RUN mkdir -p /var/spool/pgbackrest /var/log/pgbackrest /etc/pgbackrest \
 
 # Papéis e banco na primeira inicialização do volume (senhas vêm do ambiente, nunca do repositório).
 COPY init/ /docker-entrypoint-initdb.d/
+
+# Ferramenta de operação usada no deploy (registra o verificador da KEK): dentro da imagem, sem bind mount.
+COPY scripts/registrar-kek.sh /usr/local/bin/registrar-kek.sh

@@ -1,0 +1,215 @@
+# Stack de PRODUÇÃO (ADR-015): uma VPS, Docker Compose, Caddy com TLS automático na frente.
+# Não rode à mão: use infra/deploy/deploy.sh (puxa as imagens da versão, aplica migrations, sobe e confere).
+#
+#   docker compose --project-directory /opt/vv --env-file /etc/vv/vv.env -f infra/compose.prod.yml ...
+#
+# - Configuração sem segredo: /etc/vv/vv.env (modelo em infra/deploy/vv.env.example).
+# - Segredos: um arquivo por segredo em ${VV_SEGREDOS} (pasta 0700 de root; gerados por
+#   infra/deploy/gerar-segredos.sh). Entram como Docker secrets em /run/secrets e são lidos via *_FILE:
+#   nunca ficam no ambiente do container (docker inspect).
+# - Imagens versionadas (GHCR): ${VV_REGISTRO}/vv-<serviço>:${VV_VERSAO}, publicadas pelo workflow
+#   .github/workflows/imagens.yml. Nada é construído no servidor.
+# - Redes: "interna" (sem saída para a internet) liga o banco a quem fala com ele; "borda" tem o Caddy
+#   com IP fixo (a API só confia no X-Forwarded-For dele); "saida" dá internet a quem precisa (worker,
+#   antivírus). Só o Caddy publica portas (80/443). Postgres nunca tem porta pública.
+# - Backup: some infra/backup/compose.backup.yml (ver infra/backup/README.md).
+name: vv-prod
+
+x-logs: &logs
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
+
+services:
+  postgres:
+    image: ${VV_REGISTRO:?defina VV_REGISTRO}/vv-postgres:${VV_VERSAO:?defina VV_VERSAO}
+    restart: unless-stopped
+    <<: *logs
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_INITDB_ARGS: --data-checksums
+      VV_OWNER_PASSWORD_FILE: /run/secrets/vv_owner_password
+      VV_API_PASSWORD_FILE: /run/secrets/vv_api_password
+      VV_WORKER_PASSWORD_FILE: /run/secrets/vv_worker_password
+      VV_DB: vv
+    secrets: [postgres_password, vv_owner_password, vv_api_password, vv_worker_password]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    shm_size: 256m
+    networks: [interna]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vv"]
+      interval: 5s
+      retries: 30
+
+  # docker compose ... run --rm migracoes            (up; também: status, rollback)
+  migracoes:
+    image: ${VV_REGISTRO}/vv-migracoes:${VV_VERSAO}
+    profiles: [ferramentas]
+    environment:
+      VV_OWNER_PASSWORD_FILE: /run/secrets/vv_owner_password
+    secrets: [vv_owner_password]
+    networks: [interna]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # Registra o verificador da chave-mestra (uma vez por versão da KEK):  ... run --rm kek [versão]
+  kek:
+    image: ${VV_REGISTRO}/vv-postgres:${VV_VERSAO}
+    profiles: [ferramentas]
+    entrypoint:
+      - /bin/sh
+      - -c
+      - 'set -eu; export VV_KEK="$$(cat /run/secrets/vv_kek)"; s="$$(cat /run/secrets/vv_owner_password)"; export DATABASE_URL="postgres://vv_owner:$$s@postgres:5432/vv?sslmode=disable"; unset s; exec registrar-kek.sh "$${1:-1}"'
+      - kek
+    secrets: [vv_kek, vv_owner_password]
+    networks: [interna]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    image: ${VV_REGISTRO}/vv-api:${VV_VERSAO}
+    restart: unless-stopped
+    <<: *logs
+    environment:
+      NODE_ENV: production
+      VV_ENV: ${VV_ENV:-prod}
+      PORT: "3000"
+      LOG_LEVEL: info
+      DATABASE_URL_FILE: /run/secrets/vv_api_database_url
+      VV_KEK_FILE: /run/secrets/vv_kek
+      TURNSTILE_SECRET_FILE: /run/secrets/turnstile_secret
+      S3_ACCESS_KEY_FILE: /run/secrets/s3_api_access_key
+      S3_SECRET_KEY_FILE: /run/secrets/s3_api_secret_key
+      CORS_ORIGINS: https://${VV_DOMINIO:?defina VV_DOMINIO}
+      # Só o Caddy (IP fixo na rede "borda") pode informar o IP do cliente.
+      TRUST_PROXY: 172.30.0.10
+      S3_ENDPOINT: ${VV_S3_ENDPOINT:?defina VV_S3_ENDPOINT}
+      S3_PUBLIC_URL: ${VV_S3_PUBLIC_URL:?defina VV_S3_PUBLIC_URL}
+      S3_BUCKET: ${VV_S3_BUCKET:?defina VV_S3_BUCKET}
+      VAPID_PUBLIC_KEY: ${VV_VAPID_PUBLIC_KEY:-}
+    secrets: [vv_api_database_url, vv_kek, turnstile_secret, s3_api_access_key, s3_api_secret_key]
+    # "borda" também dá saída: a API fala com o S3 (presign não sai, mas o upload confere) e o HIBP.
+    networks:
+      interna: {}
+      borda: {}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  worker:
+    image: ${VV_REGISTRO}/vv-worker:${VV_VERSAO}
+    restart: unless-stopped
+    <<: *logs
+    environment:
+      VV_ENV: ${VV_ENV:-prod}
+      VV_FILA_ATIVA: "true"
+      VV_DATABASE_URL_FILE: /run/secrets/vv_worker_database_url
+      VV_KEK_FILE: /run/secrets/vv_kek
+      VV_S3_ENDPOINT: ${VV_S3_ENDPOINT}
+      VV_S3_BUCKET: ${VV_S3_BUCKET}
+      VV_S3_ACCESS_KEY_FILE: /run/secrets/s3_worker_access_key
+      VV_S3_SECRET_KEY_FILE: /run/secrets/s3_worker_secret_key
+      VV_CLAMAV_HOST: clamav
+      VV_SMTP_HOST: ${VV_SMTP_HOST:?defina VV_SMTP_HOST}
+      VV_SMTP_PORT: ${VV_SMTP_PORT:-587}
+      VV_SMTP_STARTTLS: "true"
+      VV_SMTP_USUARIO_FILE: /run/secrets/smtp_usuario
+      VV_SMTP_SENHA_FILE: /run/secrets/smtp_senha
+      VV_EMAIL_REMETENTE: ${VV_EMAIL_REMETENTE:?defina VV_EMAIL_REMETENTE}
+      VV_APP_URL: https://${VV_DOMINIO}
+      VV_VAPID_PUBLIC_KEY: ${VV_VAPID_PUBLIC_KEY:-}
+      VV_VAPID_PRIVATE_KEY_FILE: /run/secrets/vapid_private_key
+      VV_VAPID_CONTATO: ${VV_VAPID_CONTATO:-https://${VV_DOMINIO}}
+      VV_ROBO_CONTATO: ${VV_ROBO_CONTATO:-}
+      VV_HEALTHCHECK_URL: ${VV_HEALTHCHECK_URL:-}
+      VV_PESQUISA_HEARTBEAT_URL: ${VV_PESQUISA_HEARTBEAT_URL:-}
+      # IA: arquivo vazio = desligada; cada empresa também pode cadastrar a própria chave pela interface.
+      VV_ANTHROPIC_API_KEY_FILE: /run/secrets/anthropic_api_key
+      VV_LLM_MODELO: ${VV_LLM_MODELO:-claude-sonnet-5-5}
+    secrets:
+      - vv_worker_database_url
+      - vv_kek
+      - s3_worker_access_key
+      - s3_worker_secret_key
+      - smtp_usuario
+      - smtp_senha
+      - vapid_private_key
+      - anthropic_api_key
+    mem_limit: 2g
+    networks: [interna, saida]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"]
+      interval: 15s
+      retries: 5
+    depends_on:
+      postgres: { condition: service_healthy }
+      clamav: { condition: service_healthy }
+
+  # Antivírus: só o worker fala com ele (rede interna); "saida" para baixar as assinaturas (freshclam).
+  clamav:
+    image: clamav/clamav-debian:${VV_CLAMAV_VERSAO:-stable}
+    restart: unless-stopped
+    <<: *logs
+    mem_limit: 3g
+    volumes: [clamdata:/var/lib/clamav]
+    networks: [interna, saida]
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      retries: 20
+      start_period: 300s
+
+  # Front (build do Vite) + Caddy: TLS automático (Let's Encrypt) para ${VV_DOMINIO}, cabeçalhos de
+  # segurança e /api para a API. Única porta pública.
+  web:
+    image: ${VV_REGISTRO}/vv-web:${VV_VERSAO}
+    restart: unless-stopped
+    <<: *logs
+    environment:
+      VV_SITE: ${VV_DOMINIO}
+      VV_API_UPSTREAM: api:3000
+      VV_CSP_CONNECT_EXTRA: ${VV_S3_PUBLIC_URL}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes: [caddy_data:/data, caddy_config:/config]
+    networks:
+      borda: { ipv4_address: 172.30.0.10 }
+    # API de administração do Caddy, só no loopback do container: responde quando a configuração carregou.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 10s
+      retries: 6
+    depends_on:
+      api: { condition: service_healthy }
+
+networks:
+  interna:
+    internal: true
+  borda:
+    ipam:
+      config: [{ subnet: 172.30.0.0/24 }]
+  saida: {}
+
+volumes:
+  pgdata:
+  clamdata:
+  caddy_data:
+  caddy_config:
+
+# Um arquivo por segredo, gerado no servidor (infra/deploy/gerar-segredos.sh). Opcionais (IA, push)
+# existem vazios: arquivo vazio = recurso desligado.
+secrets:
+  postgres_password: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/postgres_password" }
+  vv_owner_password: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/vv_owner_password" }
+  vv_api_password: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/vv_api_password" }
+  vv_worker_password: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/vv_worker_password" }
+  vv_api_database_url: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/vv_api_database_url" }
+  vv_worker_database_url: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/vv_worker_database_url" }
+  vv_kek: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/vv_kek" }
+  turnstile_secret: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/turnstile_secret" }
+  s3_api_access_key: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/s3_api_access_key" }
+  s3_api_secret_key: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/s3_api_secret_key" }
+  s3_worker_access_key: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/s3_worker_access_key" }
+  s3_worker_secret_key: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/s3_worker_secret_key" }
+  smtp_usuario: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/smtp_usuario" }
+  smtp_senha: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/smtp_senha" }
+  vapid_private_key: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/vapid_private_key" }
+  anthropic_api_key: { file: "${VV_SEGREDOS:-/etc/vv/segredos}/anthropic_api_key" }

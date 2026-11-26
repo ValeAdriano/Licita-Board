@@ -131,6 +131,10 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 # Borda (Caddy): cabeçalhos, cache, /api e log, com o Caddy real (Docker, Linux/CI)
 npm run build --prefix apps/web && infra/caddy/testar-cabecalhos.sh
 
+# Produção (ADR-015; passo a passo em docs/operacao/producao.md)
+infra/ensaio/ensaiar-producao.sh       # sobe a stack de PRODUÇÃO na máquina (imagens locais, segredos descartáveis), confere e derruba
+# no servidor: infra/deploy/preparar-servidor.sh, gerar-segredos.sh, deploy.sh <versão>, criar-superadmin.sh
+
 # Guardas (rodam no CI)
 python3 scripts/conferir-entrega.py [base]   # confere o diff de um worker antes de integrar (repete o hook do Claude Code; orquestracao.md)
 python3 scripts/check_isolation_coverage.py

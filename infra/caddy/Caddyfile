@@ -7,7 +7,10 @@
 #   VV_WEB_ROOT      pasta do build do front (apps/web/dist)
 #   VV_API_UPSTREAM  host:porta da API na rede interna
 #   VV_CSP_CONNECT_EXTRA origem do S3 (upload direto do navegador); vazio quando não há
+#   VV_CADDY_TLS     vazio em produção (certificado automático do Let's Encrypt). Só o ensaio local usa
+#                    "tls internal" (CA própria do Caddy), para um domínio de teste sem DNS público.
 {$VV_SITE:localhost} {
+	{$VV_CADDY_TLS:}
 	encode zstd gzip
 	root * {$VV_WEB_ROOT:/srv/web}
 

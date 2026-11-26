@@ -1,3 +1,6 @@
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { carregarConfig } from './config.js';
 
@@ -85,5 +88,33 @@ describe('carregarConfig', () => {
   it('recusa VV_ENV e PORT inválidos', () => {
     expect(() => carregarConfig({ ...base, VV_ENV: 'producao' })).toThrow('VV_ENV');
     expect(() => carregarConfig({ ...base, PORT: '70000' })).toThrow('PORT');
+  });
+});
+
+describe('segredos em arquivo (_FILE)', () => {
+  const pasta = mkdtempSync(join(tmpdir(), 'vv-config-'));
+  const arquivo = (nome: string, conteudo: string) => {
+    const caminho = join(pasta, nome);
+    writeFileSync(caminho, conteudo);
+    return caminho;
+  };
+
+  it('lê o valor do arquivo e tira só a quebra de linha final', () => {
+    const c = carregarConfig({
+      DATABASE_URL_FILE: arquivo('db', `${base.DATABASE_URL}\n`),
+      VV_KEK_FILE: arquivo('kek', `${base.VV_KEK}\n`),
+    });
+    expect(c.DATABASE_URL).toBe(base.DATABASE_URL);
+    expect(c.VV_KEK).toBe(base.VV_KEK);
+  });
+
+  it('recusa valor e arquivo ao mesmo tempo', () => {
+    expect(() => carregarConfig({ ...base, VV_KEK_FILE: arquivo('kek2', base.VV_KEK) })).toThrow('VV_KEK e VV_KEK_FILE');
+  });
+
+  it('arquivo que não existe derruba a subida sem mostrar o caminho do segredo como valor', () => {
+    expect(() => carregarConfig({ DATABASE_URL: base.DATABASE_URL, VV_KEK_FILE: join(pasta, 'nao-existe') })).toThrow(
+      'não consegui ler o arquivo de VV_KEK_FILE',
+    );
   });
 });

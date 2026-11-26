@@ -1,0 +1,15 @@
+# Migrations de produção (ADR-015): a mesma versão do dbmate do dev/CI, com as migrations da release
+# DENTRO da imagem (o servidor não precisa do repositório nem de bind mount). Contexto: a pasta db/.
+# A senha do dono (vv_owner) vem de arquivo (Docker secret); a URL é montada na hora e não fica no ambiente.
+FROM ghcr.io/amacneil/dbmate:2.37.0
+
+COPY migrations /db/migrations
+ENV DBMATE_MIGRATIONS_DIR=/db/migrations \
+    DBMATE_MIGRATIONS_TABLE=dbmate.schema_migrations \
+    DBMATE_NO_DUMP_SCHEMA=true \
+    VV_DB_HOST=postgres \
+    VV_DB_NOME=vv
+
+# Uso: docker compose -f infra/compose.prod.yml run --rm migracoes [up|status|rollback]
+ENTRYPOINT ["/bin/sh", "-c", "set -eu; s=\"$(cat \"${VV_OWNER_PASSWORD_FILE:?defina VV_OWNER_PASSWORD_FILE}\")\"; export DATABASE_URL=\"postgres://vv_owner:$s@${VV_DB_HOST}:5432/${VV_DB_NOME}?sslmode=disable\"; unset s; exec dbmate --wait \"$@\"", "migracoes"]
+CMD ["up"]
