@@ -8,7 +8,7 @@ command -v railway >/dev/null || { echo "instale a CLI: npm i -g @railway/cli &&
 
 npm ci --prefix .railway
 railway status >/dev/null 2>&1 || railway init --name vv-licitacoes
-railway config apply
+railway config apply "$@"   # sem terminal: subir.sh --yes
 
 existe() { railway variable list --service "$1" --kv 2>/dev/null | grep -q "^$2=."; }
 gravar() { # serviço nome valor  (pelo stdin: o segredo não aparece na lista de processos)
@@ -19,7 +19,7 @@ gerar() { existe "$1" "$2" || gravar "$1" "$2" "$(openssl rand -hex 32)"; }
 perguntar() { # serviço nome pergunta [visivel]
   existe "$1" "$2" && return
   local v=""
-  if [ -n "${4:-}" ]; then read -rp "  $3: " v; else read -rsp "  $3: " v; echo; fi
+  if [ -n "${4:-}" ]; then read -rp "  $3: " v || true; else read -rsp "  $3: " v || true; echo; fi
   if [ -n "$v" ]; then gravar "$1" "$2" "$v"; else echo "    (vazio: $1.$2 não definido)"; fi
 }
 

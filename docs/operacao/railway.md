@@ -1,5 +1,8 @@
 # Subir no Railway (ADR-022)
 
+## Estado (2026-11-26)
+Projeto `vv-licitacoes`, front em https://web-production-5d333571.up.railway.app. `postgres`, `migracoes`, `clamav` e `web` no ar; senhas e `VV_KEK` já geradas. `api` e `worker` não sobem até preencher Turnstile e SMTP: rode `infra/railway/subir.sh` num terminal (ele só pergunta o que falta).
+
 ## Antes
 1. Plano **Pro** (SMTP só existe nele; o ClamAV pede ~3 GB de RAM).
 2. Cloudflare Turnstile (chave do site e secreta), um bucket S3/R2 com par de chaves, um SMTP.
