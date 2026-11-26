@@ -1,7 +1,7 @@
 # Subir no Railway (ADR-022)
 
 ## Estado (2026-11-26)
-Projeto `vv-licitacoes`, front em https://web-production-5d333571.up.railway.app. `postgres`, `migracoes`, `clamav` e `web` no ar; senhas e `VV_KEK` já geradas. `api` e `worker` não sobem até preencher Turnstile e SMTP: rode `infra/railway/subir.sh` num terminal (ele só pergunta o que falta).
+Sistema no ar em https://web-production-5d333571.up.railway.app (projeto `vv-licitacoes`, branch `producao`): os 6 serviços implantados, `/api/health` ok, primeiro SUPERADMIN criado. **Pendente:** Turnstile e SMTP reais (provisórios, abaixo), S3 (documentos desligados), backup do volume, cópia da `VV_KEK` num cofre, conferir se a borda sobrescreve `X-Real-IP`.
 
 ## Valores provisórios (trocar)
 `api.TURNSTILE_SECRET` e `worker.VV_SMTP_*` estão com valores provisórios: o CAPTCHA sempre falha (após 3 erros de senha em 15 min, o login daquele e-mail/IP fica bloqueado) e **nenhum e-mail sai** (recuperação de senha, convites, alertas de prazo). Não usar com prazo real. O `subir.sh` pergunta de novo por eles. Ao configurar o Turnstile, definir também `web.VITE_TURNSTILE_SITEKEY`.
