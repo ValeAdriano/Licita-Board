@@ -6,7 +6,8 @@ import { Permissao } from '../auth/sessao.guard.js';
 import { ContextoService } from '../db/contexto.service.js';
 import type { Database } from '../db/db.module.js';
 
-const abrirSchema = z.object({ concorrente: z.string().trim().min(2).max(200), texto: z.string().trim().max(60000).nullable().optional() }).strict();
+const abrirSchema = z.object({ concorrente: z.string().trim().min(2).max(200), texto: z.string().trim().max(200000).nullable().optional() }).strict();
+const arquivoSchema = z.object({ documentoId: z.uuid() }).strict();
 const achadoSchema = z.object({
   tipo: z.enum(['certidao', 'economico_financeiro', 'atestado', 'signatario', 'me_epp', 'produto_tecnico', 'proposta', 'inexequibilidade', 'outro']),
   descricao: z.string().trim().min(3).max(600), citacaoConcorrente: z.string().trim().max(1500).nullable().optional(), citacaoEdital: z.string().trim().max(1500).nullable().optional(),
@@ -57,7 +58,10 @@ export class PareceresController {
         select id, ordem, origem, tipo, descricao, citacao_concorrente as "citacaoConcorrente", concorrente_confere as "concorrenteConfere", citacao_edital as "citacaoEdital", edital_confere as "editalConfere",
                pagina_edital as "paginaEdital", prova, fundamento, classificacao
           from priv.parecer_achados where parecer_id = ${(parecer as { id: string }).id}::uuid and empresa_id = ${empresa}::uuid order by ordem`.execute(tx)).rows : [];
-      return { resultado: res, parecer: parecer ?? null, achados };
+      const arquivos = parecer ? (await sql`
+        select id, documento_id as "documentoId", versao_id as "versaoId", nome, caracteres, created_at as "criadoEm"
+          from priv.juridico_arquivos where parecer_id = ${(parecer as { id: string }).id}::uuid and empresa_id = ${empresa}::uuid order by created_at`.execute(tx)).rows : [];
+      return { resultado: res, parecer: parecer ?? null, achados, arquivos };
     });
     if (!r) throw new NotFoundException();
     return r;
@@ -70,6 +74,16 @@ export class PareceresController {
     const d = validar(abrirSchema, corpo);
     const r = await this.q(req, (tx) => sql<{ id: string }>`select priv.abrir_parecer(${empresa}::uuid, ${participacao}::uuid, ${d.concorrente}, ${d.texto ?? null}) as id`.execute(tx));
     return { id: r.rows[0]?.id };
+  }
+
+  // Acrescenta ao texto da concorrente o texto de um arquivo dela (proposta ou habilitação) já liberado pelo repositório documental (Q-43).
+  @Permissao('juridico', 'elaborar_peca')
+  @Post('empresas/:empresa/juridico/pareceres/:id/arquivos')
+  @HttpCode(201)
+  async anexar(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
+    const d = validar(arquivoSchema, corpo);
+    const r = await this.q(req, (tx) => sql<{ n: number }>`select priv.anexar_arquivo_parecer(${empresa}::uuid, ${id}::uuid, ${d.documentoId}::uuid) as n`.execute(tx));
+    return { caracteres: r.rows[0]?.n };
   }
 
   @Permissao('juridico', 'elaborar_peca')

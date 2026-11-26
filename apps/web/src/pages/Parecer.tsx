@@ -4,6 +4,7 @@ import { chamar } from '../api/cliente'
 import { useEnvio } from '../features/acesso/conta/useEnvio'
 import { useAcesso } from '../features/acesso/contexto'
 import { useGet } from '../features/acesso/useGet'
+import { ArquivoTerceiro } from '../features/juridico/ArquivoTerceiro'
 import { RECOMENDACAO } from '../features/juridico/Pareceres'
 import { AreaTexto, Aviso, Botao, CabecalhoPagina, Campo, Cartao, Etiqueta, Legenda, Pagina, Selecao } from '../ui'
 
@@ -12,6 +13,7 @@ interface Detalhe {
   resultado: { resultado: string; vencedoraNome: string | null; vencedoraMarcaModelo: string | null; motivo: string | null; gatilhoRecursal: boolean; numeroItem: number | null; item: string | null; numeroEdital: string | null; orgao: string | null }
   parecer: { id: string; concorrente: string; texto: string | null; recomendacao: string | null; recomendacaoJustificativa: string | null; validacao: { codigo: string; mensagem: string; bloqueia: boolean }[] | null; validadaEm: string | null; bloqueado: boolean; analiseStatus: string; analiseErro: string | null; pecaId: string | null } | null
   achados: Achado[]
+  arquivos: { id: string; nome: string; caracteres: number }[]
 }
 const TIPO: Record<string, string> = { certidao: 'Certidão', economico_financeiro: 'Econômico-financeiro', atestado: 'Atestado', signatario: 'Signatário', me_epp: 'ME/EPP', produto_tecnico: 'Produto/técnico', proposta: 'Proposta', inexequibilidade: 'Inexequibilidade', outro: 'Outro' }
 const CLASSE: Record<string, string> = { forte: 'Forte', moderada: 'Moderada', fraca: 'Fraca' }
@@ -44,7 +46,7 @@ export default function ParecerPagina() {
         editar && r.gatilhoRecursal ? (
           <Cartao><h2>Abrir o parecer</h2>
             <Campo rotulo="Licitante vencedora (ou arrematante)" value={abrir.concorrente || (r.vencedoraNome ?? '')} onChange={(v) => setAbrir({ ...abrir, concorrente: v })} maxLength={200} />
-            <AreaTexto rotulo="Texto da proposta e dos documentos de habilitação da concorrente (cole; opcional agora)" value={abrir.texto} onChange={(v) => setAbrir({ ...abrir, texto: v })} rows={8} maxLength={60000} />
+            <AreaTexto rotulo="Texto da proposta e dos documentos de habilitação da concorrente (cole; opcional agora)" value={abrir.texto} onChange={(v) => setAbrir({ ...abrir, texto: v })} rows={8} maxLength={200000} />
             <div><Botao carregando={enviando} disabled={(abrir.concorrente || r.vencedoraNome || '').trim().length < 2} onClick={() => void enviar(async () => { await chamar('POST', `${base}/participacao/${participacao}`, { concorrente: (abrir.concorrente || r.vencedoraNome || '').trim(), texto: abrir.texto.trim() || null }); det.recarregar() })}>Abrir parecer</Botao></div></Cartao>
         ) : <Aviso tipo="info" texto="Ainda não há parecer para este item." />
       ) : <>
@@ -55,12 +57,18 @@ export default function ParecerPagina() {
           {p.analiseStatus === 'desligada' ? <Aviso tipo="atencao" texto="A IA não está configurada: cadastre a chave em Cadastros → IA ou registre os achados à mão." /> : null}
           {p.analiseStatus === 'falhou' ? <Aviso texto={`A análise falhou: ${p.analiseErro ?? 'erro desconhecido'}.`} /> : null}
           {p.analiseStatus === 'concluida' && p.analiseErro ? <Aviso tipo="info" texto={p.analiseErro} /> : null}
-          <Legenda>Cole o texto da proposta e dos documentos da concorrente; a IA sugere possíveis falhas citando trechos literais (sem classificar nem recomendar). Nada da sua empresa é enviado.</Legenda>
+          <Legenda>Cole o texto da proposta e dos documentos da concorrente (ou envie os arquivos abaixo); a IA sugere possíveis falhas citando trechos literais (sem classificar nem recomendar). Nada da sua empresa é enviado.</Legenda>
           <div className="flex flex-wrap gap-3">
             {editar ? <Botao variante="secundario" carregando={enviando || p.analiseStatus === 'pendente'} disabled={p.analiseStatus === 'pendente' || (p.texto ?? '').trim().length < 50} onClick={() => void enviar(async () => { await chamar('POST', `${base}/${p.id}/analisar`); det.recarregar() })}>{p.analiseStatus === 'pendente' ? 'IA analisando…' : 'Sugerir achados com IA'}</Botao> : null}
             {p.analiseStatus === 'pendente' ? <Botao variante="texto" onClick={det.recarregar}>Atualizar</Botao> : null}
           </div>
           {editar ? <TextoConcorrente key={p.texto ?? ''} p={p} participacao={participacao} base={base} enviando={enviando} enviar={enviar} recarregar={det.recarregar} /> : null}
+          {det.dados.arquivos.length ? <Legenda>Texto lido dos arquivos: {det.dados.arquivos.map((a) => `${a.nome} (${a.caracteres.toLocaleString('pt-BR')} caracteres)`).join('; ')}. Os originais ficam em Documentos.</Legenda> : null}
+          {editar ? <>
+            <h3 className="text-sm font-semibold text-primary">Enviar arquivo da concorrente</h3>
+            <ArquivoTerceiro empresaId={empresaId} tipos={['proposta_concorrente', 'habilitacao_concorrente']} descricao={`Concorrente ${p.concorrente}`} rotuloBotao="Enviar e acrescentar ao texto"
+              aoLiberar={async (documentoId) => { await chamar('POST', `${base}/${p.id}/arquivos`, { documentoId }); det.recarregar() }} />
+          </> : null}
         </Cartao>
         {achados.map((a) => <AchadoCartao key={a.id + a.paginaEdital + String(a.concorrenteConfere)} a={a} parecerId={p.id} editar={editar} enviando={enviando} enviar={enviar} base={base} recarregar={det.recarregar} />)}
         {editar ? <NovoAchado parecerId={p.id} base={base} enviando={enviando} enviar={enviar} recarregar={det.recarregar} /> : null}
@@ -83,7 +91,7 @@ type Enviar = (fn: () => Promise<void>) => Promise<unknown>
 function TextoConcorrente({ p, participacao, base, enviando, enviar, recarregar }: { p: NonNullable<Detalhe['parecer']>; participacao: string; base: string; enviando: boolean; enviar: Enviar; recarregar: () => void }) {
   const [t, setT] = useState(p.texto ?? '')
   return <>
-    <AreaTexto rotulo="Texto da proposta e dos documentos da concorrente" value={t} onChange={setT} rows={6} maxLength={60000} />
+    <AreaTexto rotulo="Texto da proposta e dos documentos da concorrente" value={t} onChange={setT} rows={6} maxLength={200000} />
     <div><Botao variante="secundario" carregando={enviando} onClick={() => void enviar(async () => { await chamar('POST', `${base}/participacao/${participacao}`, { concorrente: p.concorrente, texto: t.trim() || null }); recarregar() })}>Salvar texto</Botao></div>
   </>
 }

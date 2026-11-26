@@ -9,7 +9,7 @@ import { LEITURA } from '../features/juridico/Recursos'
 import { AreaTexto, Aviso, Botao, CabecalhoPagina, Campo, Cartao, Etiqueta, Legenda, Pagina, Selecao } from '../ui'
 
 interface Alegacao { id: string; ordem: number; origem: string; resumo: string; citacao: string | null; citacaoConfere: boolean; fundamentos: { texto: string; na_base: boolean }[]; decisao: string | null; contraProva: string | null; fundamento: string | null; risco: boolean }
-interface Recurso { id: string; recorrente: string; publicadoEm: string; link: string | null; texto: string; pecaId: string; leituraStatus: string; leituraErro: string | null; leituraModelo: string | null; prazoLegal: string | null; prazoInterno: string | null; alegacoes: Alegacao[] }
+interface Recurso { id: string; recorrente: string; publicadoEm: string; link: string | null; texto: string; pecaId: string; leituraStatus: string; leituraErro: string | null; leituraModelo: string | null; prazoLegal: string | null; prazoInterno: string | null; alegacoes: Alegacao[]; arquivos: { id: string; nome: string; caracteres: number }[] }
 const DECISAO: Record<string, string> = { rebater: 'Rebater', concordar: 'Concordar (não rebater)', sem_relevancia: 'Sem relevância' }
 
 // Um recurso de terceiro: alegações extraídas (IA ou manuais) → prova que refuta → fundamento. Sem prova = ponto de risco para o jurídico.
@@ -50,7 +50,7 @@ export default function RecursoPagina() {
           <Campo rotulo="Trecho literal do recurso (opcional, o sistema confere)" value={nova.citacao} onChange={(v) => setNova({ ...nova, citacao: v })} maxLength={1500} />
           <div><Botao carregando={enviando} disabled={nova.resumo.trim().length < 3} onClick={() => void enviar(async () => { await chamar('POST', `${base}/recursos/${r.id}/alegacoes`, { resumo: nova.resumo.trim(), citacao: nova.citacao.trim() || null }); setNova({ resumo: '', citacao: '' }); det.recarregar() })}>Adicionar</Botao></div></Cartao>
       ) : null}
-      <Cartao><h2>Texto do recurso</h2>{r.link ? <Legenda>Link: <bdi>{r.link}</bdi></Legenda> : null}<pre className="max-h-96 overflow-auto whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{r.texto}</pre></Cartao>
+      <Cartao><h2>Texto do recurso</h2>{r.link ? <Legenda>Link: <bdi>{r.link}</bdi></Legenda> : null}{r.arquivos.map((a) => <Legenda key={a.id}>Texto lido do arquivo <bdi>{a.nome}</bdi> ({a.caracteres.toLocaleString('pt-BR')} caracteres), guardado em Documentos. Confira com o original.</Legenda>)}<pre className="max-h-96 overflow-auto whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{r.texto}</pre></Cartao>
     </Pagina>
   )
 }

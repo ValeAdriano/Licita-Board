@@ -6,10 +6,12 @@ import { Permissao } from '../auth/sessao.guard.js';
 import { ContextoService } from '../db/contexto.service.js';
 import type { Database } from '../db/db.module.js';
 
+// O texto vem colado OU de um arquivo já liberado pelo repositório documental (Q-43): nunca os dois.
 const recursoSchema = z.object({
   recorrente: z.string().trim().min(2).max(200), publicadoEm: z.iso.datetime({ offset: true }),
-  texto: z.string().trim().min(50).max(60000), link: z.string().trim().max(500).regex(/^https:\/\/\S+$/, 'Use um link https.').nullable().optional(),
-}).strict();
+  texto: z.string().trim().min(50).max(200000).optional(), documentoId: z.uuid().optional(),
+  link: z.string().trim().max(500).regex(/^https:\/\/\S+$/, 'Use um link https.').nullable().optional(),
+}).strict().refine((d) => (d.texto === undefined) !== (d.documentoId === undefined), 'Cole o texto do recurso ou envie o arquivo (um dos dois).');
 const alegacaoSchema = z.object({ resumo: z.string().trim().min(3).max(600), citacao: z.string().trim().max(1500).nullable().optional() }).strict();
 const decisaoSchema = z.object({
   decisao: z.enum(['rebater', 'concordar', 'sem_relevancia']), contraProva: z.string().trim().max(1000).nullable().optional(), fundamento: z.string().trim().max(1000).nullable().optional(),
@@ -51,7 +53,10 @@ export class RecursosController {
       const alegacoes = (await sql`
         select id, ordem, origem, resumo, citacao, citacao_confere as "citacaoConfere", fundamentos, decisao, contra_prova as "contraProva", fundamento_refutacao as fundamento, risco
           from priv.recurso_alegacoes where recurso_id = ${id}::uuid and empresa_id = ${empresa}::uuid order by ordem`.execute(tx)).rows;
-      return { ...rec, alegacoes };
+      const arquivos = (await sql`
+        select id, documento_id as "documentoId", versao_id as "versaoId", nome, caracteres, created_at as "criadoEm"
+          from priv.juridico_arquivos where recurso_id = ${id}::uuid and empresa_id = ${empresa}::uuid order by created_at`.execute(tx)).rows;
+      return { ...rec, alegacoes, arquivos };
     });
     if (!r) throw new NotFoundException();
     return r;
@@ -62,8 +67,11 @@ export class RecursosController {
   @HttpCode(201)
   async inserir(@Req() req: RequisicaoVV, @Param('empresa') empresa: string, @Param('id', new ParseUUIDPipe()) id: string, @Body() corpo: unknown) {
     const d = validar(recursoSchema, corpo);
-    const r = await this.q(req, (tx) => sql<{ r: { id: string; pecaId: string; eventoId: string } }>`
-      select priv.inserir_recurso_terceiro(${empresa}::uuid, ${id}::uuid, ${d.recorrente}, ${d.publicadoEm}::timestamptz, ${d.texto}, ${d.link ?? null}) as r`.execute(tx));
+    const r = await this.q(req, (tx) => d.documentoId
+      ? sql<{ r: { id: string; pecaId: string; eventoId: string } }>`
+        select priv.inserir_recurso_terceiro_arquivo(${empresa}::uuid, ${id}::uuid, ${d.recorrente}, ${d.publicadoEm}::timestamptz, ${d.documentoId}::uuid, ${d.link ?? null}) as r`.execute(tx)
+      : sql<{ r: { id: string; pecaId: string; eventoId: string } }>`
+        select priv.inserir_recurso_terceiro(${empresa}::uuid, ${id}::uuid, ${d.recorrente}, ${d.publicadoEm}::timestamptz, ${d.texto ?? null}, ${d.link ?? null}) as r`.execute(tx));
     return r.rows[0]?.r;
   }
 
