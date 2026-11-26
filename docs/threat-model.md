@@ -460,3 +460,13 @@ As ameaças T5.2 (logout que falha aberto), T5.3 (sessão sequestrada vira posse
 | T13 | LGPD: gravar CPF/nome de fornecedor pessoa física do PNCP ou documentos pessoais de concorrente sem controle | `pub.precos_historicos`: check recusa `fornecedor_cnpj` e `fornecedor_nome` quando `fornecedor_tipo = 'pessoa_fisica'` e o normalizador descarta; documentos da concorrente restritos à empresa que anexou com aviso "somente documentos públicos" | pgTAP + pytest (CA-8 da spec 07 §8) | planejado (specs 07 §8 e 09 §5 aprovadas) |
 | T14 | Pressão para automatizar envio de proposta ou guardar credencial de portal | Regra 17 inviolável: nenhuma coluna de credencial de portal e nenhum job/rota de envio; registro é sempre humano com comprovante auditado e imutável | e2e `rotas` + pgTAP (CA-8 e CA-12 da spec 08 §7) | planejado (spec 08 §7 aprovada) |
 | T15 | Link público de documento posterior usado para phishing/rastreamento ou SSRF | Check exige `^https://[^\s]+$`; aberto no front com `rel="noopener noreferrer"`; o servidor nunca segue o link neste bloco | pgTAP + revisão (spec 09 §5) | planejado (spec 09 §5 aprovada) |
+
+## Hospedagem no Railway (ADR-022, revisão de 2026-11-26)
+
+| Ameaça | Mitigação | Pendente |
+| --- | --- | --- |
+| Deploy como caminho até `vv_owner` e a KEK | publica só do branch `producao` | proteger o branch e MFA no GitHub e no Railway; backup antes de migrar |
+| Script de operação rotacionar KEK ou senhas | aborta se não ler as variáveis; preparo falha com KEK diferente | cópia da KEK num cofre |
+| SUPERADMIN recriado por variável esquecida | só cria quando não há nenhum | apagar `VV_NOVA_SENHA` |
+| Movimento lateral na rede privada plana; IP forjado na API | `clamav` fixado por digest; só `web` é público | cabeçalho secreto entre Caddy e API; conferir que a borda sobrescreve `X-Real-IP` |
+| Segredos visíveis no painel e no token da CLI | acesso só do dono | MFA na conta |

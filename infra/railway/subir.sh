@@ -1,16 +1,24 @@
 #!/usr/bin/env bash
-# Sobe o VV Licitações no Railway (ADR-022). Roda na sua máquina, uma vez; depois, push no main já publica.
+# Sobe o VV Licitações no Railway (ADR-022). Roda na sua máquina, uma vez; depois, publicar é `git push origin main:producao`.
 # Antes: `npm i -g @railway/cli`, `railway login` e dar ao Railway acesso ao repositório no GitHub.
 # Pode rodar de novo: valor que já existe no Railway não é trocado.
+# A pasta precisa estar ligada a um projeto: `railway link` (existente) ou `railway init --name vv-licitacoes` (novo).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 command -v railway >/dev/null || { echo "instale a CLI: npm i -g @railway/cli && railway login" >&2; exit 1; }
 
 npm ci --prefix .railway
-railway status >/dev/null 2>&1 || railway init --name vv-licitacoes
+railway status >/dev/null 2>&1 || { echo "pasta sem projeto: rode railway link (ou railway init --name vv-licitacoes)" >&2; exit 1; }
+railway config plan
 railway config apply "$@"   # sem terminal: subir.sh --yes
 
-existe() { railway variable list --service "$1" --kv 2>/dev/null | grep -q "^$2=."; }
+# Falha na consulta ABORTA: tratar como "não existe" sobrescreveria a VV_KEK e as senhas do banco.
+existe() {
+  local v
+  v="$(railway variable list --service "$1" --kv)" || { echo "não consegui ler as variáveis de $1; nada foi trocado" >&2; exit 1; }
+  # Valor provisório (provisorio-..., smtp.invalid) conta como ausente: o script pergunta de novo.
+  grep -q "^$2=." <<<"$v" && ! grep -Eq "^$2=(provisorio|.*smtp\.invalid)" <<<"$v"
+}
 gravar() { # serviço nome valor  (pelo stdin: o segredo não aparece na lista de processos)
   printf '%s' "$3" | railway variable set "$2" --stdin --service "$1" --skip-deploys >/dev/null
   echo "  + $1.$2"
@@ -35,6 +43,8 @@ perguntar api S3_ENDPOINT "endpoint, só a origem (https://<conta>.r2.cloudflare
 perguntar api S3_BUCKET "nome do bucket" v
 perguntar api S3_ACCESS_KEY "access key"
 perguntar api S3_SECRET_KEY "secret key"
+perguntar worker VV_S3_ACCESS_KEY "access key do WORKER (outra chave: ler, gravar, listar)"
+perguntar worker VV_S3_SECRET_KEY "secret key do worker"
 echo "== SMTP (obrigatório para o worker; o Railway só libera SMTP no plano Pro)"
 perguntar worker VV_SMTP_HOST "servidor" v
 perguntar worker VV_SMTP_USUARIO "usuário"

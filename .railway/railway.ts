@@ -4,7 +4,9 @@
 import { defineRailway, github, image, preserve, project, service, volume } from "railway/iac";
 
 const REPO = "ValeAdriano/Licita-Board";
-const fonte = (rootDirectory?: string) => github(REPO, { branch: "main", ...(rootDirectory ? { rootDirectory } : {}) });
+// Produção publica só deste branch: push no main não toca o servidor. Publicar: git push origin main:producao
+const RAMO = "producao";
+const fonte = (rootDirectory?: string) => github(REPO, { branch: RAMO, ...(rootDirectory ? { rootDirectory } : {}) });
 const docker = (dockerfilePath: string) => ({ builder: "DOCKERFILE" as const, dockerfilePath });
 const PUBLICO = "https://${{web.RAILWAY_PUBLIC_DOMAIN}}";
 
@@ -67,7 +69,8 @@ export default defineRailway(() => {
   });
 
   const clamav = service("clamav", {
-    source: image("clamav/clamav-debian:stable"),
+    // Fixada por digest (stable em 2026-11-26); as assinaturas continuam atualizando pelo freshclam.
+    source: image("clamav/clamav-debian@sha256:85f35b3eee903dbd96c5ca250c5aa13d230d97987c0f876f7d46f001f9414239"),
     volumeMounts: { "/var/lib/clamav": clamdata },
   });
 
@@ -83,8 +86,9 @@ export default defineRailway(() => {
       VV_KEK: "${{api.VV_KEK}}",
       VV_S3_ENDPOINT: "${{api.S3_ENDPOINT}}",
       VV_S3_BUCKET: "${{api.S3_BUCKET}}",
-      VV_S3_ACCESS_KEY: "${{api.S3_ACCESS_KEY}}",
-      VV_S3_SECRET_KEY: "${{api.S3_SECRET_KEY}}",
+      // Chave própria, com mais alcance que a da API (quarentena -> documentos).
+      VV_S3_ACCESS_KEY: preserve(),
+      VV_S3_SECRET_KEY: preserve(),
       VV_CLAMAV_HOST: "clamav.railway.internal",
       VV_APP_URL: PUBLICO,
       VV_SMTP_HOST: preserve(),

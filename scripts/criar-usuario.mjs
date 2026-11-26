@@ -73,10 +73,11 @@ async function principal() {
   const { Client } = requerer('pg');
   const c = new Client({ connectionString: url });
   // O host vale o que o cliente do banco vai usar de verdade (a URL pode trazer ?host= ou ?hostaddr=).
-  const local = ['localhost', '127.0.0.1', '::1', 'postgres', 'postgres.railway.internal'].includes(c.host) && !/[?&]host(addr)?=/.test(url);
+  const local = ['localhost', '127.0.0.1', '::1', 'postgres'].includes(c.host) && !/[?&]host(addr)?=/.test(url);
   if (!local) {
     if (!o.producao) throw new Error(`O banco (${c.host}) não é local. Para produção, confirme com --producao.`);
-    if (!/[?&]sslmode=(require|verify-full)\b/.test(url)) throw new Error('Banco remoto exige TLS: acrescente ?sslmode=verify-full à DATABASE_URL.');
+    // Rede privada do Railway (ADR-022): cifrada pela plataforma, o Postgres não tem TLS próprio.
+    if (c.host !== 'postgres.railway.internal' && !/[?&]sslmode=(require|verify-full)\b/.test(url)) throw new Error('Banco remoto exige TLS: acrescente ?sslmode=verify-full à DATABASE_URL.');
   }
 
   const geradaAgora = !process.env.VV_NOVA_SENHA;
