@@ -10,15 +10,17 @@ on:
         description: "Versão (letras, números, ponto, hífen). Vira a tag do git e das imagens."
         required: true
 
-permissions:
-  contents: write   # cria a tag do git
-  packages: write   # publica no GHCR
+# Nada por padrão: cada job pede só o que usa. Actions de terceiros fixadas no SHA do commit (tag no comentário).
+permissions: {}
 
 concurrency: { group: imagens, cancel-in-progress: false }
 
 jobs:
   imagens:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # publica no GHCR
     env:
       VERSAO: ${{ inputs.versao }}
     steps:
@@ -30,8 +32,8 @@ jobs:
       - name: Tag nova
         run: |
           if git rev-parse -q --verify "refs/tags/$VERSAO" >/dev/null; then echo "a tag $VERSAO já existe"; exit 1; fi
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -40,21 +42,33 @@ jobs:
         env: { DONO: "${{ github.repository_owner }}" }
         run: echo "REG=ghcr.io/$(printf '%s' "$DONO" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
       - name: vv-postgres
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with: { context: db, push: true, tags: "${{ env.REG }}/vv-postgres:${{ env.VERSAO }}", build-args: "COM_PGTAP=0" }
       - name: vv-migracoes
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with: { context: db, file: db/Dockerfile.migracoes, push: true, tags: "${{ env.REG }}/vv-migracoes:${{ env.VERSAO }}" }
       - name: vv-api
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with: { context: apps/api, push: true, tags: "${{ env.REG }}/vv-api:${{ env.VERSAO }}" }
       - name: vv-worker
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with: { context: apps/worker, push: true, tags: "${{ env.REG }}/vv-worker:${{ env.VERSAO }}" }
       - name: vv-web
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with: { context: ., file: infra/caddy/Dockerfile, push: true, tags: "${{ env.REG }}/vv-web:${{ env.VERSAO }}" }
+
+  # Só depois das 5 imagens publicadas; único job com escrita no repositório.
+  tag:
+    needs: imagens
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # cria a tag do git
+    env:
+      VERSAO: ${{ inputs.versao }}
+    steps:
+      - uses: actions/checkout@v5
       - name: Tag do git
         run: |
+          case "$VERSAO" in ''|*[!A-Za-z0-9._-]*) echo "versão inválida"; exit 1 ;; esac
           git tag "$VERSAO" "$GITHUB_SHA"
           git push origin "refs/tags/$VERSAO"
