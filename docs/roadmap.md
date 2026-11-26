@@ -24,7 +24,7 @@ Fonte para agentes saberem **onde estamos**. Atualizar ao abrir e ao fechar cada
 | 6 | 10b | Jurídico pós-disputa (10.4–10.9) | ~65 h | [fase-10](specs/fase-10.md) · Aprovada | 🟡 no main junto com a 10a (recurso de terceiros, viabilidade recursal, teses, indicadores); espera o jurídico (fontes, modelos, prazos) |
 | 7 | 11 | Contratos, entregas e financeiro | ~60 h | [fase-11](specs/fase-11.md) · Aprovada | 🟡 núcleo no main (contratos e atas, itens, empenhos, fornecimento em 11 etapas, entregas parciais, financeiro, histórico, saldos e alertas calculados); notificações dos alertas, aviso e cadastro pré-preenchido a partir de "contratada", anexos por etapa e pedido de reajuste/reequilíbrio pelo jurídico; e-mail dos alertas coberto pelo relatório diário (Fase 12); upload direto na tela do contrato pronto (vincula ao liberar; falta ensaio com arquivo real) |
 | 7 | 12 | Dashboard e relatórios | ~45 h | [fase-12](specs/fase-12.md) · Aprovada | 🟡 no main (painel com 13 indicadores por permissão, relatório comercial com margens e preços vencedores do PNCP, CSV e Excel de resultados/comercial/agenda, PDF por impressão, relatório diário por e-mail opt-in e busca avançada entre módulos) |
-| 8 | 13 | Integrações e expansão | ~80 h+ | — | ⚪ |
+| 8 | 13 | Integrações e expansão | ~80 h+ | [fase-13](specs/fase-13.md) · Rascunho | ⚪ spec em rascunho (2026-11-26): 13.6 auditoria de qualidade detalhada, demais blocos esboçados; aguarda aprovação |
 
 ## Dependências externas abertas
 
