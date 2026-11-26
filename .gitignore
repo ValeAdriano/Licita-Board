@@ -38,3 +38,4 @@ infra/s3/s3.json
 .claude/ALLOW_TESTS
 .claude/NO_STOP_TESTS
 graphify-out/
+.claude/work/
