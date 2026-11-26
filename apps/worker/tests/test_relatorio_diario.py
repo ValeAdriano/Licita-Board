@@ -146,6 +146,9 @@ def cena() -> Any:
         "completo": completo,
         "so_juridico": so_juridico,
         "sem_nada": sem_nada,
+        "usuario": usuario,
+        "fonte": fonte,
+        "org": org,
     }
     _admin("delete from priv.relatorio_diario_assinaturas")
     _admin("delete from priv.sugestoes_pecas")
@@ -157,7 +160,9 @@ def cena() -> Any:
     _admin("alter table core.empresas disable trigger user")
     _admin("delete from core.empresas where id = %s", emp)
     _admin("alter table core.empresas enable trigger user")
-    _admin("delete from core.usuarios where nome in ('Completo', 'Só jurídico', 'Sem nada')")
+    _admin(
+        "delete from core.usuarios where nome in ('Completo', 'Só jurídico', 'Sem nada', 'Só agenda', 'Só editais')"
+    )
 
 
 @pytestmark_db
@@ -298,3 +303,40 @@ def test_retificacao_nao_conferida_continua_no_aviso(cena: Any) -> None:
         ]
         secoes = {s.titulo: s.linhas for s in coletar(conn, cena["completo"], cena["emp"], AGORA)}
         assert len(secoes["Editais alterados"]) == 2  # por fonte + aviso, na mesma seção
+
+
+@pytestmark_db
+def test_editais_alterados_so_conta_vinculos_dos_modulos_que_a_pessoa_ve(cena: Any) -> None:
+    # Segundo edital ligado à empresa SÓ por oportunidade (módulo editais), com versão nova.
+    ed2 = _admin(
+        "insert into pub.editais (fonte_id, id_externo, orgao_id, objeto, hash_conteudo) "
+        "values (%s, %s, %s, 'Objeto 2', repeat('d', 64)) returning id",
+        cena["fonte"],
+        f"RD-{uuid.uuid4()}",
+        cena["org"],
+    )[0][0]
+    it2 = _admin(
+        "insert into pub.edital_itens (edital_id, numero_item, descricao) values (%s, 1, 'Item') returning id",
+        ed2,
+    )[0][0]
+    _admin(
+        "insert into priv.oportunidades (empresa_id, edital_id, item_id, nota, faixa, versao_regra, edital_versao) values (%s, %s, %s, 10, 'baixa', 'v1', 1)",
+        cena["emp"],
+        ed2,
+        it2,
+    )
+    _admin(
+        "insert into pub.edital_versoes (edital_id, versao, coletada_em, hash_conteudo, conteudo) values (%s, 2, %s, repeat('e', 64), '{}')",
+        ed2,
+        AGORA,
+    )
+    so_agenda = cena["usuario"]("Só agenda", [("agenda", "visualizar")])
+    so_editais = cena["usuario"]("Só editais", [("editais", "visualizar")])
+    fonte = "PNCP · Portal Nacional de Contratações Públicas"
+    with psycopg.connect(os.environ["VV_DATABASE_URL_TEST"]) as conn:
+        linhas = lambda u: {s.titulo: s.linhas for s in coletar(conn, u, cena["emp"], AGORA)}.get(  # noqa: E731
+            "Editais alterados"
+        )
+        assert linhas(so_agenda) == [f"{fonte}: 1."]  # só o acompanhado; a oportunidade não vaza
+        assert linhas(so_editais) == [f"{fonte}: 2."]  # os dois têm oportunidade
+        assert linhas(cena["completo"]) == [f"{fonte}: 2."]

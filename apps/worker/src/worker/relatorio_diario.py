@@ -58,39 +58,40 @@ def coletar(
     ate = agora + dt.timedelta(days=7)
     with conn.cursor(row_factory=dict_row) as cur:
         # As mesmas tabelas privadas já concedidas ao worker nas seções existentes.
-        for titulo, modulo, consulta in (
-            (
+        # Cada vínculo com a empresa só entra se a pessoa vê o módulo dele: acompanhamento = agenda,
+        # oportunidade = editais (senão a contagem revelaria dado de um módulo que ela não vê).
+        desde = agora - dt.timedelta(hours=24)
+        consultas: list[tuple[str, str, tuple[Any, ...]]] = []
+        if ver("editais"):
+            consultas.append((
                 "Novos itens",
-                "editais",
                 "select f.nome as fonte, count(*) as n from pub.edital_itens i "
                 "join pub.editais e on e.id = i.edital_id join ops.fontes f on f.id = e.fonte_id "
                 "where i.created_at > %s and i.created_at <= %s and exists "
                 "(select 1 from priv.oportunidades o where o.empresa_id = %s "
                 "and o.edital_id = e.id and o.item_id = i.id and not o.retirado) "
                 "group by f.id, f.nome order by f.nome, f.id",
-            ),
-            (
+                (desde, agora, empresa),
+            ))  # fmt: skip
+        if ver("agenda") or ver("editais"):
+            consultas.append((
                 "Editais alterados",
-                "agenda",
                 "select f.nome as fonte, count(*) as n from pub.editais e "
                 "join ops.fontes f on f.id = e.fonte_id where exists "
                 "(select 1 from pub.edital_versoes v where v.edital_id = e.id "
                 "and v.versao > 1 and v.coletada_em > %s and v.coletada_em <= %s) "
-                "and (exists (select 1 from priv.acompanhamentos a where a.edital_id = e.id "
-                "and a.empresa_id = %s and a.deleted_at is null) or exists "
-                "(select 1 from priv.oportunidades o where o.edital_id = e.id "
-                "and o.empresa_id = %s and not o.retirado)) "
+                "and ((%s and exists (select 1 from priv.acompanhamentos a where a.edital_id = e.id "
+                "and a.empresa_id = %s and a.deleted_at is null)) "
+                "or (%s and exists (select 1 from priv.oportunidades o where o.edital_id = e.id "
+                "and o.empresa_id = %s and not o.retirado))) "
                 "group by f.id, f.nome order by f.nome, f.id",
-            ),
-        ):
-            if ver(modulo):
-                params = (agora - dt.timedelta(hours=24), agora, empresa)
-                cur.execute(
-                    consulta, (*params, empresa) if titulo == "Editais alterados" else params
-                )
-                linhas = [f"{r['fonte']}: {r['n']}." for r in cur.fetchall()]
-                if linhas:
-                    secoes.append(Secao(titulo, linhas))
+                (desde, agora, ver("agenda"), empresa, ver("editais"), empresa),
+            ))  # fmt: skip
+        for titulo, consulta, params in consultas:
+            cur.execute(consulta, params)
+            linhas = [f"{r['fonte']}: {r['n']}." for r in cur.fetchall()]
+            if linhas:
+                secoes.append(Secao(titulo, linhas))
         if ver("editais"):
             cur.execute(
                 "select count(*) filter (where triagem = 'nova') as novas, "
