@@ -6,6 +6,11 @@ Sistema no ar em https://web-production-5d333571.up.railway.app (projeto `vv-lic
 ## Valores provisórios (trocar)
 `api.TURNSTILE_SECRET` e `worker.VV_SMTP_*` estão com valores provisórios: o CAPTCHA sempre falha (após 3 erros de senha em 15 min, o login daquele e-mail/IP fica bloqueado) e **nenhum e-mail sai** (recuperação de senha, convites, alertas de prazo). Não usar com prazo real. O `subir.sh` pergunta de novo por eles. Ao configurar o Turnstile, definir também `web.VITE_TURNSTILE_SITEKEY`.
 
+## Cadastro aberto (decisão do Adriano, 2026-11-26)
+Qualquer pessoa cria conta e empresa em `/cadastrar` (nunca SUPERADMIN; MFA no primeiro acesso). Sem prova de posse do CNPJ, e-mail não verificado, sem CAPTCHA no cadastro (só 20 pedidos/min por IP). Para fechar: em `.railway/railway.ts` pôr o `startCommand` do `postgres` em `"docker-entrypoint.sh postgres"` (não apague a linha), `CADASTRO_ABERTO` e `VITE_CADASTRO_ABERTO` em `"false"`, `railway config apply` e conferir o redeploy de `postgres`, `api` e `web`. Sem S3, o passo "Enviar documentos" dos Primeiros passos não conclui; sem SMTP, quem esquecer a senha não recupera. Fechar não apaga contas já criadas.
+
+**Com o cadastro aberto, não defina `worker.VV_ANTHROPIC_API_KEY`:** empresa sem chave própria usa a global, e qualquer estranho gastaria na sua conta.
+
 ## Antes
 1. Plano **Pro** (SMTP só existe nele; o ClamAV pede ~3 GB de RAM).
 2. Cloudflare Turnstile (chave do site e secreta), um bucket S3/R2 com par de chaves, um SMTP.

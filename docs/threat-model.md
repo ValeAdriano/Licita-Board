@@ -470,3 +470,7 @@ As ameaças T5.2 (logout que falha aberto), T5.3 (sessão sequestrada vira posse
 | SUPERADMIN recriado por variável esquecida | só cria quando não há nenhum | apagar `VV_NOVA_SENHA` |
 | Movimento lateral na rede privada plana; IP forjado na API | `clamav` fixado por digest; só `web` é público | cabeçalho secreto entre Caddy e API; conferir que a borda sobrescreve `X-Real-IP` |
 | Segredos visíveis no painel e no token da CLI | acesso só do dono | MFA na conta |
+| Autocadastro aberto em produção (2026-11-26, decisão do dono): contas por estranhos, CNPJ de terceiro ocupado, e-mail alheio, abuso de recursos | nunca cria SUPERADMIN; RLS por empresa; MFA no primeiro acesso; 20 pedidos/min por IP; senha vazada recusada | CAPTCHA e verificação de e-mail no cadastro; prova de posse do CNPJ (⚖️) |
+| Cadastro aberto: gasto da chave global de IA por estranhos | `worker.VV_ANTHROPIC_API_KEY` vazia | não definir enquanto o cadastro estiver aberto |
+| Cadastro aberto: muitas contas esgotam a fila comum e podem bloquear o acesso ao PNCP | limite por IP e por empresa/usuário | teto global de cadastros/dia e de coletas/hora |
+| Pré-sequestro: alguém cadastra o e-mail de outra pessoa (e a resposta revela e-mail/CNPJ já existentes) | nenhum | verificar o e-mail antes de ativar a conta (exige SMTP) |

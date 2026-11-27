@@ -20,6 +20,9 @@ export default defineRailway(() => {
   const postgres = service("postgres", {
     source: fonte("db"),
     build: docker("Dockerfile"),
+    // Autocadastro aberto (decisão do Adriano, 2026-11-26): 3ª trava, junto de CADASTRO_ABERTO e
+    // VITE_CADASTRO_ABERTO. Para fechar: docs/operacao/railway.md.
+    deploy: { startCommand: "docker-entrypoint.sh postgres -c vv.cadastro=aberto" },
     env: {
       // Subpasta: a raiz do volume tem lost+found e o initdb recusa.
       PGDATA: "/var/lib/postgresql/data/pgdata",
@@ -59,7 +62,7 @@ export default defineRailway(() => {
       CORS_ORIGINS: PUBLICO,
       // A API não tem domínio público: só a rede privada (onde está o Caddy) chega nela.
       TRUST_PROXY: "10.0.0.0/8,100.64.0.0/10,172.16.0.0/12,192.168.0.0/16,fd00::/8",
-      CADASTRO_ABERTO: "false",
+      CADASTRO_ABERTO: "true",
       VV_KEK: preserve(),
       TURNSTILE_SECRET: preserve(),
       S3_ENDPOINT: preserve(),
@@ -118,7 +121,7 @@ export default defineRailway(() => {
       VV_API_UPSTREAM: "api.railway.internal:3000",
       VV_CSP_CONNECT_EXTRA: "${{api.S3_ENDPOINT}}",
       VITE_VV_ENV: "prod",
-      VITE_CADASTRO_ABERTO: "false",
+      VITE_CADASTRO_ABERTO: "true",
       VITE_TURNSTILE_SITEKEY: preserve(),
     },
   });
